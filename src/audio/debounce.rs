@@ -4,6 +4,7 @@ use parking_lot::Mutex;
 use std::thread;
 
 /// Debounced EQ applier — applies only after delay_ms of inactivity
+#[derive(Clone)]
 pub struct DebouncedEQ {
     last_change: Arc<Mutex<Instant>>,
     pending_bands: Arc<Mutex<Option<[f32; 10]>>>,

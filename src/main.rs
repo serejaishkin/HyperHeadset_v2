@@ -35,11 +35,11 @@ fn main() -> anyhow::Result<()> {
 
     // Setup debounced EQ (500ms delay)
     let debounced_eq = Arc::new(DebouncedEQ::new(500));
-    let debounced_eq_worker = debounced_eq.clone();
 
     #[cfg(target_os = "windows")]
     {
         let backend = AudioManager::new();
+        let debounced_eq_worker = (&*debounced_eq).clone();
         debounced_eq_worker.spawn_worker(move |bands| {
             let _ = backend.backend().apply_eq(&bands);
         });
@@ -51,10 +51,10 @@ fn main() -> anyhow::Result<()> {
 
     // Channel for device events -> GUI
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
-    let device_tx_gui = device_tx.clone();
+    let _device_tx_gui = device_tx.clone();
 
     // Tray channel
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (tray_tx, _tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
     // Create tray
     let tray = PlatformTray::new(tray_tx.clone());
@@ -152,7 +152,7 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
-    let mut app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
+    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
         .with_device_receiver(device_rx);
