@@ -8,9 +8,8 @@
 use std::sync::mpsc::Sender;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
-    TrayIconBuilder, TrayIconEvent,
+    TrayIconBuilder,
 };
-use winit::event_loop::EventLoop;
 
 use super::TrayCommand;
 
@@ -47,15 +46,18 @@ impl WindowsTray {
             .unwrap();
 
         // Spawn menu event handler
+        let open_id = open_item.id().clone();
+        let toggle_mute_id = toggle_mute_item.id().clone();
+        let quit_id = quit_item.id().clone();
         let tx_clone = tx.clone();
         std::thread::spawn(move || {
             loop {
                 if let Ok(event) = MenuEvent::receiver().try_recv() {
-                    if event.id == open_item.id() {
+                    if event.id == open_id {
                         let _ = tx_clone.send(TrayCommand::ShowWindow);
-                    } else if event.id == toggle_mute_item.id() {
+                    } else if event.id == toggle_mute_id {
                         let _ = tx_clone.send(TrayCommand::ToggleMute);
-                    } else if event.id == quit_item.id() {
+                    } else if event.id == quit_id {
                         let _ = tx_clone.send(TrayCommand::Quit);
                     }
                 }
@@ -69,10 +71,10 @@ impl WindowsTray {
     pub fn update_battery(&self, percent: u8) {
         let icon = load_battery_icon(percent);
         let _ = self.tray_icon.set_icon(Some(icon));
-        let _ = self.tray_icon.set_tooltip(&format!(
+        let _ = self.tray_icon.set_tooltip(Some(&format!(
             "HyperX Cloud II Wireless\nBattery: {}%",
             percent
-        ));
+        )));
     }
 
     pub fn update_mute(&self, muted: bool) {
@@ -81,7 +83,7 @@ impl WindowsTray {
         } else {
             "HyperX Cloud II Wireless\n🎤 Unmuted"
         };
-        let _ = self.tray_icon.set_tooltip(tooltip);
+        let _ = self.tray_icon.set_tooltip(Some(tooltip));
     }
 }
 
