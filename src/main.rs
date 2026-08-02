@@ -116,10 +116,6 @@ fn main() -> anyhow::Result<()> {
                 GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
             }
 
-            // Update tray
-            tray.update_battery(device.state.battery_percent);
-            tray.update_mute(device.state.muted);
-
             std::thread::sleep(Duration::from_secs(3));
         }
     });
@@ -158,6 +154,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
         .with_tray(tray_tx)
+        .with_tray_backend(tray)
         .with_device_receiver(device_rx);
 
     eframe::run_native(
