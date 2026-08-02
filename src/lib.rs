@@ -2,11 +2,23 @@ pub mod config;
 pub mod gui;
 pub mod discord;
 pub mod audio;
+pub mod bluetooth;
+mod airoha_race;
 pub mod device;
+pub mod devices;
 pub mod input;
 pub mod tray;
 pub mod hotkey;
 pub mod dialog;
+
+#[macro_export]
+macro_rules! debug_println {
+    ($($args:tt)*) => {
+        if *$crate::VERBOSE.get().unwrap_or(&false) {
+            println!($($args)*);
+        }
+    };
+}
 
 #[derive(Debug, Clone)]
 pub enum DeviceEvent {

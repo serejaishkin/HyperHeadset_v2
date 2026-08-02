@@ -1,5 +1,6 @@
 pub mod rpc_ws;
 
+use anyhow::anyhow;
 use discord_rich_presence::{
     activity::{Activity, Assets, Timestamps},
     DiscordIpc, DiscordIpcClient,
@@ -27,8 +28,9 @@ impl DiscordClient {
     }
 
     pub fn connect(&mut self) -> anyhow::Result<()> {
-        let mut client = DiscordIpcClient::new(&self.app_id)?;
-        client.connect()?;
+        let mut client = DiscordIpcClient::new(&self.app_id)
+            .map_err(|e| anyhow!("Discord IPC create failed: {}", e))?;
+        client.connect().map_err(|e| anyhow!("Discord IPC connect failed: {}", e))?;
         self.client = Some(client);
         Ok(())
     }
@@ -90,7 +92,7 @@ pub fn parse_keybind(keybind: &str) -> Vec<enigo::Key> {
             "f22" => enigo::Key::F22,
             "f23" => enigo::Key::F23,
             "f24" => enigo::Key::F24,
-            "mediamute" => enigo::Key::Mute,
+            "mediamute" => enigo::Key::VolumeMute,
             "mediavolup" => enigo::Key::VolumeUp,
             "mediavoldown" => enigo::Key::VolumeDown,
             "mediaplay" => enigo::Key::MediaPlayPause,

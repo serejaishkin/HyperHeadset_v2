@@ -33,22 +33,22 @@ impl GlobalHotkeyCapture {
     }
 
     pub fn start_recording(&self) {
-        *self.recording.lock() = true;
-        *self.result.lock() = None;
-        *self.start_time.lock() = Some(Instant::now());
+        *self.recording.lock().unwrap() = true;
+        *self.result.lock().unwrap() = None;
+        *self.start_time.lock().unwrap() = Some(Instant::now());
     }
 
     pub fn is_recording(&self) -> bool {
-        *self.recording.lock()
+        *self.recording.lock().unwrap()
     }
 
     pub fn poll_result(&self) -> Option<KeyCombo> {
-        self.result.lock().clone()
+        self.result.lock().unwrap().clone()
     }
 
     pub fn cancel(&self) {
-        *self.recording.lock() = false;
-        *self.result.lock() = None;
+        *self.recording.lock().unwrap() = false;
+        *self.result.lock().unwrap() = None;
     }
 }
 

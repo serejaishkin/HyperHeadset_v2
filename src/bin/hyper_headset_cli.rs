@@ -1,7 +1,7 @@
 use std::{process::exit, time::Duration};
 
 use clap::{Arg, ArgAction, Command};
-use hyper_headset::{
+use hyperx_ngenuity_open::{
     devices::{connect_compatible_device, DeviceError, DeviceEvent, DeviceProperties, Headset},
     VERBOSE,
 };
@@ -129,19 +129,7 @@ fn create_command(device: &Result<Headset, DeviceError>) -> Command {
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        use hyper_headset::act_as_askpass_handler;
-        use hyper_headset::prompt_user_for_udev_rule;
-
-        if let Ok(name) = std::env::current_exe() {
-            if let Some(name) = name.to_str() {
-                if let Ok(askpass) = std::env::var("SUDO_ASKPASS") {
-                    if name == askpass {
-                        act_as_askpass_handler();
-                    }
-                }
-            }
-        }
-        prompt_user_for_udev_rule();
+        // Legacy helper functions were removed from the library crate.
     }
 
     let device = Err(DeviceError::NoDeviceFound());
@@ -235,18 +223,18 @@ fn main() {
                 .get_properties()
                 .iter()
                 .filter_map(|property| match property {
-                    hyper_headset::devices::PropertyDescriptorWrapper::Int(
+                    hyperx_ngenuity_open::devices::PropertyDescriptorWrapper::Int(
                         property_descriptor,
                         _items,
                     ) => property_descriptor
                         .data
                         .map(|data| format!("\"{}\": {}", property_descriptor.name, data)),
-                    hyper_headset::devices::PropertyDescriptorWrapper::Bool(
+                    hyperx_ngenuity_open::devices::PropertyDescriptorWrapper::Bool(
                         property_descriptor,
                     ) => property_descriptor
                         .data
                         .map(|data| format!("\"{}\": {}", property_descriptor.name, data)),
-                    hyper_headset::devices::PropertyDescriptorWrapper::String(
+                    hyperx_ngenuity_open::devices::PropertyDescriptorWrapper::String(
                         property_descriptor,
                     ) => property_descriptor
                         .data

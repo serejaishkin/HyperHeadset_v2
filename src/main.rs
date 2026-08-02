@@ -1,5 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+use anyhow::anyhow;
 use eframe::NativeOptions;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -9,28 +10,24 @@ use hyperx_ngenuity_open::{
     config::Config,
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
-    input::GLOBAL_MUTE_HANDLER,
+    input::{self, GLOBAL_MUTE_HANDLER},
     tray::{PlatformTray, TrayCommand},
+    DeviceEvent,
 };
 
-/// Events sent from device thread to GUI
-#[derive(Debug, Clone)]
-pub enum DeviceEvent {
-    StateChanged(DeviceState),
-    Connected,
-    Disconnected,
-    BatteryLow(u8),
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     // Load config
     let config = Config::load().unwrap_or_default();
 
     // Apply config to input handler
-    GLOBAL_MUTE_HANDLER.set_mode(config.input.mute_button_mode);
+    GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
+        hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
+        hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => input::MuteButtonMode::MediaPlayPause,
+        hyperx_ngenuity_open::config::MuteButtonMode::SmartDouble => input::MuteButtonMode::SmartDouble,
+        hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => input::MuteButtonMode::SmartHold,
+    });
 
     // Check EQ backend availability
     let audio_manager = AudioManager::new();
@@ -167,7 +164,8 @@ async fn main() -> anyhow::Result<()> {
         "HyperX NGENUITY Open",
         options,
         Box::new(|_cc| Ok(Box::new(app))),
-    )?;
+    )
+    .map_err(|e| anyhow!("eframe failed to run native app: {}", e))?;
 
     Ok(())
 }

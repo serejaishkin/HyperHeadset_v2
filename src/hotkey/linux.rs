@@ -146,8 +146,8 @@ pub fn spawn_capture_thread(capture: Arc<GlobalHotkeyCapture>) {
                                                 keys: names,
                                                 display: display.clone(),
                                             };
-                                            *capture.result.lock() = Some(combo);
-                                            *capture.recording.lock() = false;
+                                            *capture.result.lock().unwrap() = Some(combo);
+                                            *capture.recording.lock().unwrap() = false;
                                         }
                                     }
                                 }
