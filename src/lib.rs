@@ -2,7 +2,9 @@ pub mod config;
 pub mod gui;
 pub mod discord;
 pub mod audio;
+#[cfg(target_os = "linux")]
 pub mod bluetooth;
+#[cfg(target_os = "linux")]
 mod airoha_race;
 pub mod device;
 pub mod devices;
