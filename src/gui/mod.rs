@@ -16,6 +16,7 @@ pub struct HyperXApp {
     pub needs_save: bool,
     pub apo_available: bool,
     pub tray_tx: Option<std::sync::mpsc::Sender<crate::tray::TrayCommand>>,
+    pub tray: Option<crate::tray::PlatformTray>,
     pub debounced_eq: Arc<DebouncedEQ>,
     pub recording_keybind: bool,
     pub device_rx: Option<std::sync::mpsc::Receiver<crate::DeviceEvent>>,
@@ -47,6 +48,7 @@ impl HyperXApp {
             needs_save: false,
             apo_available,
             tray_tx: None,
+            tray: None,
             debounced_eq,
             recording_keybind: false,
             device_rx: None,
@@ -56,6 +58,11 @@ impl HyperXApp {
 
     pub fn with_tray(mut self, tx: std::sync::mpsc::Sender<crate::tray::TrayCommand>) -> Self {
         self.tray_tx = Some(tx);
+        self
+    }
+
+    pub fn with_tray_backend(mut self, tray: crate::tray::PlatformTray) -> Self {
+        self.tray = Some(tray);
         self
     }
 
@@ -81,7 +88,11 @@ impl eframe::App for HyperXApp {
             while let Ok(event) = rx.try_recv() {
                 match event {
                     crate::DeviceEvent::StateChanged(state) => {
-                        self.device_state = state;
+                        self.device_state = state.clone();
+                        if let Some(tray) = &self.tray {
+                            tray.update_battery(state.battery_percent);
+                            tray.update_mute(state.muted);
+                        }
                     }
                     crate::DeviceEvent::Connected => {
                         self.device_state.connected = true;
