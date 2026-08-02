@@ -1,267 +1,173 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-#[cfg(target_os = "linux")]
-mod status_tray;
+use eframe::NativeOptions;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-#[cfg(not(target_os = "linux"))]
-mod status_tray_not_linux;
+use hyperx_ngenuity_open::{
+    audio::{AudioManager, DebouncedEQ},
+    config::Config,
+    device::{DeviceState, HyperXDevice},
+    gui::HyperXApp,
+    input::GLOBAL_MUTE_HANDLER,
+    tray::{PlatformTray, TrayCommand},
+};
 
-#[cfg(not(target_os = "macos"))]
-mod tray_battery_icon_state;
+/// Events sent from device thread to GUI
+#[derive(Debug, Clone)]
+pub enum DeviceEvent {
+    StateChanged(DeviceState),
+    Connected,
+    Disconnected,
+    BatteryLow(u8),
+}
 
-#[cfg(not(target_os = "linux"))]
-fn main() {
-    use clap::ArgAction;
-    use std::sync::mpsc;
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    env_logger::init();
 
-    use hyper_headset::devices::{DeviceEvent, DeviceProperties};
-    use hyper_headset::VERBOSE;
-    use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+    // Load config
+    let config = Config::load().unwrap_or_default();
 
-    use crate::status_tray_not_linux::TrayApp;
+    // Apply config to input handler
+    GLOBAL_MUTE_HANDLER.set_mode(config.input.mute_button_mode);
 
-    let event_loop: EventLoop<Option<DeviceProperties>> =
-        EventLoop::with_user_event().build().unwrap();
-    let proxy: EventLoopProxy<Option<DeviceProperties>> = event_loop.create_proxy();
-    event_loop.set_control_flow(ControlFlow::Wait);
+    // Check EQ backend availability
+    let audio_manager = AudioManager::new();
+    let apo_available = audio_manager.backend().is_available();
 
-    let (tx, rx) = mpsc::channel::<DeviceEvent>();
+    // Setup debounced EQ (500ms delay)
+    let debounced_eq = Arc::new(DebouncedEQ::new(500));
+    let debounced_eq_worker = debounced_eq.clone();
 
+    #[cfg(target_os = "windows")]
+    {
+        let backend = AudioManager::new();
+        debounced_eq_worker.spawn_worker(move |bands| {
+            let _ = backend.backend().apply_eq(&bands);
+        });
+    }
+
+    // Shared device state
+    let device_state = Arc::new(Mutex::new(DeviceState::default()));
+    let device_state_clone = device_state.clone();
+
+    // Channel for device events -> GUI
+    let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
+    let device_tx_gui = device_tx.clone();
+
+    // Tray channel
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+
+    // Create tray
+    let tray = PlatformTray::new(tray_tx.clone());
+
+    // Device communication thread with reconnect handling
     std::thread::spawn(move || {
-        use std::time::Duration;
-
-        use clap::{Arg, Command};
-        use enigo::{Direction, Enigo, Key, Keyboard, Settings};
-
-        use hyper_headset::devices::connect_compatible_device;
-
-        let matches = Command::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .disable_version_flag(false)
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about("A tray application for monitoring HyperX headsets.")
-        .arg(
-            Arg::new("refresh_interval")
-                .long("refresh_interval")
-                .required(false)
-                .help("Set the refresh interval (in seconds)")
-                .default_value("3")
-                .value_parser(clap::value_parser!(u64)),
-        )
-        .arg(
-            Arg::new("press_mute_key")
-                .long("press_mute_key")
-                .required(false)
-                .help("The app will simulate pressing the microphone mute key whoever the headsets is muted or unmuted.")
-                .default_value("true")
-                .value_parser(clap::value_parser!(bool)),
-        )
-        .arg(Arg::new("verbose")
-            .long("verbose")
-            .short('v')
-            .action(ArgAction::SetTrue)
-            .required(false)
-            .help("Use verbose output ")
-        )
-        .get_matches();
-
-        VERBOSE.set(matches.get_flag("verbose")).unwrap();
-
-        let press_mute_key = *matches.get_one::<bool>("press_mute_key").unwrap_or(&true);
-        let mut enigo = if press_mute_key {
-            match Enigo::new(&Settings::default()) {
-                Ok(enigo) => Some(enigo),
-                Err(e) => {
-                    eprintln!("Virtual mute key failed to initialize: {e}");
-                    None
-                }
-            }
-        } else {
-            None
-        };
-        let refresh_interval = *matches.get_one::<u64>("refresh_interval").unwrap_or(&3);
-        let refresh_interval = Duration::from_secs(refresh_interval);
+        let mut device = HyperXDevice::new();
+        let mut last_mute: Option<bool> = None;
+        let mut was_connected = false;
 
         loop {
-            let mut device = loop {
-                match connect_compatible_device() {
-                    Ok(d) => break d,
+            // Connection loop
+            if !device.state.connected {
+                if was_connected {
+                    log::warn!("[Device] Headset disconnected");
+                    let _ = device_tx.send(DeviceEvent::Disconnected);
+                    was_connected = false;
+                }
+
+                match device.connect() {
+                    Ok(_) => {
+                        log::info!("[Device] Headset connected");
+                        let _ = device_tx.send(DeviceEvent::Connected);
+                        was_connected = true;
+                    }
                     Err(e) => {
-                        let _ = proxy.send_event(None);
-                        eprintln!("Connecting failed with error: {e}")
+                        log::debug!("Connection failed: {}", e);
+                        std::thread::sleep(Duration::from_secs(3));
+                        continue;
                     }
                 }
-                std::thread::sleep(Duration::from_secs(1));
-            };
-
-            // Run loop
-            let mut run_counter = 0;
-            loop {
-                let mute_state = device.device_properties().muted;
-                match if run_counter % 30 == 0 {
-                    device.active_refresh_state()
-                } else {
-                    device.passive_refresh_state()
-                } {
-                    Ok(()) => (),
-                    Err(error) => {
-                        eprintln!("{error}");
-                        let _ = proxy.send_event(Some(device.device_properties()));
-                        break; // try to reconnect
-                    }
-                };
-                if mute_state.is_some() && mute_state != device.device_properties().muted {
-                    if let Some(enigo) = &mut enigo {
-                        if let Err(e) = enigo.key(Key::F20, Direction::Click) {
-                            eprintln!("Failed to press key on mute: {e}");
-                        }
-                    }
-                }
-
-                // with the default refresh_interval the state is only actively queried every 3min
-                // querying the device to frequently can lead to instability
-                let first = rx.recv_timeout(refresh_interval);
-                for command in first.into_iter().chain(rx.try_iter()) {
-                    let _ = device.try_apply(command);
-                    std::thread::sleep(hyper_headset::devices::RESPONSE_DELAY);
-                    let _ = device.active_refresh_state();
-                }
-
-                let _ = proxy.send_event(Some(device.device_properties()));
-                run_counter += 1;
             }
+
+            // Refresh loop
+            if let Err(e) = device.refresh_state() {
+                log::warn!("Refresh failed: {}", e);
+                device.state.connected = false;
+                std::thread::sleep(Duration::from_secs(1));
+                continue;
+            }
+
+            // Update shared state
+            {
+                let mut state = device_state_clone.lock().unwrap();
+                *state = device.state.clone();
+            }
+
+            // Send state update to GUI
+            let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+
+            // Battery low warning
+            if device.state.battery_percent <= 15 && device.state.battery_percent > 0 {
+                let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
+            }
+
+            // Handle mute change -> Input handler -> Discord sync
+            if last_mute != Some(device.state.muted) {
+                last_mute = Some(device.state.muted);
+                GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
+            }
+
+            // Update tray
+            tray.update_battery(device.state.battery_percent);
+            tray.update_mute(device.state.muted);
+
+            std::thread::sleep(Duration::from_secs(3));
         }
     });
 
-    event_loop.run_app(&mut TrayApp::new(tx)).unwrap();
-}
-
-#[cfg(target_os = "linux")]
-fn main() {
-    use clap::ArgAction;
-    use clap::{Arg, Command};
-    use enigo::{Direction, Enigo, Key, Keyboard, Settings};
-    use std::sync::mpsc;
-    use std::time::Duration;
-
-    use hyper_headset::devices::connect_compatible_device;
-    use status_tray::{StatusTray, TrayHandler};
-
-    use hyper_headset::prompt_user_for_udev_rule;
-    use hyper_headset::{act_as_askpass_handler, VERBOSE};
-
-    if let Ok(name) = std::env::current_exe() {
-        if let Some(name) = name.to_str() {
-            if let Ok(askpass) = std::env::var("SUDO_ASKPASS") {
-                if name == askpass {
-                    act_as_askpass_handler();
-                }
+    // Discord WebSocket RPC thread (for bidirectional sync)
+    let discord_app_id = config.discord.direct.app_id.clone();
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let mut discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
+            if let Err(e) = discord_ws.connect().await {
+                log::warn!("Discord RPC WebSocket failed: {}", e);
             }
-        }
+        });
+    });
+
+    // Global hotkey capture thread (Windows only)
+    #[cfg(target_os = "windows")]
+    {
+        let hotkey_capture = Arc::new(hyperx_ngenuity_open::hotkey::GlobalHotkeyCapture::new());
+        hyperx_ngenuity_open::hotkey::windows::spawn_capture_thread(hotkey_capture);
     }
-    prompt_user_for_udev_rule();
-    let matches = Command::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .disable_version_flag(false)
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about("A tray application for monitoring HyperX headsets.")
-        .arg(
-            Arg::new("refresh_interval")
-                .long("refresh_interval")
-                .required(false)
-                .help("Set the refresh interval (in seconds)")
-                .default_value("3")
-                .value_parser(clap::value_parser!(u64)),
-        )
-        .arg(
-            Arg::new("press_mute_key")
-                .long("press_mute_key")
-                .required(false)
-                .help("The app will simulate pressing the microphone mute key whoever the headsets is muted or unmuted.")
-                .default_value("true")
-                .value_parser(clap::value_parser!(bool)),
-        )
-        .arg(Arg::new("verbose")
-            .long("verbose")
-            .short('v')
-            .action(ArgAction::SetTrue)
-            .required(false)
-            .help("Use verbose output ")
-        )
-        .arg(Arg::new("monochrome_icons")
-            .long("monochrome-icons")
-            .action(ArgAction::SetTrue)
-            .required(false)
-            .help("Use the symbolic (monochrome) variants of the system tray icons")
-        )
-        .get_matches();
 
-    let press_mute_key = *matches.get_one::<bool>("press_mute_key").unwrap_or(&true);
-    let mut enigo = if press_mute_key {
-        match Enigo::new(&Settings::default()) {
-            Ok(enigo) => Some(enigo),
-            Err(e) => {
-                eprintln!("Virtual mute key failed to initialize: {e}");
-                None
-            }
-        }
-    } else {
-        None
+    // GUI with device event handling
+    let options = NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([900.0, 600.0])
+            .with_min_inner_size([600.0, 400.0]),
+        ..Default::default()
     };
-    VERBOSE.set(matches.get_flag("verbose")).unwrap();
-    let monochrome_icons = matches.get_flag("monochrome_icons");
 
-    let refresh_interval = *matches.get_one::<u64>("refresh_interval").unwrap_or(&3);
-    let refresh_interval = Duration::from_secs(refresh_interval);
-    let (tx, rx) = mpsc::channel();
-    let tray_handler = TrayHandler::new(StatusTray::new(tx, monochrome_icons));
-    loop {
-        let mut device = loop {
-            match connect_compatible_device() {
-                Ok(d) => break d,
-                Err(e) => {
-                    tray_handler.clear_state();
-                    eprintln!("Connecting failed with error: {e}");
-                }
-            }
-            std::thread::sleep(Duration::from_secs(1));
-        };
+    let initial_state = {
+        let state = device_state.lock().unwrap();
+        state.clone()
+    };
 
-        // Run loop
-        let mut run_counter = 0;
-        loop {
-            let mute_state = device.device_properties().muted;
-            match if run_counter % 30 == 0 {
-                device.active_refresh_state()
-            } else {
-                device.passive_refresh_state()
-            } {
-                Ok(()) => (),
-                Err(error) => {
-                    eprintln!("{error}");
-                    tray_handler.update(&device.device_properties());
-                    break; // try to reconnect
-                }
-            };
-            if mute_state.is_some() && mute_state != device.device_properties().muted {
-                if let Some(enigo) = &mut enigo {
-                    if let Err(e) = enigo.key(Key::MicMute, Direction::Click) {
-                        eprintln!("Failed to press key on mute: {e}");
-                    }
-                }
-            }
+    let mut app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
+        .with_tray(tray_tx)
+        .with_device_receiver(device_rx);
 
-            // with the default refresh_interval the state is only actively queried every 3min
-            // querying the device to frequently can lead to instability
-            let first = rx.recv_timeout(refresh_interval);
-            for command in first.into_iter().chain(rx.try_iter()) {
-                let _ = device.try_apply(command);
-                std::thread::sleep(hyper_headset::devices::RESPONSE_DELAY);
-                let _ = device.active_refresh_state();
-            }
+    eframe::run_native(
+        "HyperX NGENUITY Open",
+        options,
+        Box::new(|_cc| Ok(Box::new(app))),
+    )?;
 
-            tray_handler.update(&device.device_properties());
-            run_counter += 1;
-        }
-    }
+    Ok(())
 }

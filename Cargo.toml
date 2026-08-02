@@ -1,30 +1,57 @@
 [package]
-name = "hyper_headset"
-version = "1.9.1"
+name = "hyperx-ngenuity-open"
+version = "0.1.0"
 edition = "2021"
-authors = ["Lennard Kittner"]
-description = "A CLI and tray application for monitoring and managing HyperX headsets."
+authors = ["Your Name"]
+description = "Open-source cross-platform HyperX headset manager with EQ and Discord integration"
 
 [dependencies]
-clap = { version = "4.5.32", features = ["derive"] }
-enigo = "0.6.1"
-hidapi = { path = "vendor/hidapi" }
-thistermination = "1.0.0"
-[target.'cfg(target_os = "linux")'.dependencies]
-dialog = "0.3.0"
-ksni = "0.2.0"
-shell-escape = "0.1.5"
-dbus = "0.9"
-freedesktop-icons = "0.4.0"
-linicon = "2.3.0"
+# Async runtime
+tokio = { version = "1.40", features = ["rt-multi-thread", "sync", "time", "net"] }
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+# Error handling
+anyhow = "1.0"
+parking_lot = "0.12"
+# Logging
+log = "0.4"
+env_logger = "0.11"
+# Utils
+lazy_static = "1.5"
+dirs = "5.0"
 
+# HID (from HyperHeadset)
+hidapi = "2.6"
+enigo = "0.6"
+
+# GUI
+egui = "0.29"
+eframe = { version = "0.29", features = ["default"] }
+
+# Discord
+discord-rich-presence = "0.2"
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+
+# HTTP (eqMac, Discord)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Tray (non-Linux)
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-tray-icon = "0.21.3"
-winit = "0.30.13"
+tray-icon = "0.19"
+winit = "0.30"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-image = "0.25.10"
-winreg = "0.56.0"
-windows = { version = "0.62.2", features = [
+winreg = "0.56"
+windows = { version = "0.58", features = [
     "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Input_KeyboardAndMouse",
 ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = "0.2"
+dbus = "0.9"
