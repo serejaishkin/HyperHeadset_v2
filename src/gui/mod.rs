@@ -155,7 +155,7 @@ impl eframe::App for HyperXApp {
             if let Some(tx) = &self.tray_tx {
                 let _ = tx.send(crate::tray::TrayCommand::ShowWindow);
             }
-            frame.set_visible(false);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
     }
 }
@@ -243,7 +243,12 @@ impl HyperXApp {
             });
         });
 
-        GLOBAL_MUTE_HANDLER.set_mode(self.config.input.mute_button_mode);
+        GLOBAL_MUTE_HANDLER.set_mode(match self.config.input.mute_button_mode {
+            MuteButtonMode::Standard => crate::input::MuteButtonMode::Standard,
+            MuteButtonMode::MediaPlayPause => crate::input::MuteButtonMode::MediaPlayPause,
+            MuteButtonMode::SmartDouble => crate::input::MuteButtonMode::SmartDouble,
+            MuteButtonMode::SmartHold => crate::input::MuteButtonMode::SmartHold,
+        });
 
         ui.separator();
 

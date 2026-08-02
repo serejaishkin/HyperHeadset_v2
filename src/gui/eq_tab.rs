@@ -39,22 +39,28 @@ pub fn show(ui: &mut egui::Ui, bands: &mut [f32; 10], needs_save: &mut bool, apo
 
     ui.separator();
 
+    let mut eq_changed = false;
+
     egui::Grid::new("eq_grid")
         .num_columns(2)
         .spacing([20.0, 10.0])
         .show(ui, |ui| {
-            for (i, (freq, band)) in BAND_FREQS.iter().zip(bands.iter_mut()).enumerate() {
+            for (freq, band) in BAND_FREQS.iter().zip(bands.iter_mut()) {
                 ui.label(*freq);
                 let slider = egui::Slider::new(band, -12.0..=12.0)
                     .show_value(true)
                     .suffix(" dB");
                 if ui.add(slider).changed() {
                     *needs_save = true;
-                    debounced_eq.schedule(*bands);
+                    eq_changed = true;
                 }
                 ui.end_row();
             }
         });
+
+    if eq_changed {
+        debounced_eq.schedule(*bands);
+    }
 
     ui.separator();
 

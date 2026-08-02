@@ -20,7 +20,7 @@ pub fn show(
         ui.selectable_value(&mut config.mode, DiscordMode::Direct, "🔌 Прямая (RPC)");
     });
 
-    if ui.memory(|mem| mem.data_temp::<DiscordMode>(egui::Id::new("discord_mode_prev"))) != Some(config.mode) {
+    if ui.data(|data| data.get_temp::<DiscordMode>(egui::Id::new("discord_mode_prev"))) != Some(config.mode) {
         *needs_save = true;
     }
 

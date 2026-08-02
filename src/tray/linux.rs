@@ -82,37 +82,37 @@ impl ksni::Tray for HyperXTray {
         let tx_quit = self.tx.clone();
 
         vec![
-            ksni::MenuItem::Standard {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Open".to_string(),
-                icon_name: Some("window-new".to_string()),
-                activated: Some(Box::new(move |_| {
+                icon_name: "window-new".to_string(),
+                activate: Box::new(move |_| {
                     let _ = tx_open.send(TrayCommand::ShowWindow);
-                })),
+                }),
                 ..Default::default()
-            },
-            ksni::MenuItem::Standard {
+            }),
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Toggle Mute".to_string(),
-                icon_name: Some("audio-input-microphone".to_string()),
-                activated: Some(Box::new(move |_| {
+                icon_name: "audio-input-microphone".to_string(),
+                activate: Box::new(move |_| {
                     let _ = tx_mute.send(TrayCommand::ToggleMute);
-                })),
+                }),
                 ..Default::default()
-            },
+            }),
             ksni::MenuItem::Separator,
-            ksni::MenuItem::Standard {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: format!("Battery: {}%", *self.battery.lock().unwrap()),
                 enabled: false,
                 ..Default::default()
-            },
+            }),
             ksni::MenuItem::Separator,
-            ksni::MenuItem::Standard {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Quit".to_string(),
-                icon_name: Some("application-exit".to_string()),
-                activated: Some(Box::new(move |_| {
+                icon_name: "application-exit".to_string(),
+                activate: Box::new(move |_| {
                     let _ = tx_quit.send(TrayCommand::Quit);
-                })),
+                }),
                 ..Default::default()
-            },
+            }),
         ]
     }
 }
