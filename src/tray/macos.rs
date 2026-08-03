@@ -1,11 +1,7 @@
 //! macOS system tray using tray-icon crate
-//!
-//! Features:
-//! - Battery level in tooltip
-//! - Mute status
-//! - Menu: Open / Toggle Mute / Battery / Quit
 
 use std::sync::mpsc::Sender;
+use std::sync::Mutex;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     TrayIconBuilder,
@@ -16,26 +12,28 @@ use super::TrayCommand;
 pub struct MacOSTray {
     tray_icon: tray_icon::TrayIcon,
     _menu: Menu,
+    current_percent: Mutex<u8>,
+    current_muted: Mutex<bool>,
 }
 
 impl MacOSTray {
     pub fn new(tx: Sender<TrayCommand>) -> Self {
         let menu = Menu::new();
 
-        let open_item = MenuItem::new("Open", true, None);
-        let toggle_mute_item = MenuItem::new("Toggle Mute", true, None);
-        let battery_item = MenuItem::new("Battery: --%", false, None);
-        let sep = PredefinedMenuItem::separator();
-        let quit_item = MenuItem::new("Quit", true, None);
+        let open_item = MenuItem::new("Открыть", true, None);
+        let toggle_mute_item = MenuItem::new("Переключить мьют", true, None);
+        let battery_item = MenuItem::new("Батарея: --%", false, None);
+        let sep1 = PredefinedMenuItem::separator();
+        let sep2 = PredefinedMenuItem::separator();
+        let quit_item = MenuItem::new("Выход", true, None);
 
         menu.append(&open_item).unwrap();
         menu.append(&toggle_mute_item).unwrap();
-        menu.append(&sep).unwrap();
+        menu.append(&sep1).unwrap();
         menu.append(&battery_item).unwrap();
-        menu.append(&sep).unwrap();
+        menu.append(&sep2).unwrap();
         menu.append(&quit_item).unwrap();
 
-        // macOS tray icon (use template icon for dark mode support)
         let icon = load_template_icon();
 
         let tray_icon = TrayIconBuilder::new()
@@ -46,16 +44,19 @@ impl MacOSTray {
             .build()
             .unwrap();
 
-        // Menu event handler
+        let open_id = open_item.id().clone();
+        let toggle_mute_id = toggle_mute_item.id().clone();
+        let quit_id = quit_item.id().clone();
         let tx_clone = tx.clone();
+
         std::thread::spawn(move || {
             loop {
                 if let Ok(event) = MenuEvent::receiver().try_recv() {
-                    if event.id == open_item.id() {
+                    if event.id == open_id {
                         let _ = tx_clone.send(TrayCommand::ShowWindow);
-                    } else if event.id == toggle_mute_item.id() {
+                    } else if event.id == toggle_mute_id {
                         let _ = tx_clone.send(TrayCommand::ToggleMute);
-                    } else if event.id == quit_item.id() {
+                    } else if event.id == quit_id {
                         let _ = tx_clone.send(TrayCommand::Quit);
                     }
                 }
@@ -63,36 +64,46 @@ impl MacOSTray {
             }
         });
 
-        Self { tray_icon, _menu: menu }
+        Self {
+            tray_icon,
+            _menu: menu,
+            current_percent: Mutex::new(100),
+            current_muted: Mutex::new(false),
+        }
     }
 
     pub fn update_battery(&self, percent: u8) {
-        let _ = self.tray_icon.set_tooltip(&format!(
-            "HyperX Cloud II Wireless\nBattery: {}%",
-            percent
-        ));
+        *self.current_percent.lock().unwrap() = percent;
+        let muted = *self.current_muted.lock().unwrap();
+        let _ = self.tray_icon.set_tooltip(Some(&build_tooltip(percent, muted)));
     }
 
     pub fn update_mute(&self, muted: bool) {
-        let tooltip = if muted {
-            "HyperX Cloud II Wireless\n🔇 Muted"
-        } else {
-            "HyperX Cloud II Wireless\n🎤 Unmuted"
-        };
-        let _ = self.tray_icon.set_tooltip(tooltip);
+        *self.current_muted.lock().unwrap() = muted;
+        let percent = *self.current_percent.lock().unwrap();
+        let _ = self.tray_icon.set_tooltip(Some(&build_tooltip(percent, muted)));
     }
 }
 
+fn build_tooltip(percent: u8, muted: bool) -> String {
+    let mic = if muted {
+        "🔇 Выключен"
+    } else {
+        "🎙️ Включён"
+    };
+    format!(
+        "HyperX Cloud II Wireless\n🔋 Батарея: {}%\n🎤 Микрофон: {}",
+        percent, mic
+    )
+}
+
 fn load_template_icon() -> tray_icon::Icon {
-    // 16x16 template icon for macOS
     let size = 16;
     let mut rgba = vec![0u8; size * size * 4];
 
-    // Simple headset shape (white for template)
     for y in 0..size {
         for x in 0..size {
             let idx = (y * size + x) * 4;
-            // Draw simple icon
             let cx = size as f32 / 2.0;
             let cy = size as f32 / 2.0;
             let dx = (x as f32 - cx).abs();

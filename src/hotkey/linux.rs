@@ -1,163 +1,110 @@
-//! Linux global hotkey capture using evdev
-//!
-//! Reads from /dev/input/event* devices to capture key presses
-//! Requires root or udev rules for input group access.
-
-use std::sync::{Arc, Mutex};
+use super::{GlobalHotkeyCapture, KeyCombo};
+use std::collections::HashSet;
+use std::fs;
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::fs;
-use std::path::Path;
-
-use super::{GlobalHotkeyCapture, KeyCombo};
-
-// Key codes from linux/input-event-codes.h
-const KEY_F13: u16 = 183;
-const KEY_F14: u16 = 184;
-const KEY_F15: u16 = 185;
-const KEY_F16: u16 = 186;
-const KEY_F17: u16 = 187;
-const KEY_F18: u16 = 188;
-const KEY_F19: u16 = 189;
-const KEY_F20: u16 = 190;
-const KEY_F21: u16 = 191;
-const KEY_F22: u16 = 192;
-const KEY_F23: u16 = 193;
-const KEY_F24: u16 = 194;
-const KEY_LEFTCTRL: u16 = 29;
-const KEY_LEFTSHIFT: u16 = 42;
-const KEY_LEFTALT: u16 = 56;
-const KEY_RIGHTCTRL: u16 = 97;
-const KEY_RIGHTSHIFT: u16 = 54;
-const KEY_RIGHTALT: u16 = 100;
-const KEY_MUTE: u16 = 113;
-const KEY_VOLUMEDOWN: u16 = 114;
-const KEY_VOLUMEUP: u16 = 115;
-const KEY_NEXTSONG: u16 = 163;
-const KEY_PLAYPAUSE: u16 = 164;
-const KEY_PREVIOUSSONG: u16 = 165;
 
 const EV_KEY: u16 = 1;
-const EV_SYN: u16 = 0;
 const KEY_PRESS: i32 = 1;
 const KEY_RELEASE: i32 = 0;
 
-#[repr(C)]
-struct InputEvent {
-    time_sec: i64,
-    time_usec: i64,
-    type_: u16,
-    code: u16,
-    value: i32,
-}
-
 fn code_to_name(code: u16) -> Option<String> {
     match code {
-        KEY_F13 => Some("F13".to_string()),
-        KEY_F14 => Some("F14".to_string()),
-        KEY_F15 => Some("F15".to_string()),
-        KEY_F16 => Some("F16".to_string()),
-        KEY_F17 => Some("F17".to_string()),
-        KEY_F18 => Some("F18".to_string()),
-        KEY_F19 => Some("F19".to_string()),
-        KEY_F20 => Some("F20".to_string()),
-        KEY_F21 => Some("F21".to_string()),
-        KEY_F22 => Some("F22".to_string()),
-        KEY_F23 => Some("F23".to_string()),
-        KEY_F24 => Some("F24".to_string()),
-        KEY_LEFTCTRL | KEY_RIGHTCTRL => Some("Ctrl".to_string()),
-        KEY_LEFTSHIFT | KEY_RIGHTSHIFT => Some("Shift".to_string()),
-        KEY_LEFTALT | KEY_RIGHTALT => Some("Alt".to_string()),
-        KEY_MUTE => Some("MediaMute".to_string()),
-        KEY_VOLUMEDOWN => Some("MediaVolumeDown".to_string()),
-        KEY_VOLUMEUP => Some("MediaVolumeUp".to_string()),
-        KEY_NEXTSONG => Some("MediaNextTrack".to_string()),
-        KEY_PLAYPAUSE => Some("MediaPlayPause".to_string()),
-        KEY_PREVIOUSSONG => Some("MediaPrevTrack".to_string()),
+        29 => Some("LCtrl".into()), 42 => Some("LShift".into()), 56 => Some("LAlt".into()),
+        125 => Some("LWin".into()), 97 => Some("RCtrl".into()), 54 => Some("RShift".into()),
+        100 => Some("RAlt".into()), 126 => Some("RWin".into()),
+        113 => Some("MediaVolumeMute".into()), 114 => Some("MediaVolumeDown".into()),
+        115 => Some("MediaVolumeUp".into()), 163 => Some("MediaNextTrack".into()),
+        164 => Some("MediaPlayPause".into()), 165 => Some("MediaPrevTrack".into()),
+        82 => Some("Numpad0".into()), 79 => Some("Numpad1".into()), 80 => Some("Numpad2".into()),
+        81 => Some("Numpad3".into()), 75 => Some("Numpad4".into()), 76 => Some("Numpad5".into()),
+        77 => Some("Numpad6".into()), 71 => Some("Numpad7".into()), 72 => Some("Numpad8".into()),
+        73 => Some("Numpad9".into()), 98 => Some("NumpadDivide".into()),
+        55 => Some("NumpadMultiply".into()), 74 => Some("NumpadSubtract".into()),
+        78 => Some("NumpadAdd".into()), 83 => Some("NumpadDecimal".into()),
+        _ => {}
+    }
+    if (183..=194).contains(&code) { return Some(format!("F{}", code - 183 + 13)); }
+    if (2..=10).contains(&code) { return Some(((code - 2 + b'1') as char).to_string()); }
+    if code == 11 { return Some("0".into()); }
+    match code {
+        16 => Some("Q".into()), 17 => Some("W".into()), 18 => Some("E".into()),
+        19 => Some("R".into()), 20 => Some("T".into()), 21 => Some("Y".into()),
+        22 => Some("U".into()), 23 => Some("I".into()), 24 => Some("O".into()),
+        25 => Some("P".into()), 30 => Some("A".into()), 31 => Some("S".into()),
+        32 => Some("D".into()), 33 => Some("F".into()), 34 => Some("G".into()),
+        35 => Some("H".into()), 36 => Some("J".into()), 37 => Some("K".into()),
+        38 => Some("L".into()), 44 => Some("Z".into()), 45 => Some("X".into()),
+        46 => Some("C".into()), 47 => Some("V".into()), 48 => Some("B".into()),
+        49 => Some("N".into()), 50 => Some("M".into()),
         _ => None,
     }
 }
 
 pub fn spawn_capture_thread(capture: Arc<GlobalHotkeyCapture>) {
     thread::spawn(move || {
-        // Find keyboard devices
         let input_dir = Path::new("/dev/input");
-        let mut devices = Vec::new();
-
+        let mut files = Vec::new();
         if let Ok(entries) = fs::read_dir(input_dir) {
             for entry in entries.flatten() {
-                let name = entry.file_name();
-                let name_str = name.to_string_lossy();
-                if name_str.starts_with("event") {
-                    let path = entry.path();
-                    // Try to open and check if it's a keyboard
-                    if let Ok(file) = fs::OpenOptions::new().read(true).open(&path) {
-                        devices.push((file, path));
+                if entry.file_name().to_string_lossy().starts_with("event") {
+                    if let Ok(f) = fs::OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK).open(entry.path()) {
+                        files.push(f);
                     }
                 }
             }
         }
-
-        if devices.is_empty() {
-            log::warn!("[LinuxHotkey] No input devices found. Try running with sudo or adding udev rules.");
+        if files.is_empty() {
+            log::warn!("[LinuxHotkey] No input devices. Run with sudo or add udev rules.");
             return;
         }
+        log::info!("[LinuxHotkey] Monitoring {} input devices", files.len());
 
-        log::info!("[LinuxHotkey] Monitoring {} input devices", devices.len());
-
-        let mut pressed_keys: Vec<u16> = Vec::new();
-        let mut last_event_time = std::time::Instant::now();
+        let mut currently_pressed: HashSet<u16> = HashSet::new();
+        let mut captured_keys: Option<Vec<String>> = None;
+        let mut last_press = std::time::Instant::now();
 
         loop {
             if !capture.is_recording() {
-                thread::sleep(Duration::from_millis(50));
-                continue;
+                currently_pressed.clear(); captured_keys = None;
+                thread::sleep(Duration::from_millis(50)); continue;
             }
-
-            for (file, _path) in &mut devices {
+            let mut any_event = false;
+            for file in &mut files {
                 use std::io::Read;
-                let mut buf = [0u8; std::mem::size_of::<InputEvent>()];
-
-                if let Ok(n) = file.read(&mut buf) {
-                    if n == buf.len() {
-                        let event: InputEvent = unsafe { std::ptr::read(buf.as_ptr() as *const _) };
-
-                        if event.type_ == EV_KEY {
-                            if event.value == KEY_PRESS {
-                                if !pressed_keys.contains(&event.code) {
-                                    pressed_keys.push(event.code);
-                                    last_event_time = std::time::Instant::now();
-                                }
-                            } else if event.value == KEY_RELEASE {
-                                pressed_keys.retain(|&k| k != event.code);
-
-                                // If all keys released and we had a combo
-                                if pressed_keys.is_empty() {
-                                    let elapsed = last_event_time.elapsed();
-                                    if elapsed < Duration::from_millis(2000) {
-                                        let names: Vec<String> = pressed_keys
-                                            .iter()
-                                            .filter_map(|&c| code_to_name(c))
-                                            .collect();
-
-                                        if !names.is_empty() {
-                                            let display = names.join("+");
-                                            let combo = KeyCombo {
-                                                keys: names,
-                                                display: display.clone(),
-                                            };
-                                            *capture.result.lock().unwrap() = Some(combo);
-                                            *capture.recording.lock().unwrap() = false;
-                                        }
-                                    }
-                                }
+                let mut buf = [0u8; 24];
+                loop {
+                    match file.read(&mut buf) {
+                        Ok(24) => {
+                            any_event = true;
+                            let type_ = u16::from_ne_bytes([buf[16], buf[17]]);
+                            let code = u16::from_ne_bytes([buf[18], buf[19]]);
+                            let value = i32::from_ne_bytes([buf[20], buf[21], buf[22], buf[23]]);
+                            if type_ == EV_KEY {
+                                if value == KEY_PRESS { currently_pressed.insert(code); last_press = std::time::Instant::now(); }
+                                else if value == KEY_RELEASE { currently_pressed.remove(&code); }
                             }
                         }
+                        Ok(_) | Err(_) => break,
                     }
                 }
             }
-
-            thread::sleep(Duration::from_millis(5));
+            if !currently_pressed.is_empty() {
+                let mut names: Vec<String> = currently_pressed.iter().filter_map(|&c| code_to_name(c)).collect();
+                names.sort(); names.dedup();
+                if !names.is_empty() { captured_keys = Some(names); }
+            } else if let Some(keys) = captured_keys.take() {
+                if !keys.is_empty() && last_press.elapsed() > Duration::from_millis(50) {
+                    let display = keys.join("+");
+                    log::info!("[LinuxHotkey] Captured: {}", display);
+                    *capture.result.lock().unwrap() = Some(KeyCombo { keys, display });
+                    *capture.recording.lock().unwrap() = false;
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
         }
     });
 }
