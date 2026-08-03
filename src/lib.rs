@@ -12,6 +12,7 @@ pub mod input;
 pub mod tray;
 pub mod hotkey;
 pub mod dialog;
+pub mod platform;
 
 #[macro_export]
 macro_rules! debug_println {
@@ -28,6 +29,13 @@ pub enum DeviceEvent {
     Connected,
     Disconnected,
     BatteryLow(u8),
+}
+
+#[derive(Debug, Clone)]
+pub enum DeviceCommand {
+    ToggleMute,
+    SetSidetone(bool),
+    SetVoicePrompts(bool),
 }
 
 use std::sync::OnceLock;

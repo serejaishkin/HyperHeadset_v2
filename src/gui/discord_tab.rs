@@ -1,6 +1,5 @@
 use eframe::egui;
 use crate::config::{DiscordConfig, DiscordMode};
-use crate::hotkey::GlobalHotkeyCapture;
 use std::sync::Arc;
 
 pub fn show(
@@ -9,18 +8,19 @@ pub fn show(
     connected: bool,
     needs_save: &mut bool,
     recording_keybind: &mut bool,
+    keybind_capture: &mut Option<Arc<crate::hotkey::GlobalHotkeyCapture>>,
 ) {
     ui.heading("🔊 Discord интеграция");
     ui.separator();
 
+    let prev_mode = config.mode;
     ui.horizontal(|ui| {
         ui.label("Режим:");
         ui.selectable_value(&mut config.mode, DiscordMode::None, "❌ Отключено");
         ui.selectable_value(&mut config.mode, DiscordMode::Keybind, "⌨️ Клавиша");
         ui.selectable_value(&mut config.mode, DiscordMode::Direct, "🔌 Прямая (RPC)");
     });
-
-    if ui.data(|data| data.get_temp::<DiscordMode>(egui::Id::new("discord_mode_prev"))) != Some(config.mode) {
+    if config.mode != prev_mode {
         *needs_save = true;
     }
 
@@ -40,17 +40,24 @@ pub fn show(
 
                 if *recording_keybind {
                     ui.colored_label(egui::Color32::YELLOW, "🎙️ Нажмите комбинацию клавиш...");
-
-                    // Poll for captured keybind
-                    // TODO: Integrate with GlobalHotkeyCapture singleton
                 } else {
-                    ui.text_edit_singleline(keybind);
+                    ui.add(egui::TextEdit::singleline(keybind).desired_width(120.0));
                 }
 
                 if ui.button(if *recording_keybind { "❌ Отмена" } else { "📝 Записать клавишу" }).clicked() {
-                    *recording_keybind = !*recording_keybind;
                     if *recording_keybind {
-                        // TODO: Start global hotkey capture
+                        if let Some(capture) = keybind_capture {
+                            capture.cancel();
+                        }
+                        *recording_keybind = false;
+                        *keybind_capture = None;
+                    } else {
+                        println!("[DEBUG DISCORD] Starting keybind recording...");
+                        *recording_keybind = true;
+                        let capture = Arc::new(crate::hotkey::GlobalHotkeyCapture::new());
+                        crate::hotkey::spawn_capture(capture.clone());
+                        capture.start_recording();
+                        *keybind_capture = Some(capture);
                     }
                 }
             });
@@ -62,33 +69,26 @@ pub fn show(
         DiscordMode::Direct => {
             ui.group(|ui| {
                 ui.label("Discord Rich Presence + двусторонний mute");
-
                 if connected {
                     ui.colored_label(egui::Color32::GREEN, "● Подключено к Discord IPC");
                 } else {
                     ui.colored_label(egui::Color32::RED, "● Не подключено");
-                    if ui.button("Подключить").clicked() {
-                        // TODO: Initialize Discord IPC + WebSocket
+                    let can_connect = !config.direct.app_id.is_empty();
+                    if ui.add_enabled(can_connect, egui::Button::new("Подключить")).clicked() {
+                        // TODO
+                    }
+                    if !can_connect {
+                        ui.small("Введите App ID для подключения (или используйте режим 'Клавиша')");
                     }
                 }
-
                 ui.horizontal(|ui| {
-                    ui.label("Application ID:");
+                    ui.label("App ID (опционально):");
                     ui.text_edit_singleline(&mut config.direct.app_id);
                 });
-
+                ui.small("Оставьте пустым, если не нужен статус 'Playing' в профиле Discord.");
                 ui.checkbox(&mut config.direct.show_battery, "Показывать заряд в статусе Discord");
                 ui.checkbox(&mut config.direct.show_mute_status, "Показывать статус микрофона");
-
-                ui.separator();
-                ui.label("Статус:");
-                if connected {
-                    ui.label("🎧 HyperX Cloud II Wireless");
-                    ui.label("🔋 Батарея: 85%");
-                    ui.label("🎤 Микрофон: включён");
-                }
             });
-
             ui.separator();
             ui.colored_label(
                 egui::Color32::YELLOW,

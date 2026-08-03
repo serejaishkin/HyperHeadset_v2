@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use hyperx_ngenuity_open::{
-    audio::{AudioManager, DebouncedEQ},
+    audio::DebouncedEQ,
     config::Config,
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
@@ -18,10 +18,8 @@ use hyperx_ngenuity_open::{
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    // Load config
     let config = Config::load().unwrap_or_default();
 
-    // Apply config to input handler
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
         hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => input::MuteButtonMode::MediaPlayPause,
@@ -29,51 +27,38 @@ fn main() -> anyhow::Result<()> {
         hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => input::MuteButtonMode::SmartHold,
     });
 
-    // Check EQ backend availability
-    let audio_manager = AudioManager::new();
-    let apo_available = audio_manager.backend().is_available();
-
-    // Setup debounced EQ (500ms delay)
-    let debounced_eq = Arc::new(DebouncedEQ::new(500));
-
-    #[cfg(target_os = "windows")]
-    {
-        let backend = AudioManager::new();
-        let debounced_eq_worker = (&*debounced_eq).clone();
-        debounced_eq_worker.spawn_worker(move |bands| {
-            let _ = backend.backend().apply_eq(&bands);
-        });
+    if let Some(keybind) = config.discord.keybind.clone() {
+        GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind));
     }
 
-    // Shared device state
+    let apo_available = false;
+    let debounced_eq = Arc::new(DebouncedEQ::new(500));
+
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    // Channel for device events -> GUI
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
     let _device_tx_gui = device_tx.clone();
 
-    // Tray channel
-    let (tray_tx, _tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
-    // Create tray
     let tray = PlatformTray::new(tray_tx.clone());
 
-    // Device communication thread with reconnect handling
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
         let mut last_mute: Option<bool> = None;
         let mut was_connected = false;
+        let mut last_charging = false;
+        let mut last_battery_low = false;
 
         loop {
-            // Connection loop
             if !device.state.connected {
                 if was_connected {
                     log::warn!("[Device] Headset disconnected");
                     let _ = device_tx.send(DeviceEvent::Disconnected);
                     was_connected = false;
                 }
-
                 match device.connect() {
                     Ok(_) => {
                         log::info!("[Device] Headset connected");
@@ -88,7 +73,36 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            // Refresh loop
+            while let Ok(cmd) = device_cmd_rx.try_recv() {
+                match cmd {
+                    hyperx_ngenuity_open::DeviceCommand::ToggleMute => {
+                        log::info!("[Device] ToggleMute command received");
+                        if let Err(e) = device.toggle_mute() {
+                            log::warn!("Toggle mute failed: {}", e);
+                        } else {
+                            // toggle_mute() УЖЕ обновил device.state.muted
+                            log::info!("[Device] Mute toggled to: {}", device.state.muted);
+                            
+                            // МГНОВЕННО шлём состояние в GUI/трей
+                            let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+                            
+                            // Синхронизируем с Discord
+                            if last_mute != Some(device.state.muted) {
+                                last_mute = Some(device.state.muted);
+                                GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
+                            }
+                        }
+                    }
+                    hyperx_ngenuity_open::DeviceCommand::SetSidetone(enabled) => {
+                        if let Err(e) = device.set_sidetone(enabled) {
+                            log::warn!("Set sidetone failed: {}", e);
+                        }
+                        let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+                    }
+                    hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(_enabled) => {}
+                }
+            }
+
             if let Err(e) = device.refresh_state() {
                 log::warn!("Refresh failed: {}", e);
                 device.state.connected = false;
@@ -96,31 +110,35 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
-            // Update shared state
             {
                 let mut state = device_state_clone.lock().unwrap();
                 *state = device.state.clone();
             }
-
-            // Send state update to GUI
             let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
 
-            // Battery low warning
-            if device.state.battery_percent <= 15 && device.state.battery_percent > 0 {
+            if device.state.battery_percent <= 15 && device.state.battery_percent > 0 && !last_battery_low {
+                last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
+                log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
+            }
+            if device.state.battery_percent > 20 {
+                last_battery_low = false;
             }
 
-            // Handle mute change -> Input handler -> Discord sync
+            if device.state.charging && !last_charging {
+                log::info!("[Device] Headset charging");
+            }
+            last_charging = device.state.charging;
+
             if last_mute != Some(device.state.muted) {
                 last_mute = Some(device.state.muted);
                 GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
             }
 
-            std::thread::sleep(Duration::from_secs(3));
+            std::thread::sleep(Duration::from_millis(500));
         }
     });
 
-    // Discord WebSocket RPC thread (for bidirectional sync)
     let discord_app_id = config.discord.direct.app_id.clone();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -132,17 +150,9 @@ fn main() -> anyhow::Result<()> {
         });
     });
 
-    // Global hotkey capture thread (Windows only)
-    #[cfg(target_os = "windows")]
-    {
-        let hotkey_capture = Arc::new(hyperx_ngenuity_open::hotkey::GlobalHotkeyCapture::new());
-        hyperx_ngenuity_open::hotkey::windows::spawn_capture_thread(hotkey_capture);
-    }
-
-    // GUI with device event handling
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([900.0, 600.0])
+            .with_inner_size([980.0, 600.0])
             .with_min_inner_size([600.0, 400.0]),
         ..Default::default()
     };
@@ -155,7 +165,9 @@ fn main() -> anyhow::Result<()> {
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
-        .with_device_receiver(device_rx);
+        .with_tray_receiver(tray_rx)
+        .with_device_receiver(device_rx)
+        .with_device_command_sender(device_cmd_tx);
 
     eframe::run_native(
         "HyperX NGENUITY Open",

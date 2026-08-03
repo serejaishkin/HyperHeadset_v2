@@ -1,15 +1,5 @@
-//! Global hotkey capture for recording key combinations in GUI
-//!
-//! Usage:
-//!   let mut capture = GlobalHotkeyCapture::new();
-//!   capture.start_recording();
-//!   // User presses Ctrl+Shift+M
-//!   if let Some(keys) = capture.poll_result() {
-//!       println!("Captured: {:?}", keys);
-//!   }
-
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyCombo {
@@ -18,9 +8,9 @@ pub struct KeyCombo {
 }
 
 pub struct GlobalHotkeyCapture {
-    recording: Arc<Mutex<bool>>,
-    result: Arc<Mutex<Option<KeyCombo>>>,
-    start_time: Arc<Mutex<Option<Instant>>>,
+    pub recording: Arc<Mutex<bool>>,
+    pub result: Arc<Mutex<Option<KeyCombo>>>,
+    pub start_time: Arc<Mutex<Option<Instant>>>,
 }
 
 impl GlobalHotkeyCapture {
@@ -43,21 +33,31 @@ impl GlobalHotkeyCapture {
     }
 
     pub fn poll_result(&self) -> Option<KeyCombo> {
-        self.result.lock().unwrap().clone()
+        self.result.lock().unwrap().take()
     }
 
     pub fn cancel(&self) {
         *self.recording.lock().unwrap() = false;
         *self.result.lock().unwrap() = None;
     }
+
+    pub fn stop_recording(&self) {
+        *self.recording.lock().unwrap() = false;
+    }
 }
 
-// Platform-specific implementations
 #[cfg(target_os = "windows")]
 pub mod windows;
-
 #[cfg(target_os = "linux")]
 pub mod linux;
-
 #[cfg(target_os = "macos")]
 pub mod macos;
+
+pub fn spawn_capture(capture: Arc<GlobalHotkeyCapture>) {
+    #[cfg(target_os = "windows")]
+    windows::spawn_capture_thread(capture);
+    #[cfg(target_os = "linux")]
+    linux::spawn_capture_thread(capture);
+    #[cfg(target_os = "macos")]
+    macos::spawn_capture_thread(capture);
+}
