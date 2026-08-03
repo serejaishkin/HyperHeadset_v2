@@ -193,6 +193,7 @@ impl eframe::App for HyperXApp {
                         }
                     }
                     crate::tray::TrayCommand::ShowWindow => {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
                         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                         self.window_hidden = false;
