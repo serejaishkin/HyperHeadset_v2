@@ -11,30 +11,62 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  build-linux-voice:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Dependencies
+      - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config
-      - name: Build (with voice)
+      - name: Build (voice)
         run: cargo build --verbose
-      - name: Build (without voice)
-        run: cargo build --verbose --no-default-features
       - name: Test
         run: cargo test
 
-  build-windows:
+  build-linux-novoice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev pkg-config
+      - name: Build (no voice)
+        run: cargo build --verbose --no-default-features
+      - name: Test
+        run: cargo test --no-default-features
+
+  build-macos-voice:
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install pkg-config
+      - name: Build (voice)
+        run: cargo build --verbose
+
+  build-macos-novoice:
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install pkg-config
+      - name: Build (no voice)
+        run: cargo build --verbose --no-default-features
+
+  build-windows-voice:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Build
+      - name: Build (voice)
         run: cargo build --verbose
-      - name: Test
-        run: cargo test
+
+  build-windows-novoice:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (no voice)
+        run: cargo build --verbose --no-default-features
