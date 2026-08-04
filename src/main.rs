@@ -210,6 +210,7 @@ fn main() -> anyhow::Result<()> {
                 last_battery_low = false;
             }
 
+                hyperx_ngenuity_open::audio::voice::vlog(&format!("MAIN CHARGING CHECK: charging={} last_charging={}", device.state.charging, last_charging));
             if device.state.charging && !last_charging {
                 log::info!("[Device] Headset charging");
             }
