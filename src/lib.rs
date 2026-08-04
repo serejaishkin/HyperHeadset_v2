@@ -2,6 +2,7 @@ pub mod config;
 pub mod gui;
 pub mod discord;
 pub mod audio;
+pub mod notifications;
 #[cfg(target_os = "linux")]
 pub mod bluetooth;
 #[cfg(target_os = "linux")]

@@ -191,6 +191,7 @@ fn main() -> anyhow::Result<()> {
                 last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
                     hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
+                hyperx_ngenuity_open::notifications::notify_low_battery(device.state.battery_percent);
                 log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
             }
             if device.state.battery_percent > 20 {
@@ -203,6 +204,7 @@ fn main() -> anyhow::Result<()> {
             }
             if device.state.battery_percent == 100 && device.state.charging && !last_charging {
                 hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
+                hyperx_ngenuity_open::notifications::notify_full_charge();
                 log::info!("[Device] Battery full");
             }
             last_charging = device.state.charging;

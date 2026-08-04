@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub mod eq_tab;
+pub mod tray_tab;
 pub mod discord_tab;
 
 pub struct HyperXApp {
