@@ -32,6 +32,7 @@ pub struct HyperXApp {
     pub window_hidden: bool,
     pub last_volume_check: Instant,
     pub show_discord_panel: bool,
+    pub tray_editor: crate::gui::tray_tab::TrayIconEditor,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -77,6 +78,7 @@ impl HyperXApp {
             window_hidden: false,
             last_volume_check: Instant::now(),
             show_discord_panel: false,
+            tray_editor: Default::default(),
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -513,5 +515,8 @@ impl HyperXApp {
             else { ui.colored_label(egui::Color32::RED, "[ERR] eqMac not running"); }
         }
         ui.label("EQ is applied at OS level");
+
+        ui.separator();
+        self.tray_editor.show(ui, ui.ctx());
     }
 }
