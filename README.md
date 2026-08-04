@@ -21,8 +21,8 @@
 ## Установка
 
 ```bash
-git clone https://github.com/yourname/hyperx-ngenuity-open
-cd hyperx-ngenuity-open
+git clone https://github.com/serezaiskin-cell/HyperHeadsetv2
+cd HyperHeadsetv2
 cargo build --release
 ```
 
