@@ -32,8 +32,8 @@ impl Default for TrayIconConfig {
     fn default() -> Self {
         Self {
             size: 256,
-            font_scale: 24,
-            outline_width: 3,
+            font_scale: 8,
+            outline_width: 2,
             border_width: 0,
             gap_between_digits: 4,
             colors: TrayIconColors {
@@ -67,7 +67,6 @@ impl Default for TrayIconConfig {
 }
 
 impl TrayIconConfig {
-    /// Путь рядом с exe (Windows) или бинарником (Linux/Mac)
     fn default_path() -> PathBuf {
         std::env::current_exe()
             .ok()
@@ -75,20 +74,14 @@ impl TrayIconConfig {
             .unwrap_or_else(|| PathBuf::from("tray_icon.toml"))
     }
 
-    /// Загружает конфиг. Если файла нет — создаёт дефолтный.
-    /// Если файл битый — тоже возвращает дефолт и пересоздаёт файл.
     pub fn load_or_create() -> Self {
         let path = Self::default_path();
-
         if !path.exists() {
             log::info!("[TrayIcon] Config not found, creating default at {:?}", path);
             let cfg = Self::default();
-            if let Err(e) = cfg.save(&path) {
-                log::warn!("[TrayIcon] Failed to save default config: {}", e);
-            }
+            let _ = cfg.save(&path);
             return cfg;
         }
-
         match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
                 Ok(cfg) => cfg,
@@ -186,10 +179,14 @@ pub fn generate_battery_icon_rgba(
                     if (digit[row as usize] >> (4 - col)) & 1 == 1 {
                         for dy in -outline_px..=outline_px {
                             for dx in -outline_px..=outline_px {
-                                let x = (off_x as i32 + col as i32 * scale as i32 + dx) as u32;
-                                let y = (start_y as i32 + row as i32 * scale as i32 + dy) as u32;
-                                if x < size && y < size {
-                                    img.put_pixel(x, y, outline);
+                                let xi = off_x as i32 + col as i32 * scale as i32 + dx;
+                                let yi = start_y as i32 + row as i32 * scale as i32 + dy;
+                                if xi >= 0 && yi >= 0 {
+                                    let x = xi as u32;
+                                    let y = yi as u32;
+                                    if x < size && y < size {
+                                        img.put_pixel(x, y, outline);
+                                    }
                                 }
                             }
                         }
@@ -224,7 +221,6 @@ pub fn generate_battery_icon_rgba(
     (rgba, size, size)
 }
 
-/// Для Linux ksni: RGBA little-endian → ARGB32 big-endian
 pub fn rgba_to_argb32(rgba: &[u8]) -> Vec<u8> {
     rgba.chunks_exact(4)
         .flat_map(|p| [p[3], p[0], p[1], p[2]])
