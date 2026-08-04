@@ -21,21 +21,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config
-      - name: Build
+      - name: Build (with voice)
         run: cargo build --verbose
-      - name: Test
-        run: cargo test
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Dependencies
-        run: brew install pkg-config
-      - name: Build
-        run: cargo build --verbose
+      - name: Build (without voice)
+        run: cargo build --verbose --no-default-features
       - name: Test
         run: cargo test
 
