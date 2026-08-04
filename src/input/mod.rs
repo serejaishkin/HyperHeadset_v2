@@ -1,10 +1,4 @@
 //! Smart mute button handler with multiple action modes
-//!
-//! Supports:
-//! - Standard: always MicMute (F20)
-//! - MediaPlayPause: always Play/Pause
-//! - SmartDouble: single = MicMute, double-click = Play/Pause
-//! - SmartHold: short press = Play/Pause, long press = MicMute
 
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::time::{Duration, Instant};
@@ -59,7 +53,6 @@ impl MuteHandler {
         *self.keybind.lock() = keybind;
     }
 
-    // ===== Volume controls =====
     pub fn volume_up(&self) {
         let mut enigo = self.enigo.lock();
         let _ = enigo.key(Key::VolumeUp, Direction::Click);
@@ -70,19 +63,17 @@ impl MuteHandler {
         let _ = enigo.key(Key::VolumeDown, Direction::Click);
     }
 
-    // ===== Media controls =====
     pub fn do_media_play_pause(&self) {
         let mut enigo = self.enigo.lock();
         let _ = enigo.key(Key::MediaPlayPause, Direction::Click);
         log::info!("[MuteHandler] MediaPlayPause");
     }
 
-    // ===== Debounced key sender =====
     fn do_mute(&self) {
         let mut last = self.last_hotkey.lock();
         if let Some(t) = *last {
             if t.elapsed() < Duration::from_millis(150) {
-                return; // debounce
+                return;
             }
         }
         *last = Some(Instant::now());
@@ -100,10 +91,6 @@ impl MuteHandler {
             Some("F18") => Key::F18,
             Some("F19") => Key::F19,
             Some("F20") => Key::F20,
-            Some("F21") => Key::F21,
-            Some("F22") => Key::F22,
-            Some("F23") => Key::F23,
-            Some("F24") => Key::F24,
             Some("MediaPlayPause") => Key::MediaPlayPause,
             Some("MediaVolumeMute") | Some("Mute") => Key::VolumeMute,
             Some("MediaVolumeDown") => Key::VolumeDown,
@@ -134,7 +121,6 @@ impl MuteHandler {
         log::info!("[MuteHandler] Sent key: {:?}", keybind);
     }
 
-    // ===== Called when mute state CHANGES (toggle event) =====
     pub fn on_mute_toggled(&self, _muted: bool) {
         match self.get_mode() {
             MuteButtonMode::Standard => self.do_mute(),
@@ -146,7 +132,6 @@ impl MuteHandler {
         }
     }
 
-    // ===== SmartDouble: detect double-click via toggle interval =====
     fn handle_smart_double(&self) {
         let now = Instant::now();
         let mut last = self.last_toggle.lock();
@@ -163,7 +148,6 @@ impl MuteHandler {
         *last = Some(now);
     }
 
-    // ===== SmartHold: requires down/up events =====
     pub fn on_button_down(&self) {
         if self.get_mode() == MuteButtonMode::SmartHold {
             *self.press_start.lock() = Some(Instant::now());

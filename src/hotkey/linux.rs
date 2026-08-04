@@ -12,34 +12,71 @@ const KEY_PRESS: i32 = 1;
 const KEY_RELEASE: i32 = 0;
 
 fn code_to_name(code: u16) -> Option<String> {
-    match code {
-        29 => Some("LCtrl".into()), 42 => Some("LShift".into()), 56 => Some("LAlt".into()),
-        125 => Some("LWin".into()), 97 => Some("RCtrl".into()), 54 => Some("RShift".into()),
-        100 => Some("RAlt".into()), 126 => Some("RWin".into()),
-        113 => Some("MediaVolumeMute".into()), 114 => Some("MediaVolumeDown".into()),
-        115 => Some("MediaVolumeUp".into()), 163 => Some("MediaNextTrack".into()),
-        164 => Some("MediaPlayPause".into()), 165 => Some("MediaPrevTrack".into()),
-        82 => Some("Numpad0".into()), 79 => Some("Numpad1".into()), 80 => Some("Numpad2".into()),
-        81 => Some("Numpad3".into()), 75 => Some("Numpad4".into()), 76 => Some("Numpad5".into()),
-        77 => Some("Numpad6".into()), 71 => Some("Numpad7".into()), 72 => Some("Numpad8".into()),
-        73 => Some("Numpad9".into()), 98 => Some("NumpadDivide".into()),
-        55 => Some("NumpadMultiply".into()), 74 => Some("NumpadSubtract".into()),
-        78 => Some("NumpadAdd".into()), 83 => Some("NumpadDecimal".into()),
-        _ => {}
+    if (183..=194).contains(&code) {
+        return Some(format!("F{}", code - 183 + 13));
     }
-    if (183..=194).contains(&code) { return Some(format!("F{}", code - 183 + 13)); }
-    if (2..=10).contains(&code) { return Some(((code - 2 + b'1') as char).to_string()); }
-    if code == 11 { return Some("0".into()); }
+    if (2..=10).contains(&code) {
+        return Some(((code - 2 + b'1') as char).to_string());
+    }
+    if code == 11 {
+        return Some("0".into());
+    }
     match code {
-        16 => Some("Q".into()), 17 => Some("W".into()), 18 => Some("E".into()),
-        19 => Some("R".into()), 20 => Some("T".into()), 21 => Some("Y".into()),
-        22 => Some("U".into()), 23 => Some("I".into()), 24 => Some("O".into()),
-        25 => Some("P".into()), 30 => Some("A".into()), 31 => Some("S".into()),
-        32 => Some("D".into()), 33 => Some("F".into()), 34 => Some("G".into()),
-        35 => Some("H".into()), 36 => Some("J".into()), 37 => Some("K".into()),
-        38 => Some("L".into()), 44 => Some("Z".into()), 45 => Some("X".into()),
-        46 => Some("C".into()), 47 => Some("V".into()), 48 => Some("B".into()),
-        49 => Some("N".into()), 50 => Some("M".into()),
+        29 => Some("LCtrl".into()),
+        42 => Some("LShift".into()),
+        56 => Some("LAlt".into()),
+        125 => Some("LWin".into()),
+        97 => Some("RCtrl".into()),
+        54 => Some("RShift".into()),
+        100 => Some("RAlt".into()),
+        126 => Some("RWin".into()),
+        113 => Some("MediaVolumeMute".into()),
+        114 => Some("MediaVolumeDown".into()),
+        115 => Some("MediaVolumeUp".into()),
+        163 => Some("MediaNextTrack".into()),
+        164 => Some("MediaPlayPause".into()),
+        165 => Some("MediaPrevTrack".into()),
+        82 => Some("Numpad0".into()),
+        79 => Some("Numpad1".into()),
+        80 => Some("Numpad2".into()),
+        81 => Some("Numpad3".into()),
+        75 => Some("Numpad4".into()),
+        76 => Some("Numpad5".into()),
+        77 => Some("Numpad6".into()),
+        71 => Some("Numpad7".into()),
+        72 => Some("Numpad8".into()),
+        73 => Some("Numpad9".into()),
+        98 => Some("NumpadDivide".into()),
+        55 => Some("NumpadMultiply".into()),
+        74 => Some("NumpadSubtract".into()),
+        78 => Some("NumpadAdd".into()),
+        83 => Some("NumpadDecimal".into()),
+        16 => Some("Q".into()),
+        17 => Some("W".into()),
+        18 => Some("E".into()),
+        19 => Some("R".into()),
+        20 => Some("T".into()),
+        21 => Some("Y".into()),
+        22 => Some("U".into()),
+        23 => Some("I".into()),
+        24 => Some("O".into()),
+        25 => Some("P".into()),
+        30 => Some("A".into()),
+        31 => Some("S".into()),
+        32 => Some("D".into()),
+        33 => Some("F".into()),
+        34 => Some("G".into()),
+        35 => Some("H".into()),
+        36 => Some("J".into()),
+        37 => Some("K".into()),
+        38 => Some("L".into()),
+        44 => Some("Z".into()),
+        45 => Some("X".into()),
+        46 => Some("C".into()),
+        47 => Some("V".into()),
+        48 => Some("B".into()),
+        49 => Some("N".into()),
+        50 => Some("M".into()),
         _ => None,
     }
 }

@@ -77,7 +77,6 @@ impl DiscordClient {
     }
 }
 
-/// Parse a keybind string like "F20", "Ctrl+Shift+M" into enigo keys
 pub fn parse_keybind(keybind: &str) -> Vec<enigo::Key> {
     let mut keys = Vec::new();
     let parts: Vec<&str> = keybind.split('+').map(|s| s.trim()).collect();
@@ -88,10 +87,6 @@ pub fn parse_keybind(keybind: &str) -> Vec<enigo::Key> {
             "shift" => enigo::Key::Shift,
             "alt" => enigo::Key::Alt,
             "f20" => enigo::Key::F20,
-            "f21" => enigo::Key::F21,
-            "f22" => enigo::Key::F22,
-            "f23" => enigo::Key::F23,
-            "f24" => enigo::Key::F24,
             "mediamute" => enigo::Key::VolumeMute,
             "mediavolup" => enigo::Key::VolumeUp,
             "mediavoldown" => enigo::Key::VolumeDown,
