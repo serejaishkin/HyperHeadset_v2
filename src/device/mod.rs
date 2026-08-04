@@ -129,11 +129,18 @@ impl HyperXDevice {
         self.prepare_write();
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
             Ok((status, raw)) => {
-                hyperx_ngenuity_open::audio::voice::vlog(&format!("[Device] Charging raw: status={} raw[0..8]={:02X?}", status, &raw[0..8.min(raw.len())]);
+                hyperx_ngenuity_open::audio::voice::vlog(&format!(
+                    "[Device] Charging raw: status={} raw[0..8]={:02X?}",
+                    status,
+                    &raw[0..8.min(raw.len())]
+                ));
                 self.state.charging = status == 1;
             }
             Err(e) => {
-                hyperx_ngenuity_open::audio::voice::vlog(&format!("[Device] Charging read FAILED: {}", e);
+                hyperx_ngenuity_open::audio::voice::vlog(&format!(
+                    "[Device] Charging read FAILED: {}",
+                    e
+                ));
             }
         }
 
