@@ -34,7 +34,7 @@ impl MacOSTray {
         menu.append(&quit_item).unwrap();
 
         let icon_config = TrayIconConfig::load_or_create();
-        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 100, false);
+        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), 100, false);
         let icon = Icon::from_rgba(rgba, w, h).unwrap_or_else(|_| load_fallback_icon());
 
         let tray_icon = TrayIconBuilder::new()
@@ -80,7 +80,7 @@ impl MacOSTray {
         *self.current_charging.lock().unwrap() = charging;
         let muted = *self.current_muted.lock().unwrap();
 
-        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, percent, charging);
+        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), percent, charging);
         if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
             let _ = self.tray_icon.set_icon(Some(icon));
         }

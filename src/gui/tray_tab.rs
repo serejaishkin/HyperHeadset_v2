@@ -11,7 +11,7 @@ pub struct TrayIconEditor {
 impl Default for TrayIconEditor {
     fn default() -> Self {
         Self {
-            config: TrayIconConfig::load_or_create(),
+            config: TRAY_ICON_CONFIG.lock().unwrap().clone(),
             preview_texture: None,
             preview_percent: 75,
             preview_charging: false,
@@ -56,7 +56,7 @@ impl TrayIconEditor {
         ui.separator();
 
         if ui.button("💾 Save Settings").clicked() {
-            let path = TrayIconConfig::default_path();
+            let path = crate::tray::icon::TrayIconConfig::default_path();
             if let Err(e) = self.config.save(&path) {
                 log::error!("[TrayIconEditor] Save failed: {}", e);
             } else {

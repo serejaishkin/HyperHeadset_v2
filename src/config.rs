@@ -1,3 +1,30 @@
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VoiceConfig {
+    pub enabled: bool,
+    pub exact_percent: bool,
+    pub on_battery_low: bool,
+    pub on_charging: bool,
+    pub on_full_charge: bool,
+    pub on_connected: bool,
+    pub on_disconnected: bool,
+    pub on_button_check: bool,
+}
+
+impl Default for VoiceConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            exact_percent: false,
+            on_battery_low: true,
+            on_charging: true,
+            on_full_charge: true,
+            on_connected: false,
+            on_disconnected: false,
+            on_button_check: true,
+        }
+    }
+}
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -124,6 +151,7 @@ pub struct Config {
     pub input: InputConfig,
     #[serde(default)]
     pub audio: AudioConfig,
+    pub voice: VoiceConfig,
     #[serde(default)]
     pub device: DeviceConfig,
 }

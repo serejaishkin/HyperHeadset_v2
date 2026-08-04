@@ -23,7 +23,7 @@ impl WindowsTray {
 
         let icon_config = TrayIconConfig::load_or_create();
 
-        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
+        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), 0, false);
         let icon = Icon::from_rgba(rgba, w, h)
             .unwrap_or_else(|_| Icon::from_rgba(vec![255; 4], 1, 1).unwrap());
 
@@ -145,7 +145,7 @@ impl WindowsTray {
     }
 
     fn update_icon(&mut self) {
-        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, self.last_percent, self.last_charging);
+        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), self.last_percent, self.last_charging);
         if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
             let _ = self.tray.set_icon(Some(icon));
         }

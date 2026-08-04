@@ -58,7 +58,7 @@ impl ksni::Tray for MyTray {
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
-        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, s.percent, s.charging);
+        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), s.percent, s.charging);
         let data = rgba_to_argb32(&rgba);
         vec![ksni::Icon {
             width: w as i32,
