@@ -134,6 +134,7 @@ impl HyperXApp {
         };
         self.needs_save = true;
     }
+        });
 }
 
 impl eframe::App for HyperXApp {
@@ -391,6 +392,7 @@ impl eframe::App for HyperXApp {
 }
 
 impl HyperXApp {
+        egui::ScrollArea::vertical().show(ui, |ui| {
     fn show_dashboard(&mut self, ui: &mut egui::Ui) {
         ui.heading("Headset Status");
         ui.separator();
@@ -436,6 +438,8 @@ impl HyperXApp {
         });
     }
 
+        egui::ScrollArea::vertical().show(ui, |ui| {
+        });
     fn show_equalizer(&mut self, ui: &mut egui::Ui) {
         ui.heading("Equalizer");
         ui.separator();
@@ -452,7 +456,9 @@ impl HyperXApp {
 
         eq_tab::show(ui, &mut self.eq_bands, &mut self.needs_save, self.apo_available, &self.debounced_eq);
     }
+        });
 
+        egui::ScrollArea::vertical().show(ui, |ui| {
     fn show_settings(&mut self, ui: &mut egui::Ui) {
         use crate::input::GLOBAL_MUTE_HANDLER;
 
