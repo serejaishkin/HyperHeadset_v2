@@ -49,17 +49,6 @@ fn check_apo_available() -> bool {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    fn vlog(msg: &str) {
-        let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-            use std::io::Write;
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            let _ = writeln!(f, "[{}] {}", now, msg);
-            let _ = f.flush();
-        }
     }
 
     let config = Config::load().unwrap_or_default();
@@ -210,7 +199,6 @@ fn main() -> anyhow::Result<()> {
                 last_battery_low = false;
             }
 
-                hyperx_ngenuity_open::audio::voice::vlog(&format!("MAIN CHARGING CHECK: charging={} last_charging={}", device.state.charging, last_charging));
             if device.state.charging && !last_charging {
                 log::info!("[Device] Headset charging");
             }
