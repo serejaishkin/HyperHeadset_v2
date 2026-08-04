@@ -173,8 +173,8 @@ pub fn generate_battery_icon_rgba(
     let text = format!("{}", percent);
     let chars: Vec<char> = text.chars().collect();
     let total_w = chars.len() as u32 * digit_w + chars.len().saturating_sub(1) as u32 * gap;
-    let start_x = (size - total_w) / 2;
-    let start_y = (size - digit_h) / 2;
+    let start_x = size.saturating_sub(total_w) / 2;
+    let start_y = size.saturating_sub(digit_h) / 2;
 
     if outline_px > 0 {
         for (idx, ch) in chars.iter().enumerate() {
