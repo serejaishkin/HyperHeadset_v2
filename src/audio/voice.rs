@@ -1,24 +1,9 @@
-use std::io::{Cursor, Write};
-use std::sync::Mutex;
-
-lazy_static::lazy_static! {
-    static ref VOICE_LOG: Mutex<Option<std::fs::File>> = Mutex::new(None);
-}
+use std::io::Cursor;
 
 fn vlog(msg: &str) {
-    let mut guard = VOICE_LOG.lock().unwrap();
-    if guard.is_none() {
-        let path = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|d| d.join("hyper_voice_debug.log")))
-            .unwrap_or_else(|| std::path::PathBuf::from("hyper_voice_debug.log"));
-        *guard = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .ok();
-    }
-    if let Some(ref mut f) = *guard {
+    let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        use std::io::Write;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -52,8 +37,7 @@ pub enum VoiceEvent {
 
 #[cfg(feature = "embedded-voice")]
 pub fn play(event: VoiceEvent) {
-    vlog(&format!("play() called with {:?}", event));
-    
+    vlog(&format!("play() called: {:?}", event));
     let bytes: Option<&'static [u8]> = match event {
         VoiceEvent::Battery(p) => Some(nearest_battery(p)),
         VoiceEvent::Charging => Some(embedded::CHARGING),
@@ -61,18 +45,17 @@ pub fn play(event: VoiceEvent) {
         VoiceEvent::LowBattery => Some(embedded::LOW_BATTERY),
         VoiceEvent::Connected | VoiceEvent::Disconnected => None,
     };
-
     if let Some(bytes) = bytes {
-        vlog(&format!("Starting playback, bytes len = {}", bytes.len()));
+        vlog(&format!("playback start, len={}", bytes.len()));
         std::thread::spawn(move || {
             if let Err(e) = play_blocking(bytes) {
-                vlog(&format!("Playback FAILED: {}", e));
+                vlog(&format!("playback ERROR: {}", e));
             } else {
-                vlog("Playback finished OK");
+                vlog("playback OK");
             }
         });
     } else {
-        vlog("No audio for this event");
+        vlog("no audio for event");
     }
 }
 
@@ -83,7 +66,6 @@ pub fn play(_event: VoiceEvent) {
 
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {
-    vlog(&format!("nearest_battery({})", percent));
     match percent {
         0..=5 => embedded::BAT_000,
         6..=15 => embedded::BAT_010,
@@ -96,16 +78,11 @@ fn nearest_battery(percent: u8) -> &'static [u8] {
 #[cfg(feature = "embedded-voice")]
 fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error>> {
     use rodio::{Decoder, OutputStream, Sink};
-    vlog("rodio: creating OutputStream...");
     let (_stream, stream_handle) = OutputStream::try_default()?;
-    vlog("rodio: OutputStream OK");
     let sink = Sink::try_new(&stream_handle)?;
-    vlog("rodio: Sink OK");
     let cursor = Cursor::new(bytes);
     let source = Decoder::new(cursor)?;
-    vlog("rodio: Decoder OK, playing...");
     sink.append(source);
     sink.sleep_until_end();
-    vlog("rodio: sleep_until_end finished");
     Ok(())
 }
