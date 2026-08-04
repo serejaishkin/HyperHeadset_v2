@@ -12,9 +12,8 @@ impl MacOSVolume {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 
-    // ========== MASTER ==========
     pub fn get_master_volume(&self) -> Option<f32> {
-        let out = self.run_osascript(&["-e", "get volume settings"])?;
+        let out = Self::run_osascript(&["-e", "get volume settings"])?;
         for part in out.split(',') {
             if part.contains("output volume") {
                 let val = part.split(':').nth(1)?.trim();
@@ -33,7 +32,7 @@ impl MacOSVolume {
     }
 
     pub fn get_mute(&self) -> Option<bool> {
-        let out = self.run_osascript(&["-e", "get volume settings"])?;
+        let out = Self::run_osascript(&["-e", "get volume settings"])?;
         Some(out.contains("output muted: true"))
     }
 
@@ -45,9 +44,8 @@ impl MacOSVolume {
             .status().map(|s| s.success()).unwrap_or(false)
     }
 
-    // ========== MICROPHONE ==========
     pub fn get_microphone_volume(&self) -> Option<f32> {
-        let out = self.run_osascript(&["-e", "get volume settings"])?;
+        let out = Self::run_osascript(&["-e", "get volume settings"])?;
         for part in out.split(',') {
             if part.contains("input volume") {
                 let val = part.split(':').nth(1)?.trim();

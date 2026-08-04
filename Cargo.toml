@@ -31,6 +31,7 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 reqwest = { version = "0.12", features = ["json"] }
 rodio = { version = "0.19", default-features = false, features = ["wav"], optional = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tray-icon = "0.19"
@@ -48,7 +49,6 @@ windows = { version = "0.58", features = [
  "Win32_Media_Audio_Endpoints",
  "Win32_Foundation",
 ] }
-image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2"

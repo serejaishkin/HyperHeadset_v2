@@ -11,7 +11,6 @@ struct TrayState {
 }
 
 pub struct LinuxTray {
-    _service: ksni::TrayService<MyTray>,
     state: Arc<Mutex<TrayState>>,
 }
 
@@ -24,8 +23,20 @@ impl LinuxTray {
             state: state.clone(),
             icon_config,
         });
-        service.spawn();
-        Self { _service: service, state }
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                match service.spawn().await {
+                    Ok(_handle) => {
+                        std::future::pending::<()>().await;
+                    }
+                    Err(e) => {
+                        log::error!("[LinuxTray] Failed to spawn tray: {}", e);
+                    }
+                }
+            });
+        });
+        Self { state }
     }
 
     pub fn poll(&self) {}
@@ -54,11 +65,11 @@ impl ksni::Tray for MyTray {
         "HyperX NGENUITY Open".into()
     }
 
-    fn icon_pixmap(&self) -> Vec<ksni::IconPixmap> {
+    fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
         let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, s.percent, s.charging);
         let data = rgba_to_argb32(&rgba);
-        vec![ksni::IconPixmap {
+        vec![ksni::Icon {
             width: w as i32,
             height: h as i32,
             data,
@@ -66,29 +77,30 @@ impl ksni::Tray for MyTray {
     }
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
+        use ksni::menu::*;
         vec![
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            StandardItem {
                 label: "Открыть".into(),
-                activate: Some(Box::new(|this: &mut Self| {
+                activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(TrayCommand::ShowWindow);
-                })),
+                }),
                 ..Default::default()
-            }),
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            }.into(),
+            StandardItem {
                 label: "Переключить мьют".into(),
-                activate: Some(Box::new(|this: &mut Self| {
+                activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(TrayCommand::ToggleMute);
-                })),
+                }),
                 ..Default::default()
-            }),
-            ksni::MenuItem::Separator,
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            }.into(),
+            MenuItem::Separator,
+            StandardItem {
                 label: "Выход".into(),
-                activate: Some(Box::new(|this: &mut Self| {
+                activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(TrayCommand::Quit);
-                })),
+                }),
                 ..Default::default()
-            }),
+            }.into(),
         ]
     }
 }
