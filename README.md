@@ -39,3 +39,4 @@ cargo build --release
 ## Лицензия
 
 MIT
+
