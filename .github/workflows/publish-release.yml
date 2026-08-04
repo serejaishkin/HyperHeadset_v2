@@ -10,108 +10,182 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  build-linux-voice:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Dependencies
+      - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config
-      - name: Build release binaries
+      - name: Build release (voice)
         run: cargo build --release
-      - name: Create zip
+      - name: Pack
         run: |
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_Linux.zip hyperx-ngenuity-open hyper_headset_cli
-      - name: Upload artifact
+          cd dist && zip hyper_headset_Linux_voice.zip hyperx-ngenuity-open hyper_headset_cli
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Linux
-          path: dist/hyper_headset_Linux.zip
+          name: hyper_headset_Linux_voice
+          path: dist/hyper_headset_Linux_voice.zip
 
-  build-linux-appimage:
+  build-linux-novoice:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Dependencies
+      - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config
-      - name: Build release
-        run: cargo build --release
-      - name: Build AppImage
+          sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev pkg-config
+      - name: Build release (no voice)
+        run: cargo build --release --no-default-features
+      - name: Pack
         run: |
-          mkdir -p AppDir/usr/bin
-          cp target/release/hyperx-ngenuity-open AppDir/usr/bin/
-          cp target/release/hyper_headset_cli AppDir/usr/bin/
-          mkdir -p AppDir/usr/share/applications
-          cp hyper-headset.desktop AppDir/usr/share/applications/
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          cp assets/headphone.png AppDir/usr/share/icons/hicolor/256x256/apps/hyper-headset.png || true
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          ./appimagetool-x86_64.AppImage AppDir dist/hyper-headset-x86_64.AppImage
-      - name: Upload AppImage artifact
+          mkdir -p dist
+          cp target/release/hyperx-ngenuity-open dist/
+          cp target/release/hyper_headset_cli dist/
+          cd dist && zip hyper_headset_Linux_novoice.zip hyperx-ngenuity-open hyper_head_set_cli
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Linux_AppImage
-          path: dist/hyper-headset-x86_64.AppImage
+          name: hyper_headset_Linux_novoice
+          path: dist/hyper_headset_Linux_novoice.zip
 
-  build-windows:
+  build-macos-voice:
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install pkg-config
+      - name: Build release (voice)
+        run: cargo build --release
+      - name: Pack
+        run: |
+          mkdir -p dist
+          cp target/release/hyperx-ngenuity-open dist/
+          cp target/release/hyper_headset_cli dist/
+          cd dist && zip hyper_headset_MacOS_voice.zip hyperx-ngenuity-open hyper_headset_cli
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper_headset_MacOS_voice
+          path: dist/hyper_headset_MacOS_voice.zip
+
+  build-macos-novoice:
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install pkg-config
+      - name: Build release (no voice)
+        run: cargo build --release --no-default-features
+      - name: Pack
+        run: |
+          mkdir -p dist
+          cp target/release/hyperx-ngenuity-open dist/
+          cp target/release/hyper_headset_cli dist/
+          cd dist && zip hyper_headset_MacOS_novoice.zip hyperx-ngenuity-open hyper_headset_cli
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper_headset_MacOS_novoice
+          path: dist/hyper_headset_MacOS_novoice.zip
+
+  build-windows-voice:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Build release binaries
+      - name: Build release (voice)
         run: cargo build --release
-      - name: Create zip
+      - name: Pack
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
           Copy-Item target/release/hyper_headset_cli.exe dist/
-          Compress-Archive -Path "dist\*" -DestinationPath "dist\hyper_headset_Windows.zip"
-      - name: Upload artifact
+          Compress-Archive -Path "dist\*" -DestinationPath "dist\hyper_headset_Windows_voice.zip"
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Windows
-          path: dist/hyper_headset_Windows.zip
+          name: hyper_headset_Windows_voice
+          path: dist/hyper_head_set_Windows_voice.zip
+
+  build-windows-novoice:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release (no voice)
+        run: cargo build --release --no-default-features
+      - name: Pack
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target/release/hyperx-ngenuity-open.exe dist/
+          Copy-Item target/release/hyper_headset_cli.exe dist/
+          Compress-Archive -Path "dist\*" -DestinationPath "dist\hyper_headset_Windows_novoice.zip"
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper_headset_Windows_novoice
+          path: dist/hyper_headset_Windows_novoice.zip
 
   publish-release:
     runs-on: ubuntu-latest
-    needs: [build-linux, build-linux-appimage, build-windows]
+    needs: [build-linux-voice, build-linux-novoice, build-macos-voice, build-macos-novoice, build-windows-voice, build-windows-novoice]
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Download Linux zip
+
+      - name: Download Linux voice
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
-          name: hyper_headset_Linux
+          name: hyper_head_set_Linux_voice
           path: dist/
-      - name: Download Linux AppImage
+
+      - name: Download Linux novoice
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
-          name: hyper_headset_Linux_AppImage
+          name: hyper_head_set_Linux_novoice
           path: dist/
-      - name: Download Windows zip
+
+      - name: Download MacOS voice
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
-          name: hyper_headset_Windows
+          name: hyper_headset_MacOS_voice
           path: dist/
+
+      - name: Download MacOS novoice
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: hyper_headset_MacOS_novoice
+          path: dist/
+
+      - name: Download Windows voice
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: hyper_headset_Windows_voice
+          path: dist/
+
+      - name: Download Windows novoice
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: hyper_headset_Windows_novoice
+          path: dist/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
-          files: |
-            dist/hyper_headset_Linux.zip
-            dist/hyper-headset-x86_64.AppImage
-            dist/hyper_headset_Windows.zip
+          files: dist/*.zip
