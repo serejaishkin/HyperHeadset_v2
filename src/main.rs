@@ -187,7 +187,7 @@ fn main() -> anyhow::Result<()> {
             }
             let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
 
-            if device.state.battery_percent <= 15 && device.state.battery_percent > 0 && !last_battery_low {
+            if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
                     hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
