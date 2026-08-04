@@ -489,7 +489,7 @@ impl HyperXApp {
                 ui.checkbox(&mut voice.on_button_check, "On Check Battery button");
                 if ui.button("Apply Voice Settings").clicked() {
                     self.needs_save = true;
-                    hyperx_ngenuity_open::audio::voice::update_config(voice.clone());
+                    crate::audio::voice::update_config(voice.clone());
                 }
             }
 
