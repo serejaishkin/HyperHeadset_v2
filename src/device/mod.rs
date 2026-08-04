@@ -99,7 +99,6 @@ impl HyperXDevice {
         self.state.connected = false;
     }
 
-        hyperx_ngenuity_open::audio::voice::vlog(&format!("REFRESH: battery={}% charging={}", self.state.battery_percent, self.state.charging));
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
@@ -126,13 +125,12 @@ impl HyperXDevice {
             self.state.muted = status == 1;
         }
 
-        // Charging (cmd 3, status at byte 4) — DEBUG LOGGING
+        // Charging (cmd 3, status at byte 4)
         self.prepare_write();
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
             Ok((status, raw)) => {
                 log::info!("[Device] Charging raw: status={} raw[0..8]={:02X?}", status, &raw[0..8.min(raw.len())]);
                 self.state.charging = status == 1;
-                hyperx_ngenuity_open::audio::voice::vlog(&format!("CHARGING SET: charging={} last_charging={}", self.state.charging, last_charging));
             }
             Err(e) => {
                 log::warn!("[Device] Charging read FAILED: {}", e);
@@ -218,7 +216,6 @@ fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<
     }
 }
 
-/// Возвращает (status_byte, raw_buffer) для дебага
 fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<(u8, Vec<u8>), String> {
     let packet = build_packet(cmd_id, data);
     if let Err(e) = write_hid_report(device, &packet) {
