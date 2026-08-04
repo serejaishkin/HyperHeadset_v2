@@ -428,7 +428,7 @@ impl HyperXApp {
                 if let Some(tx) = &self.device_cmd_tx { let _ = tx.send(crate::DeviceCommand::ToggleMute); }
             }
             if ui.button("Check Battery (Voice)").clicked() {
-                if let Some(tx) = &self.device_cmd_tx { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(self.device_state.battery_percent)); }
+                crate::audio::voice::play(crate::audio::voice::VoiceEvent::Battery(self.device_state.battery_percent));
             }
         });
     }
