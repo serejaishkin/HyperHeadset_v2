@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-fn vlog(msg: &str) {
+pub fn vlog(msg: &str) {
     let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
         use std::io::Write;

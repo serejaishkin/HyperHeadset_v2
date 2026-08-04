@@ -99,6 +99,7 @@ impl HyperXDevice {
         self.state.connected = false;
     }
 
+        hyperx_ngenuity_open::audio::voice::vlog(&format!("REFRESH: battery={}% charging={}", self.state.battery_percent, self.state.charging));
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
@@ -131,6 +132,7 @@ impl HyperXDevice {
             Ok((status, raw)) => {
                 log::info!("[Device] Charging raw: status={} raw[0..8]={:02X?}", status, &raw[0..8.min(raw.len())]);
                 self.state.charging = status == 1;
+                hyperx_ngenuity_open::audio::voice::vlog(&format!("CHARGING SET: charging={} last_charging={}", self.state.charging, last_charging));
             }
             Err(e) => {
                 log::warn!("[Device] Charging read FAILED: {}", e);

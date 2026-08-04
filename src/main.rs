@@ -48,6 +48,7 @@ fn check_apo_available() -> bool {
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
+    hyperx_ngenuity_open::audio::voice::vlog("=== MAIN STARTED ===");
 
     fn vlog(msg: &str) {
         let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
