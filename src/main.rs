@@ -1,4 +1,4 @@
-#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+// #![cfg_attr(target_os = "windows", windows_subsystem = "windows") temporarily removed for debug
 
 use anyhow::anyhow;
 use eframe::NativeOptions;
@@ -48,6 +48,11 @@ fn check_apo_available() -> bool {
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("PANIC: {}", info);
+        let _ = std::fs::write(std::env::temp_dir().join("hyper_panic.log"), msg);
+        eprintln!("{}", msg);
+    }));
 
     fn vlog(msg: &str) {
         let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
