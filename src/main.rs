@@ -49,8 +49,6 @@ fn check_apo_available() -> bool {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    }
-
     let config = Config::load().unwrap_or_default();
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
@@ -201,6 +199,11 @@ fn main() -> anyhow::Result<()> {
 
             if device.state.charging && !last_charging {
                 log::info!("[Device] Headset charging");
+                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging);
+            }
+            if device.state.battery_percent == 100 && device.state.charging && !last_charging {
+                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
+                log::info!("[Device] Battery full");
             }
             last_charging = device.state.charging;
 
