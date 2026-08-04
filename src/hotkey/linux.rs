@@ -16,7 +16,7 @@ fn code_to_name(code: u16) -> Option<String> {
         return Some(format!("F{}", code - 183 + 13));
     }
     if (2..=10).contains(&code) {
-        return Some(((code - 2 + b'1') as char).to_string());
+        return Some(((code - 2 + (b'1' as u16)) as u8 as char).to_string());
     }
     if code == 11 {
         return Some("0".into());
@@ -109,14 +109,12 @@ pub fn spawn_capture_thread(capture: Arc<GlobalHotkeyCapture>) {
                 currently_pressed.clear(); captured_keys = None;
                 thread::sleep(Duration::from_millis(50)); continue;
             }
-            let mut any_event = false;
             for file in &mut files {
                 use std::io::Read;
                 let mut buf = [0u8; 24];
                 loop {
                     match file.read(&mut buf) {
                         Ok(24) => {
-                            any_event = true;
                             let type_ = u16::from_ne_bytes([buf[16], buf[17]]);
                             let code = u16::from_ne_bytes([buf[18], buf[19]]);
                             let value = i32::from_ne_bytes([buf[20], buf[21], buf[22], buf[23]]);

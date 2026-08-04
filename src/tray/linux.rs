@@ -24,17 +24,8 @@ impl LinuxTray {
             icon_config,
         });
         std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
-                match service.spawn().await {
-                    Ok(_handle) => {
-                        std::future::pending::<()>().await;
-                    }
-                    Err(e) => {
-                        log::error!("[LinuxTray] Failed to spawn tray: {}", e);
-                    }
-                }
-            });
+            let _handle = service.spawn();
+            std::thread::park();
         });
         Self { state }
     }
