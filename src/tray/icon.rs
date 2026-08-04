@@ -67,7 +67,7 @@ impl Default for TrayIconConfig {
 }
 
 impl TrayIconConfig {
-    pub fn default_path() -> PathBuf {
+    pub pub fn default_path() -> PathBuf {
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.join("tray_icon.toml")))
