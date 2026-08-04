@@ -477,7 +477,7 @@ impl HyperXApp {
             
             ui.separator();
             ui.heading("Voice Prompts");
-            let voice = \let mut voice = &mut self.config.voice;mut self.config.voice;
+            let voice = &mut self.config.voice;
             ui.checkbox(&mut voice.enabled, "Enable voice prompts");
             if voice.enabled {
                 ui.checkbox(&mut voice.exact_percent, "Exact percent (requires bat_XXX.wav files)");
