@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use std::sync::Mutex;
 
 lazy_static::lazy_static! {
@@ -76,6 +75,7 @@ pub fn play(event: VoiceEvent) {
 #[cfg(not(feature = "embedded-voice"))]
 pub fn play(_event: VoiceEvent) {}
 
+#[cfg(feature = "embedded-voice")]
 fn select_battery(percent: u8, exact: bool) -> &'static [u8] {
     if exact {
         if let Some(bytes) = get_exact_battery(percent) {
@@ -83,6 +83,11 @@ fn select_battery(percent: u8, exact: bool) -> &'static [u8] {
         }
     }
     nearest_battery(percent)
+}
+
+#[cfg(not(feature = "embedded-voice"))]
+fn select_battery(_percent: u8, _exact: bool) -> &'static [u8] {
+    &[]
 }
 
 #[cfg(feature = "embedded-voice")]
@@ -93,12 +98,13 @@ fn get_exact_battery(percent: u8) -> Option<&'static [u8]> {
         20 => Some(embedded::BAT_020),
         50 => Some(embedded::BAT_050),
         100 => Some(embedded::BAT_100),
-        // Добавляй сюда остальные:
-        // 1 => Some(include_bytes!("../../assets/voice/bat_001.wav")),
-        // 2 => Some(include_bytes!("../../assets/voice/bat_002.wav")),
-        // ...
         _ => None,
     }
+}
+
+#[cfg(not(feature = "embedded-voice"))]
+fn get_exact_battery(_percent: u8) -> Option<&'static [u8]> {
+    None
 }
 
 #[cfg(feature = "embedded-voice")]
@@ -112,9 +118,15 @@ fn nearest_battery(percent: u8) -> &'static [u8] {
     }
 }
 
+#[cfg(not(feature = "embedded-voice"))]
+fn nearest_battery(_percent: u8) -> &'static [u8] {
+    &[]
+}
+
 #[cfg(feature = "embedded-voice")]
 fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error>> {
     use rodio::{Decoder, OutputStream, Sink};
+    use std::io::Cursor;
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
     let cursor = Cursor::new(bytes);
