@@ -2,12 +2,14 @@ use std::io::Cursor;
 
 #[cfg(feature = "embedded-voice")]
 mod embedded {
-    pub const BAT_000: &[u8] = include_bytes!("../../../assets/voice/bat_000.wav");
-    pub const BAT_010: &[u8] = include_bytes!("../../../assets/voice/bat_010.wav");
-    pub const BAT_020: &[u8] = include_bytes!("../../../assets/voice/bat_020.wav");
-    pub const BAT_050: &[u8] = include_bytes!("../../../assets/voice/bat_050.wav");
-    pub const BAT_100: &[u8] = include_bytes!("../../../assets/voice/bat_100.wav");
-    pub const CHARGING: &[u8] = include_bytes!("../../../assets/voice/charging.wav");
+    pub const BAT_000: &[u8] = include_bytes!("../../assets/voice/bat_000.wav");
+    pub const BAT_010: &[u8] = include_bytes!("../../assets/voice/bat_010.wav");
+    pub const BAT_020: &[u8] = include_bytes!("../../assets/voice/bat_020.wav");
+    pub const BAT_050: &[u8] = include_bytes!("../../assets/voice/bat_050.wav");
+    pub const BAT_100: &[u8] = include_bytes!("../../assets/voice/bat_100.wav");
+    pub const CHARGING: &[u8] = include_bytes!("../../assets/voice/charging.wav");
+    pub const FULL_CHARGE: &[u8] = include_bytes!("../../assets/voice/full_charge.wav");
+    pub const LOW_BATTERY: &[u8] = include_bytes!("../../assets/voice/low_battery.wav");
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,8 +26,9 @@ pub enum VoiceEvent {
 pub fn play(event: VoiceEvent) {
     let bytes: Option<&'static [u8]> = match event {
         VoiceEvent::Battery(p) => Some(nearest_battery(p)),
-        VoiceEvent::Charging | VoiceEvent::FullCharge => Some(embedded::CHARGING),
-        VoiceEvent::LowBattery => Some(embedded::BAT_010),
+        VoiceEvent::Charging => Some(embedded::CHARGING),
+        VoiceEvent::FullCharge => Some(embedded::FULL_CHARGE),
+        VoiceEvent::LowBattery => Some(embedded::LOW_BATTERY),
         VoiceEvent::Connected | VoiceEvent::Disconnected => None,
     };
 
