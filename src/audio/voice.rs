@@ -1,4 +1,3 @@
-use rodio::{Decoder, OutputStream, Sink};
 use std::io::Cursor;
 
 // === ВШИТЫЕ АССЕТЫ ===
@@ -60,8 +59,8 @@ pub fn play(_event: VoiceEvent) {
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {
     match percent {
-        0..=5   => embedded::BAT_000,
-        6..=15  => embedded::BAT_010,
+        0..=5 => embedded::BAT_000,
+        6..=15 => embedded::BAT_010,
         16..=25 => embedded::BAT_020,
         26..=35 => embedded::BAT_030,
         36..=45 => embedded::BAT_040,
@@ -70,12 +69,13 @@ fn nearest_battery(percent: u8) -> &'static [u8] {
         66..=75 => embedded::BAT_070,
         76..=85 => embedded::BAT_080,
         86..=95 => embedded::BAT_090,
-        _       => embedded::BAT_100,
+        _ => embedded::BAT_100,
     }
 }
 
-/// Ключевой фикс: принимаем &'static [u8], а не &[u8]
-fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+#[cfg(feature = "embedded-voice")]
+fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error>> {
+    use rodio::{Decoder, OutputStream, Sink};
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
     let cursor = Cursor::new(bytes);
