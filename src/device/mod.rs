@@ -1,5 +1,4 @@
 //! HID device abstraction for HyperX Cloud II Wireless DTS
-use crate::audio::voice;
 
 use hidapi::HidApi;
 use std::thread;
@@ -107,7 +106,6 @@ impl HyperXDevice {
 
         Self::flush_input_buffer(device);
 
-        // Battery (cmd 2, level at byte 7)
         self.prepare_write();
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
         if write_hid_report(device, &packet).is_ok() {
@@ -120,28 +118,19 @@ impl HyperXDevice {
             }
         }
 
-        // Mute (cmd 5, status at byte 4)
         self.prepare_write();
         if let Ok(status) = send_and_read(device, GET_MUTE_CMD_ID, &[]) {
             self.state.muted = status == 1;
         }
 
-        // Charging (cmd 3, status at byte 4)
         self.prepare_write();
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
             Ok((status, raw)) => {
-                voice::vlog(&format!(
-                    "[Device] Charging raw: status={} raw[0..8]={:02X?}",
-                    status,
-                    &raw[0..8.min(raw.len())]
-                ));
+                log::info!("[Device] Charging raw: status={} raw[0..8]={:02X?}", status, &raw[0..8.min(raw.len())]);
                 self.state.charging = status == 1;
             }
             Err(e) => {
-                voice::vlog(&format!(
-                    "[Device] Charging read FAILED: {}",
-                    e
-                ));
+                log::warn!("[Device] Charging read FAILED: {}", e);
             }
         }
 
