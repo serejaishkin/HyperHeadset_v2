@@ -1,19 +1,18 @@
-//! macOS system tray using tray-icon crate
-
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
-    TrayIconBuilder,
+    TrayIconBuilder, Icon,
 };
-
-use super::TrayCommand;
+use super::{TrayCommand, icon::{TrayIconConfig, generate_battery_icon_rgba}};
 
 pub struct MacOSTray {
     tray_icon: tray_icon::TrayIcon,
     _menu: Menu,
     current_percent: Mutex<u8>,
     current_muted: Mutex<bool>,
+    current_charging: Mutex<bool>,
+    icon_config: TrayIconConfig,
 }
 
 impl MacOSTray {
@@ -34,13 +33,14 @@ impl MacOSTray {
         menu.append(&sep2).unwrap();
         menu.append(&quit_item).unwrap();
 
-        let icon = load_template_icon();
+        let icon_config = TrayIconConfig::load_or_create();
+        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 100, false);
+        let icon = Icon::from_rgba(rgba, w, h).unwrap_or_else(|_| load_fallback_icon());
 
         let tray_icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu.clone()))
             .with_tooltip("HyperX NGENUITY Open")
             .with_icon(icon)
-            .with_icon_as_template(true)
             .build()
             .unwrap();
 
@@ -69,12 +69,20 @@ impl MacOSTray {
             _menu: menu,
             current_percent: Mutex::new(100),
             current_muted: Mutex::new(false),
+            current_charging: Mutex::new(false),
+            icon_config,
         }
     }
 
-    pub fn update_battery(&self, percent: u8) {
+    pub fn update_battery(&self, percent: u8, charging: bool) {
         *self.current_percent.lock().unwrap() = percent;
+        *self.current_charging.lock().unwrap() = charging;
         let muted = *self.current_muted.lock().unwrap();
+
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, percent, charging);
+        if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
+            let _ = self.tray_icon.set_icon(Some(icon));
+        }
         let _ = self.tray_icon.set_tooltip(Some(&build_tooltip(percent, muted)));
     }
 
@@ -86,21 +94,13 @@ impl MacOSTray {
 }
 
 fn build_tooltip(percent: u8, muted: bool) -> String {
-    let mic = if muted {
-        "🔇 Выключен"
-    } else {
-        "🎙️ Включён"
-    };
-    format!(
-        "HyperX Cloud II Wireless\n🔋 Батарея: {}%\n🎤 Микрофон: {}",
-        percent, mic
-    )
+    let mic = if muted { "🔇 Выключен" } else { "🎙️ Включён" };
+    format!("HyperX NGENUITY Open\n🔋 Батарея: {}%\n🎤 Микрофон: {}", percent, mic)
 }
 
-fn load_template_icon() -> tray_icon::Icon {
+fn load_fallback_icon() -> tray_icon::Icon {
     let size = 16;
     let mut rgba = vec![0u8; size * size * 4];
-
     for y in 0..size {
         for x in 0..size {
             let idx = (y * size + x) * 4;
@@ -108,17 +108,12 @@ fn load_template_icon() -> tray_icon::Icon {
             let cy = size as f32 / 2.0;
             let dx = (x as f32 - cx).abs();
             let dy = (y as f32 - cy).abs();
-
             if dx < 6.0 && dy < 6.0 {
-                rgba[idx] = 255;
-                rgba[idx + 1] = 255;
-                rgba[idx + 2] = 255;
-                rgba[idx + 3] = 255;
+                rgba[idx] = 255; rgba[idx + 1] = 255; rgba[idx + 2] = 255; rgba[idx + 3] = 255;
             } else {
                 rgba[idx + 3] = 0;
             }
         }
     }
-
     tray_icon::Icon::from_rgba(rgba, size as u32, size as u32).unwrap()
 }

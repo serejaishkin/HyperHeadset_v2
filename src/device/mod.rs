@@ -50,6 +50,18 @@ impl HyperXDevice {
         let _ = device.get_input_report(&mut buf);
     }
 
+    fn flush_input_buffer(device: &hidapi::HidDevice) {
+        let mut buf = [0u8; 256];
+        for _ in 0..3 {
+            match device.read_timeout(&mut buf, 5) {
+                Ok(0) | Err(_) => break,
+                Ok(len) => {
+                    log::debug!("[Device] Flushed {} bytes cmd={:02X}", len, buf.get(3).unwrap_or(&0));
+                }
+            }
+        }
+    }
+
     pub fn connect(&mut self) -> anyhow::Result<()> {
         let api = HidApi::new()?;
         let mut candidates = Vec::new();
@@ -68,6 +80,11 @@ impl HyperXDevice {
                             self.device = Some(device);
                             self.state.connected = true;
                             self.state.battery_percent = buf[7];
+                            log::info!(
+                                "[Device] connect() battery={}% raw[0..16]={:02X?}",
+                                buf[7],
+                                &buf[0..16.min(len)]
+                            );
                             return Ok(());
                         }
                     }
@@ -77,12 +94,19 @@ impl HyperXDevice {
         Err(anyhow::anyhow!("No HyperX device found"))
     }
 
+    pub fn disconnect(&mut self) {
+        self.device = None;
+        self.state.connected = false;
+    }
+
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
 
-        // Battery (cmd 2, level at byte 7) — НЕ используем send_and_read, т.к. батарея в buf[7], а не buf[4]
+        Self::flush_input_buffer(device);
+
+        // Battery (cmd 2, level at byte 7)
         self.prepare_write();
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
         if write_hid_report(device, &packet).is_ok() {
@@ -115,21 +139,19 @@ impl HyperXDevice {
             return Err(anyhow::anyhow!("Device not connected"));
         };
         let new_mute = !self.state.muted;
-        println!("[DEBUG] toggle_mute called, current={}, target={}", self.state.muted, new_mute);
+        log::debug!("[Device] toggle_mute: current={}, target={}", self.state.muted, new_mute);
         
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
-        println!("[DEBUG] Sending mute packet: {:02X?}", packet);
+        log::debug!("[Device] Mute packet: {:02X?}", packet);
         
         match write_hid_report(device, &packet) {
             Ok(_) => {
-                println!("[DEBUG] Mute command sent successfully");
-                // МГНОВЕННО обновляем локальное состояние, чтобы GUI среагировал
                 self.state.muted = new_mute;
                 Ok(())
             }
             Err(e) => {
-                println!("[DEBUG] Mute command FAILED: {}", e);
+                log::debug!("[Device] Mute command failed: {}", e);
                 Err(e)
             }
         }
@@ -139,7 +161,7 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-        println!("[DEBUG] set_sidetone called: {}", enabled);
+        log::debug!("[Device] set_sidetone: {}", enabled);
         
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
@@ -149,7 +171,7 @@ impl HyperXDevice {
                 Ok(())
             }
             Err(e) => {
-                println!("[DEBUG] Sidetone command FAILED: {}", e);
+                log::debug!("[Device] Sidetone command failed: {}", e);
                 Err(e)
             }
         }
