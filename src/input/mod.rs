@@ -97,7 +97,6 @@ impl MuteHandler {
             Some("MediaVolumeUp") => Key::VolumeUp,
             Some("MediaNextTrack") => Key::MediaNextTrack,
             Some("MediaPrevTrack") => Key::MediaPrevTrack,
-            Some("MediaStop") => Key::MediaStop,
             Some("Numpad0") => Key::Numpad0,
             Some("Numpad1") => Key::Numpad1,
             Some("Numpad2") => Key::Numpad2,
