@@ -74,6 +74,7 @@ impl MacOSTray {
         }
     }
 
+    pub fn poll(&mut self) {}
     pub fn update_battery(&self, percent: u8, charging: bool) {
         *self.current_percent.lock().unwrap() = percent;
         *self.current_charging.lock().unwrap() = charging;
