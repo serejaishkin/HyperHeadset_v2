@@ -517,6 +517,7 @@ impl HyperXApp {
         ui.label("EQ is applied at OS level");
 
         ui.separator();
-        self.tray_editor.show(ui, ui.ctx());
+        let ctx = ui.ctx().clone();
+        self.tray_editor.show(ui, &ctx);
     }
 }

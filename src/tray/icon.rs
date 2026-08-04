@@ -15,9 +15,9 @@ pub struct TrayIconConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrayIconColors {
     pub charging: IconColors,
-    pub high: IconColors,    // >50%
-    pub medium: IconColors,  // 20–50%
-    pub low: IconColors,     // <20%
+    pub high: IconColors,
+    pub medium: IconColors,
+    pub low: IconColors,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ impl Default for TrayIconConfig {
 }
 
 impl TrayIconConfig {
-    pub pub fn default_path() -> PathBuf {
+    pub fn default_path() -> PathBuf {
         std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(|p| p.join("tray_icon.toml")))
