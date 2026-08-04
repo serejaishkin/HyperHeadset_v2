@@ -34,27 +34,35 @@ jobs:
           name: hyper_headset_Linux
           path: dist/hyper_headset_Linux.zip
 
-  build-macos:
-    runs-on: macos-latest
+  build-linux-appimage:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Install Dependencies
-        run: brew install pkg-config
-      - name: Build release binaries
-        run: cargo build --release
-      - name: Create zip
         run: |
-          mkdir -p dist
-          cp target/release/hyperx-ngenuity-open dist/
-          cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_MacOS.zip hyperx-ngenuity-open hyper_headset_cli
-      - name: Upload artifact
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config
+      - name: Build release
+        run: cargo build --release
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp target/release/hyperx-ngenuity-open AppDir/usr/bin/
+          cp target/release/hyper_headset_cli AppDir/usr/bin/
+          mkdir -p AppDir/usr/share/applications
+          cp hyper-headset.desktop AppDir/usr/share/applications/
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp assets/headphone.png AppDir/usr/share/icons/hicolor/256x256/apps/hyper-headset.png || true
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage AppDir dist/hyper-headset-x86_64.AppImage
+      - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_MacOS
-          path: dist/hyper_headset_MacOS.zip
+          name: hyper_headset_Linux_AppImage
+          path: dist/hyper-headset-x86_64.AppImage
 
   build-windows:
     runs-on: windows-latest
@@ -79,22 +87,22 @@ jobs:
 
   publish-release:
     runs-on: ubuntu-latest
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux, build-linux-appimage, build-windows]
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Download Linux artifact
+      - name: Download Linux zip
         uses: actions/download-artifact@v4
         with:
           name: hyper_headset_Linux
           path: dist/
-      - name: Download MacOS artifact
+      - name: Download Linux AppImage
         uses: actions/download-artifact@v4
         with:
-          name: hyper_headset_MacOS
+          name: hyper_headset_Linux_AppImage
           path: dist/
-      - name: Download Windows artifact
+      - name: Download Windows zip
         uses: actions/download-artifact@v4
         with:
           name: hyper_headset_Windows
@@ -105,5 +113,5 @@ jobs:
           prerelease: true
           files: |
             dist/hyper_headset_Linux.zip
-            dist/hyper_headset_MacOS.zip
+            dist/hyper-headset-x86_64.AppImage
             dist/hyper_headset_Windows.zip
