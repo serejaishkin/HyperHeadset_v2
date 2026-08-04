@@ -2,6 +2,12 @@ use image::{RgbaImage, Rgba};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+lazy_static::lazy_static! {
+    pub static ref TRAY_ICON_CONFIG: std::sync::Mutex<TrayIconConfig> = 
+        std::sync::Mutex::new(TrayIconConfig::load_or_create());
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrayIconConfig {
     pub size: u32,
@@ -80,9 +86,10 @@ impl TrayIconConfig {
             log::info!("[TrayIcon] Config not found, creating default at {:?}", path);
             let cfg = Self::default();
             let _ = cfg.save(&path);
+            *TRAY_ICON_CONFIG.lock().unwrap() = cfg.clone();
             return cfg;
         }
-        match std::fs::read_to_string(&path) {
+        let cfg = match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
                 Ok(cfg) => cfg,
                 Err(e) => {
@@ -96,12 +103,15 @@ impl TrayIconConfig {
                 log::warn!("[TrayIcon] Cannot read config, using default: {}", e);
                 Self::default()
             }
-        }
+        };
+        *TRAY_ICON_CONFIG.lock().unwrap() = cfg.clone();
+        cfg
     }
 
     pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
         let content = toml::to_string_pretty(self)?;
-        std::fs::write(path, content)?;
+        std::fs::write(path, &content)?;
+        *TRAY_ICON_CONFIG.lock().unwrap() = self.clone();
         Ok(())
     }
 }

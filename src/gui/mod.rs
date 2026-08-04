@@ -474,6 +474,25 @@ impl HyperXApp {
             if ui.button("Test: emulate press").clicked() {
                 GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
             }
+            
+            ui.separator();
+            ui.heading("Voice Prompts");
+            let mut voice = &mut self.config.voice;
+            ui.checkbox(&mut voice.enabled, "Enable voice prompts");
+            if voice.enabled {
+                ui.checkbox(&mut voice.exact_percent, "Exact percent (requires bat_XXX.wav files)");
+                ui.checkbox(&mut voice.on_battery_low, "On low battery (≤20%)");
+                ui.checkbox(&mut voice.on_charging, "On charging start");
+                ui.checkbox(&mut voice.on_full_charge, "On full charge");
+                ui.checkbox(&mut voice.on_connected, "On headset connected");
+                ui.checkbox(&mut voice.on_disconnected, "On headset disconnected");
+                ui.checkbox(&mut voice.on_button_check, "On Check Battery button");
+                if ui.button("Apply Voice Settings").clicked() {
+                    self.needs_save = true;
+                    hyperx_ngenuity_open::audio::voice::update_config(voice.clone());
+                }
+            }
+
             ui.separator();
             ui.heading("System Equalizer");
             ui.checkbox(&mut self.config.audio.system_eq_enabled, "Enable system EQ");

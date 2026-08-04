@@ -1,4 +1,13 @@
 use std::io::Cursor;
+use std::sync::Mutex;
+
+lazy_static::lazy_static! {
+    static ref VOICE_CFG: Mutex<crate::config::VoiceConfig> = Mutex::new(crate::config::VoiceConfig::default());
+}
+
+pub fn update_config(cfg: crate::config::VoiceConfig) {
+    *VOICE_CFG.lock().unwrap() = cfg;
+}
 
 #[cfg(feature = "embedded-voice")]
 mod embedded {
@@ -24,13 +33,37 @@ pub enum VoiceEvent {
 
 #[cfg(feature = "embedded-voice")]
 pub fn play(event: VoiceEvent) {
+    let cfg = VOICE_CFG.lock().unwrap().clone();
+    if !cfg.enabled { return; }
+
     let bytes: Option<&'static [u8]> = match event {
-        VoiceEvent::Battery(p) => Some(nearest_battery(p)),
-        VoiceEvent::Charging => Some(embedded::CHARGING),
-        VoiceEvent::FullCharge => Some(embedded::FULL_CHARGE),
-        VoiceEvent::LowBattery => Some(embedded::LOW_BATTERY),
-        VoiceEvent::Connected | VoiceEvent::Disconnected => None,
+        VoiceEvent::Battery(p) => {
+            if p <= 20 && !cfg.on_battery_low { return; }
+            if p > 20 && !cfg.on_button_check { return; }
+            Some(select_battery(p, cfg.exact_percent))
+        }
+        VoiceEvent::Charging => {
+            if !cfg.on_charging { return; }
+            Some(embedded::CHARGING)
+        }
+        VoiceEvent::FullCharge => {
+            if !cfg.on_full_charge { return; }
+            Some(embedded::FULL_CHARGE)
+        }
+        VoiceEvent::LowBattery => {
+            if !cfg.on_battery_low { return; }
+            Some(embedded::LOW_BATTERY)
+        }
+        VoiceEvent::Connected => {
+            if !cfg.on_connected { return; }
+            None
+        }
+        VoiceEvent::Disconnected => {
+            if !cfg.on_disconnected { return; }
+            None
+        }
     };
+
     if let Some(bytes) = bytes {
         std::thread::spawn(move || {
             if let Err(e) = play_blocking(bytes) {
@@ -42,6 +75,31 @@ pub fn play(event: VoiceEvent) {
 
 #[cfg(not(feature = "embedded-voice"))]
 pub fn play(_event: VoiceEvent) {}
+
+fn select_battery(percent: u8, exact: bool) -> &'static [u8] {
+    if exact {
+        if let Some(bytes) = get_exact_battery(percent) {
+            return bytes;
+        }
+    }
+    nearest_battery(percent)
+}
+
+#[cfg(feature = "embedded-voice")]
+fn get_exact_battery(percent: u8) -> Option<&'static [u8]> {
+    match percent {
+        0 => Some(embedded::BAT_000),
+        10 => Some(embedded::BAT_010),
+        20 => Some(embedded::BAT_020),
+        50 => Some(embedded::BAT_050),
+        100 => Some(embedded::BAT_100),
+        // Добавляй сюда остальные:
+        // 1 => Some(include_bytes!("../../assets/voice/bat_001.wav")),
+        // 2 => Some(include_bytes!("../../assets/voice/bat_002.wav")),
+        // ...
+        _ => None,
+    }
+}
 
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {
