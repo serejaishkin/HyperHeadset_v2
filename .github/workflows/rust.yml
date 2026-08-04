@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
-          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cp target/debug/hyperx-ngenuity-open-cli dist/ 2>/dev/null || true
           cd dist && zip ../hyper-headset-linux-voice-debug.zip * 2>/dev/null || true
       - name: Upload artifact
         if: always()
@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
-          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cp target/debug/hyperx-ngenuity-open-cli dist/ 2>/dev/null || true
           cd dist && zip ../hyper-headset-linux-novoice-debug.zip * 2>/dev/null || true
       - name: Upload artifact
         if: always()
@@ -73,7 +73,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
-          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cp target/debug/hyperx-ngenuity-open-cli dist/ 2>/dev/null || true
           cd dist && zip ../hyper-headset-macos-voice-debug.zip * 2>/dev/null || true
       - name: Upload artifact
         if: always()
@@ -94,7 +94,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
-          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cp target/debug/hyperx-ngenuity-open-cli dist/ 2>/dev/null || true
           cd dist && zip ../hyper-headset-macos-novoice-debug.zip * 2>/dev/null || true
       - name: Upload artifact
         if: always()
@@ -114,7 +114,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/debug/hyperx-ngenuity-open.exe dist/ -ErrorAction SilentlyContinue
-          Copy-Item target/debug/hyper_headset_cli.exe dist/ -ErrorAction SilentlyContinue
+          Copy-Item target/debug/hyperx-ngenuity-open-cli.exe dist/ -ErrorAction SilentlyContinue
           cd dist
           Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-voice-debug.zip -ErrorAction SilentlyContinue
       - name: Upload artifact
@@ -135,7 +135,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/debug/hyperx-ngenuity-open.exe dist/ -ErrorAction SilentlyContinue
-          Copy-Item target/debug/hyper_headset_cli.exe dist/ -ErrorAction SilentlyContinue
+          Copy-Item target/debug/hyperx-ngenuity-open-cli.exe dist/ -ErrorAction SilentlyContinue
           cd dist
           Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-novoice-debug.zip -ErrorAction SilentlyContinue
       - name: Upload artifact
