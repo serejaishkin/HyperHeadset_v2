@@ -23,6 +23,18 @@ jobs:
         run: cargo build --verbose
       - name: Test
         run: cargo test
+      - name: Pack artifact
+        run: |
+          mkdir -p dist
+          cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
+          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cd dist && zip ../hyper-headset-linux-voice-debug.zip * 2>/dev/null || true
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-linux-voice-debug
+          path: hyper-headset-linux-voice-debug.zip
 
   build-linux-novoice:
     runs-on: ubuntu-latest
@@ -36,26 +48,60 @@ jobs:
         run: cargo build --verbose --no-default-features
       - name: Test
         run: cargo test --no-default-features
+      - name: Pack artifact
+        run: |
+          mkdir -p dist
+          cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
+          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cd dist && zip ../hyper-headset-linux-novoice-debug.zip * 2>/dev/null || true
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-linux-novoice-debug
+          path: hyper-headset-linux-novoice-debug.zip
 
   build-macos-voice:
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
         run: brew install pkg-config
       - name: Build (voice)
         run: cargo build --verbose
+      - name: Pack artifact
+        run: |
+          mkdir -p dist
+          cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
+          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cd dist && zip ../hyper-headset-macos-voice-debug.zip * 2>/dev/null || true
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-macos-voice-debug
+          path: hyper-headset-macos-voice-debug.zip
 
   build-macos-novoice:
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
         run: brew install pkg-config
       - name: Build (no voice)
         run: cargo build --verbose --no-default-features
+      - name: Pack artifact
+        run: |
+          mkdir -p dist
+          cp target/debug/hyperx-ngenuity-open dist/ 2>/dev/null || true
+          cp target/debug/hyper_headset_cli dist/ 2>/dev/null || true
+          cd dist && zip ../hyper-headset-macos-novoice-debug.zip * 2>/dev/null || true
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-macos-novoice-debug
+          path: hyper-headset-macos-novoice-debug.zip
 
   build-windows-voice:
     runs-on: windows-latest
@@ -63,6 +109,20 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build (voice)
         run: cargo build --verbose
+      - name: Pack artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target/debug/hyperx-ngenuity-open.exe dist/ -ErrorAction SilentlyContinue
+          Copy-Item target/debug/hyper_headset_cli.exe dist/ -ErrorAction SilentlyContinue
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-voice-debug.zip -ErrorAction SilentlyContinue
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-windows-voice-debug
+          path: hyper-headset-windows-voice-debug.zip
 
   build-windows-novoice:
     runs-on: windows-latest
@@ -70,3 +130,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build (no voice)
         run: cargo build --verbose --no-default-features
+      - name: Pack artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target/debug/hyperx-ngenuity-open.exe dist/ -ErrorAction SilentlyContinue
+          Copy-Item target/debug/hyper_headset_cli.exe dist/ -ErrorAction SilentlyContinue
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-novoice-debug.zip -ErrorAction SilentlyContinue
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyper-headset-windows-novoice-debug
+          path: hyper-headset-windows-novoice-debug.zip

@@ -25,12 +25,12 @@ jobs:
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_Linux_voice.zip hyperx-ngenuity-open hyper_headset_cli
+          cd dist && zip ../hyper-headset-linux-voice.zip hyperx-ngenuity-open hyper_headset_cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Linux_voice
-          path: dist/hyper_headset_Linux_voice.zip
+          name: hyper-headset-linux-voice
+          path: hyper-headset-linux-voice.zip
 
   build-linux-novoice:
     runs-on: ubuntu-latest
@@ -47,16 +47,15 @@ jobs:
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_Linux_novoice.zip hyperx-ngenuity-open hyper_head_set_cli
+          cd dist && zip ../hyper-headset-linux-novoice.zip hyperx-ngenuity-open hyper_headset_cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Linux_novoice
-          path: dist/hyper_headset_Linux_novoice.zip
+          name: hyper-headset-linux-novoice
+          path: hyper-headset-linux-novoice.zip
 
   build-macos-voice:
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
@@ -68,16 +67,15 @@ jobs:
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_MacOS_voice.zip hyperx-ngenuity-open hyper_headset_cli
+          cd dist && zip ../hyper-headset-macos-voice.zip hyperx-ngenuity-open hyper_headset_cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_MacOS_voice
-          path: dist/hyper_headset_MacOS_voice.zip
+          name: hyper-headset-macos-voice
+          path: hyper-headset-macos-voice.zip
 
   build-macos-novoice:
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
@@ -89,12 +87,12 @@ jobs:
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyper_headset_cli dist/
-          cd dist && zip hyper_headset_MacOS_novoice.zip hyperx-ngenuity-open hyper_headset_cli
+          cd dist && zip ../hyper-headset-macos-novoice.zip hyperx-ngenuity-open hyper_headset_cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_MacOS_novoice
-          path: dist/hyper_headset_MacOS_novoice.zip
+          name: hyper-headset-macos-novoice
+          path: hyper-headset-macos-novoice.zip
 
   build-windows-voice:
     runs-on: windows-latest
@@ -108,12 +106,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
           Copy-Item target/release/hyper_headset_cli.exe dist/
-          Compress-Archive -Path "dist\*" -DestinationPath "dist\hyper_headset_Windows_voice.zip"
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-voice.zip
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Windows_voice
-          path: dist/hyper_head_set_Windows_voice.zip
+          name: hyper-headset-windows-voice
+          path: hyper-headset-windows-voice.zip
 
   build-windows-novoice:
     runs-on: windows-latest
@@ -126,13 +125,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
-          Copy-Item target/release/hyper_headset_cli.exe dist/
-          Compress-Archive -Path "dist\*" -DestinationPath "dist\hyper_headset_Windows_novoice.zip"
+          Copy-Item target/release/hyper_head_set_cli.exe dist/
+          cd dist
+          Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-novoice.zip
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: hyper_headset_Windows_novoice
-          path: dist/hyper_headset_Windows_novoice.zip
+          name: hyper-headset-windows-novoice
+          path: hyper-headset-windows-novoice.zip
 
   publish-release:
     runs-on: ubuntu-latest
@@ -140,50 +140,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Linux voice
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
-          name: hyper_head_set_Linux_voice
           path: dist/
-
-      - name: Download Linux novoice
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: hyper_head_set_Linux_novoice
-          path: dist/
-
-      - name: Download MacOS voice
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: hyper_headset_MacOS_voice
-          path: dist/
-
-      - name: Download MacOS novoice
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: hyper_headset_MacOS_novoice
-          path: dist/
-
-      - name: Download Windows voice
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: hyper_headset_Windows_voice
-          path: dist/
-
-      - name: Download Windows novoice
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: hyper_headset_Windows_novoice
-          path: dist/
-
+          pattern: hyper-headset-*
+          merge-multiple: true
+      - name: List files
+        run: ls -la dist/
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
