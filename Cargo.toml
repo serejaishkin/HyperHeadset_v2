@@ -30,6 +30,7 @@ discord-rich-presence = "0.2"
 tokio-tungstenite = "0.24"
 futures-util = "0.3"
 reqwest = { version = "0.12", features = ["json"] }
+notify-rust = "4.11"
 rodio = { version = "0.19", default-features = false, features = ["wav"], optional = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
