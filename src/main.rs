@@ -127,6 +127,7 @@ fn main() -> anyhow::Result<()> {
                         log::info!("[Device] Headset connected");
                         let _ = device_tx.send(DeviceEvent::Connected);
                     crate::audio::voice::play(crate::audio::voice::VoiceEvent::Connected);
+                    crate::audio::voice::play(crate::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
                     }
@@ -190,6 +191,7 @@ fn main() -> anyhow::Result<()> {
             if device.state.battery_percent <= 15 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
+                    crate::audio::voice::play(crate::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
                     crate::audio::voice::play(crate::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
                 log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
             }
