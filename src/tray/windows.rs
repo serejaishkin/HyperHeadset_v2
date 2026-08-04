@@ -1,9 +1,10 @@
 use std::sync::{mpsc::Sender, Arc, Mutex};
 use std::collections::HashMap;
 use tray_icon::{
-    TrayIcon, TrayIconBuilder, Icon,
+    TrayIcon, TrayIconBuilder, Icon, TrayIconEvent,
     menu::{Menu, MenuItem, PredefinedMenuItem, MenuEvent, MenuId},
 };
+use super::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 pub struct WindowsTray {
     tray: TrayIcon,
@@ -12,6 +13,7 @@ pub struct WindowsTray {
     last_percent: u8,
     last_charging: bool,
     last_muted: bool,
+    icon_config: TrayIconConfig,
 }
 
 impl WindowsTray {
@@ -19,13 +21,17 @@ impl WindowsTray {
         let callbacks: Arc<Mutex<HashMap<MenuId, Box<dyn Fn() + Send + Sync>>>> =
             Arc::new(Mutex::new(HashMap::new()));
 
-        let icon = Icon::from_rgba(vec![0; 4], 1, 1)
+        let icon_config = TrayIconConfig::load_or_create();
+
+        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
+        let icon = Icon::from_rgba(rgba, w, h)
             .unwrap_or_else(|_| Icon::from_rgba(vec![255; 4], 1, 1).unwrap());
 
         let tray = TrayIconBuilder::new()
             .with_tooltip("HyperX — подключение...")
             .with_icon(icon)
             .with_menu(Box::new(Menu::new()))
+            .with_menu_on_left_click(false)
             .build()
             .expect("Failed to create tray icon");
 
@@ -33,14 +39,15 @@ impl WindowsTray {
             tray,
             tx: tx.clone(),
             callbacks,
-            last_percent: 255,
+            last_percent: 0,
             last_charging: false,
             last_muted: false,
+            icon_config,
         };
 
+        this.update_tooltip();
         this.rebuild_menu();
 
-        // Фоновый поток: слушаем клики по пунктам меню трея
         let tx_menu = tx.clone();
         let cb_clone = this.callbacks.clone();
         std::thread::spawn(move || {
@@ -54,6 +61,21 @@ impl WindowsTray {
                         } else {
                             log::warn!("[Tray] Unknown menu id: {:?}", event.id);
                         }
+                    }
+                }
+            }
+        });
+
+        let tx_icon = tx.clone();
+        std::thread::spawn(move || {
+            let rx = TrayIconEvent::receiver();
+            loop {
+                if let Ok(event) = rx.recv() {
+                    if let TrayIconEvent::Click {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    } = event {
+                        let _ = tx_icon.send(super::TrayCommand::ShowWindow);
                     }
                 }
             }
@@ -87,10 +109,7 @@ impl WindowsTray {
         let tx_open = self.tx.clone();
         new_callbacks.insert(
             open_i.id().clone(),
-            Box::new(move || { 
-                log::info!("[Tray] 'Open' clicked"); 
-                let _ = tx_open.send(super::TrayCommand::ShowWindow); 
-            }),
+            Box::new(move || { let _ = tx_open.send(super::TrayCommand::ShowWindow); }),
         );
 
         let toggle_i = MenuItem::new("Переключить мьют", true, None);
@@ -98,10 +117,7 @@ impl WindowsTray {
         let tx_toggle = self.tx.clone();
         new_callbacks.insert(
             toggle_i.id().clone(),
-            Box::new(move || { 
-                log::info!("[Tray] 'ToggleMute' clicked"); 
-                let _ = tx_toggle.send(super::TrayCommand::ToggleMute); 
-            }),
+            Box::new(move || { let _ = tx_toggle.send(super::TrayCommand::ToggleMute); }),
         );
 
         let _ = menu.append(&PredefinedMenuItem::separator());
@@ -111,37 +127,54 @@ impl WindowsTray {
         let tx_quit = self.tx.clone();
         new_callbacks.insert(
             quit_i.id().clone(),
-            Box::new(move || { 
-                log::info!("[Tray] 'Quit' clicked"); 
-                let _ = tx_quit.send(super::TrayCommand::Quit); 
-            }),
+            Box::new(move || { let _ = tx_quit.send(super::TrayCommand::Quit); }),
         );
 
         *self.callbacks.lock().unwrap() = new_callbacks;
         let _ = self.tray.set_menu(Some(Box::new(menu)));
     }
 
+    fn update_tooltip(&self) {
+        let mic_status = if self.last_muted { "🔇 Выключен" } else { "🎙️ Включён" };
+        let tooltip = if self.last_charging {
+            format!("HyperX NGENUITY Open\n⚡ Заряжается: {}%\n🎤 Микрофон: {}", self.last_percent, mic_status)
+        } else {
+            format!("HyperX NGENUITY Open\n🔋 Батарея: {}%\n🎤 Микрофон: {}", self.last_percent, mic_status)
+        };
+        let _ = self.tray.set_tooltip(Some(&tooltip));
+    }
+
+    fn update_icon(&mut self) {
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, self.last_percent, self.last_charging);
+        if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
+            let _ = self.tray.set_icon(Some(icon));
+        }
+    }
+
     pub fn poll(&self) {}
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {
+        // === DEBUG LOG ===
+        log::info!(
+            "[Tray] update_battery called: percent={} charging={} (last={}/{})",
+            percent, charging, self.last_percent, self.last_charging
+        );
         if self.last_percent != percent || self.last_charging != charging {
+            log::info!("[Tray] Battery/charging changed, updating icon");
             self.last_percent = percent;
             self.last_charging = charging;
-
-            let tooltip = if charging {
-                format!("HyperX — ⚡ Заряжается: {}%", percent)
-            } else {
-                format!("HyperX — 🔋 Батарея: {}%", percent)
-            };
-            let _ = self.tray.set_tooltip(Some(&tooltip));
-
+            self.update_tooltip();
+            self.update_icon();
             self.rebuild_menu();
+        } else {
+            log::info!("[Tray] Battery/charging unchanged, skipping");
         }
     }
 
     pub fn update_mute(&mut self, muted: bool) {
         if self.last_muted != muted {
             self.last_muted = muted;
+            self.update_tooltip();
             self.rebuild_menu();
         }
     }

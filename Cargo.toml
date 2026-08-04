@@ -5,6 +5,12 @@ edition = "2021"
 authors = ["Your Name"]
 description = "Open-source cross-platform HyperX headset manager with EQ and Discord integration"
 
+# === VOICE: фича для вшитых голосовых ассетов ===
+# Собрать без голоса: cargo build --release --no-default-features
+[features]
+default = ["embedded-voice"]
+embedded-voice = []
+
 [dependencies]
 tokio = { version = "1.40", features = ["rt-multi-thread", "sync", "time", "net"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -27,6 +33,10 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 reqwest = { version = "0.12", features = ["json"] }
 
+# === VOICE: аудио-плеер для TTS/WAV (кроссплатформа) ===
+# Если сожмешь ассеты в OGG: замени features на ["vorbis"]
+rodio = { version = "0.19", default-features = false, features = ["wav"] }
+
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tray-icon = "0.19"
 winit = "0.30"
@@ -44,6 +54,7 @@ windows = { version = "0.58", features = [
     "Win32_Foundation",
 ] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2"
 dbus = "0.9"

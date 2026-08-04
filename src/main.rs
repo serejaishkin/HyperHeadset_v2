@@ -15,6 +15,37 @@ use hyperx_ngenuity_open::{
     DeviceEvent,
 };
 
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
+#[cfg(target_os = "windows")]
+use windows::core::PCWSTR;
+
+#[cfg(target_os = "windows")]
+fn check_apo_available() -> bool {
+    use std::path::Path;
+    let paths = [
+        r"C:\Program Files\EqualizerAPO\Editor.exe",
+        r"C:\Program Files\EqualizerAPO\config.txt",
+        r"C:\Program Files (x86)\EqualizerAPO\Editor.exe",
+        r"C:\Program Files (x86)\EqualizerAPO\config.txt",
+    ];
+    if paths.iter().any(|p| Path::new(p).exists()) {
+        return true;
+    }
+    use winreg::enums::HKEY_LOCAL_MACHINE;
+    use winreg::RegKey;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    if hklm.open_subkey(r"SOFTWARE\EqualizerAPO").is_ok() {
+        return true;
+    }
+    hklm.open_subkey(r"SOFTWARE\WOW6432Node\EqualizerAPO").is_ok()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn check_apo_available() -> bool {
+    false
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
@@ -31,19 +62,50 @@ fn main() -> anyhow::Result<()> {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind));
     }
 
-    let apo_available = false;
+    let apo_available = check_apo_available();
+    log::info!("[Main] APO available: {}", apo_available);
+
     let debounced_eq = Arc::new(DebouncedEQ::new(500));
 
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
-    let _device_tx_gui = device_tx.clone();
-
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
     let tray = PlatformTray::new(tray_tx.clone());
+
+    #[cfg(target_os = "windows")]
+    {
+        let device_cmd_tx_tray = device_cmd_tx.clone();
+        std::thread::spawn(move || {
+            while let Ok(cmd) = tray_rx.recv() {
+                match cmd {
+                    TrayCommand::ShowWindow => {
+                        let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
+                        unsafe {
+                            match FindWindowW(None, PCWSTR(title.as_ptr())) {
+                                Ok(hwnd) if !hwnd.0.is_null() => {
+                                    let _ = ShowWindow(hwnd, SW_RESTORE);
+                                    let _ = SetForegroundWindow(hwnd);
+                                }
+                                Ok(_) => log::warn!("[TrayThread] HWND is null"),
+                                Err(e) => log::warn!("[TrayThread] FindWindow failed: {:?}", e),
+                            }
+                        }
+                    }
+                    TrayCommand::ToggleMute => {
+                        let _ = device_cmd_tx_tray.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
+                    }
+                    TrayCommand::Quit => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
 
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
@@ -51,6 +113,7 @@ fn main() -> anyhow::Result<()> {
         let mut was_connected = false;
         let mut last_charging = false;
         let mut last_battery_low = false;
+        let mut error_count = 0;
 
         loop {
             if !device.state.connected {
@@ -64,6 +127,7 @@ fn main() -> anyhow::Result<()> {
                         log::info!("[Device] Headset connected");
                         let _ = device_tx.send(DeviceEvent::Connected);
                         was_connected = true;
+                        error_count = 0;
                     }
                     Err(e) => {
                         log::debug!("Connection failed: {}", e);
@@ -76,17 +140,10 @@ fn main() -> anyhow::Result<()> {
             while let Ok(cmd) = device_cmd_rx.try_recv() {
                 match cmd {
                     hyperx_ngenuity_open::DeviceCommand::ToggleMute => {
-                        log::info!("[Device] ToggleMute command received");
                         if let Err(e) = device.toggle_mute() {
                             log::warn!("Toggle mute failed: {}", e);
                         } else {
-                            // toggle_mute() УЖЕ обновил device.state.muted
-                            log::info!("[Device] Mute toggled to: {}", device.state.muted);
-                            
-                            // МГНОВЕННО шлём состояние в GUI/трей
                             let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
-                            
-                            // Синхронизируем с Discord
                             if last_mute != Some(device.state.muted) {
                                 last_mute = Some(device.state.muted);
                                 GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
@@ -104,11 +161,24 @@ fn main() -> anyhow::Result<()> {
             }
 
             if let Err(e) = device.refresh_state() {
-                log::warn!("Refresh failed: {}", e);
-                device.state.connected = false;
-                std::thread::sleep(Duration::from_secs(1));
+                error_count += 1;
+                log::warn!("[Device] Refresh failed ({}/3): {}", error_count, e);
+                if error_count >= 3 {
+                    log::warn!("[Device] Too many errors, disconnecting");
+                    device.disconnect();
+                    error_count = 0;
+                }
+                std::thread::sleep(Duration::from_millis(500));
                 continue;
             }
+            error_count = 0;
+
+            log::info!(
+                "[Device] State: battery={}% charging={} muted={}",
+                device.state.battery_percent,
+                device.state.charging,
+                device.state.muted
+            );
 
             {
                 let mut state = device_state_clone.lock().unwrap();
@@ -143,7 +213,7 @@ fn main() -> anyhow::Result<()> {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let mut discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
+            let discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
             if let Err(e) = discord_ws.connect().await {
                 log::warn!("Discord RPC WebSocket failed: {}", e);
             }
@@ -165,9 +235,11 @@ fn main() -> anyhow::Result<()> {
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
-        .with_tray_receiver(tray_rx)
         .with_device_receiver(device_rx)
         .with_device_command_sender(device_cmd_tx);
+
+    #[cfg(target_os = "linux")]
+    let app = app.with_tray_receiver(tray_rx);
 
     eframe::run_native(
         "HyperX NGENUITY Open",
