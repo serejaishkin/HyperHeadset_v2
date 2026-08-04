@@ -125,7 +125,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
-          Copy-Item target/release/hyper_head_set_cli.exe dist/
+          Copy-Item target/release/hyper_headset_cli.exe dist/
           cd dist
           Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-novoice.zip
       - name: Upload
