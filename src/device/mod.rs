@@ -125,10 +125,16 @@ impl HyperXDevice {
             self.state.muted = status == 1;
         }
 
-        // Charging (cmd 3, status at byte 4)
+        // Charging (cmd 3, status at byte 4) — DEBUG LOGGING
         self.prepare_write();
-        if let Ok(status) = send_and_read(device, GET_CHARGING_CMD_ID, &[]) {
-            self.state.charging = status == 1;
+        match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
+            Ok((status, raw)) => {
+                log::info!("[Device] Charging raw: status={} raw[0..8]={:02X?}", status, &raw[0..8.min(raw.len())]);
+                self.state.charging = status == 1;
+            }
+            Err(e) => {
+                log::warn!("[Device] Charging read FAILED: {}", e);
+            }
         }
 
         Ok(())
@@ -207,6 +213,27 @@ fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<
     match device.read_timeout(&mut buf, 1000) {
         Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok(buf[4]),
         _ => Err(()),
+    }
+}
+
+/// Возвращает (status_byte, raw_buffer) для дебага
+fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<(u8, Vec<u8>), String> {
+    let packet = build_packet(cmd_id, data);
+    if let Err(e) = write_hid_report(device, &packet) {
+        return Err(format!("write failed: {}", e));
+    }
+    thread::sleep(RESPONSE_DELAY);
+    let mut buf = [0u8; 256];
+    match device.read_timeout(&mut buf, 1000) {
+        Ok(0) => Err("read timeout/empty".into()),
+        Ok(len) => {
+            if len >= 5 && is_valid_response(&buf, len, cmd_id) {
+                Ok((buf[4], buf[..len].to_vec()))
+            } else {
+                Err(format!("invalid response: len={} buf[0..8]={:02X?}", len, &buf[0..8.min(len)]))
+            }
+        }
+        Err(e) => Err(format!("read error: {}", e)),
     }
 }
 
