@@ -49,6 +49,19 @@ fn check_apo_available() -> bool {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
+    fn vlog(msg: &str) {
+        let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+            use std::io::Write;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let _ = writeln!(f, "[{}] {}", now, msg);
+            let _ = f.flush();
+        }
+    }
+
     let config = Config::load().unwrap_or_default();
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
