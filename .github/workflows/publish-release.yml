@@ -24,8 +24,8 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
-          cp target/release/hyper_headset_cli dist/
-          cd dist && zip ../hyper-headset-linux-voice.zip hyperx-ngenuity-open hyper_headset_cli
+          cp target/release/hyperx-ngenuity-open-cli dist/
+          cd dist && zip ../hyper-headset-linux-voice.zip hyperx-ngenuity-open hyperx-ngenuity-open-cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
@@ -46,8 +46,8 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
-          cp target/release/hyper_headset_cli dist/
-          cd dist && zip ../hyper-headset-linux-novoice.zip hyperx-ngenuity-open hyper_headset_cli
+          cp target/release/hyperx-ngenuity-open-cli dist/
+          cd dist && zip ../hyper-headset-linux-novoice.zip hyperx-ngenuity-open hyperx-ngenuity-open-cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
@@ -66,8 +66,8 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
-          cp target/release/hyper_headset_cli dist/
-          cd dist && zip ../hyper-headset-macos-voice.zip hyperx-ngenuity-open hyper_headset_cli
+          cp target/release/hyperx-ngenuity-open-cli dist/
+          cd dist && zip ../hyper-headset-macos-voice.zip hyperx-ngenuity-open hyperx-ngenuity-open-cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
@@ -86,8 +86,8 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
-          cp target/release/hyper_headset_cli dist/
-          cd dist && zip ../hyper-headset-macos-novoice.zip hyperx-ngenuity-open hyper_headset_cli
+          cp target/release/hyperx-ngenuity-open-cli dist/
+          cd dist && zip ../hyper-headset-macos-novoice.zip hyperx-ngenuity-open hyperx-ngenuity-open-cli
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
@@ -105,7 +105,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
-          Copy-Item target/release/hyper_headset_cli.exe dist/
+          Copy-Item target/release/hyperx-ngenuity-open-cli.exe dist/
           cd dist
           Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-voice.zip
       - name: Upload
@@ -125,7 +125,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
-          Copy-Item target/release/hyper_headset_cli.exe dist/
+          Copy-Item target/release/hyperx-ngenuity-open-cli.exe dist/
           cd dist
           Compress-Archive -Path * -DestinationPath ../hyper-headset-windows-novoice.zip
       - name: Upload
