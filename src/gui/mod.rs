@@ -34,22 +34,12 @@ pub struct HyperXApp {
     pub show_discord_panel: bool,
     pub selected_settings_tab: SettingsTab,
     pub tray_icon_config: TrayIconConfig,
-    pub selected_settings_tab: SettingsTab,
-    pub tray_icon_config: TrayIconConfig,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
     pub volume_controller: Option<crate::platform::linux::volume::LinuxVolume>,
     #[cfg(target_os = "macos")]
     pub volume_controller: Option<crate::platform::macos::volume::MacOSVolume>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SettingsTab {
-    Headset,
-    Voice,
-    TrayIcon,
-    Debug,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -97,8 +87,6 @@ impl HyperXApp {
             window_hidden: false,
             last_volume_check: Instant::now(),
             show_discord_panel: false,
-            selected_settings_tab: SettingsTab::Headset,
-            tray_icon_config: TrayIconConfig::load_or_create(),
             selected_settings_tab: SettingsTab::Headset,
             tray_icon_config: TrayIconConfig::load_or_create(),
             #[cfg(target_os = "windows")]
