@@ -12,7 +12,7 @@ pub struct TrayIconEditor {
 impl Default for TrayIconEditor {
     fn default() -> Self {
         Self {
-            config: TRAY_ICON_CONFIG.lock().unwrap().clone(),
+            config: crate::tray::icon::get_tray_icon_config().lock().unwrap().clone(),
             preview_texture: None,
             preview_percent: 75,
             preview_charging: false,
