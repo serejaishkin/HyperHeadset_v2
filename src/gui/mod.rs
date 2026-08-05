@@ -125,14 +125,17 @@ impl HyperXApp {
 
     fn save_config(&mut self) {
         self.config.audio.eq_bands = self.eq_bands;
+        log::info!("[GUI] Saving config...");
         if let Err(e) = self.config.save() {
-            eprintln!("Failed to save config: {}", e);
+            log::error!("[GUI] Failed to save config: {}", e);
         } else {
+            log::info!("[GUI] Config saved successfully");
             self.needs_save = false;
         }
     }
 
     fn apply_eq_preset(&mut self, preset: &str) {
+        log::info!("[GUI] EQ preset applied: {}", preset);
         self.eq_bands = match preset {
             "Flat" => [0.0; 10],
             "Bass Boost" => [6.0, 4.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -438,9 +441,11 @@ impl HyperXApp {
         ui.heading("Quick Actions");
         ui.horizontal(|ui| {
             if ui.button(if self.device_state.muted { "Unmute Mic" } else { "Mute Mic" }).clicked() {
+                log::info!("[GUI] Dashboard: ToggleMute clicked");
                 if let Some(tx) = &self.device_cmd_tx { let _ = tx.send(crate::DeviceCommand::ToggleMute); }
             }
             if ui.button("Check Battery (Voice)").clicked() {
+                log::info!("[GUI] Dashboard: Check Battery voice clicked");
                 crate::audio::voice::play(crate::audio::voice::VoiceEvent::Battery(self.device_state.battery_percent));
             }
         });
@@ -604,7 +609,10 @@ impl HyperXApp {
 
     fn show_settings_voice(&mut self, ui: &mut egui::Ui) {
         ui.heading("Voice Notifications");
-        if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() { self.needs_save = true; }
+        if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() {
+            self.needs_save = true;
+            log::info!("[GUI] Voice enabled changed to {}", self.config.voice.enabled);
+        }
         if self.config.voice.enabled {
             ui.horizontal(|ui| {
                 if ui.checkbox(&mut self.config.voice.on_battery_low, "Battery low").changed() { self.needs_save = true; }
@@ -619,6 +627,7 @@ impl HyperXApp {
             if ui.checkbox(&mut self.config.voice.exact_percent, "Exact percent").changed() { self.needs_save = true; }
         }
         if ui.button("Apply Voice Settings").clicked() {
+            log::info!("[GUI] Apply Voice Settings clicked");
             self.needs_save = true;
             crate::audio::voice::update_config(self.config.voice.clone());
         }
@@ -779,19 +788,23 @@ impl HyperXApp {
         });
 
         if ui.button("Save Tray Icon Config").clicked() {
+            log::info!("[GUI] Save Tray Icon Config clicked");
             self.tray_icon_config.sanitize();
             if let Err(e) = self.tray_icon_config.save(crate::tray::icon::TrayIconConfig::default_path()) {
                 log::warn!("Failed to save tray icon config: {}", e);
             }
             if let Some(tray) = &mut self.tray {
                 tray.refresh_icon();
+                log::info!("[GUI] Tray icon refreshed after save");
             }
         }
         if ui.button("Reset to Default").clicked() {
+            log::info!("[GUI] Reset tray icon to default");
             self.tray_icon_config = crate::tray::icon::TrayIconConfig::default();
             self.needs_save = true;
         }
         if ui.button("Apply to Tray Now").clicked() {
+            log::info!("[GUI] Apply to Tray Now clicked");
             if let Some(tray) = &mut self.tray {
                 tray.update_battery(self.device_state.battery_percent, self.device_state.charging);
             }
@@ -802,12 +815,15 @@ impl HyperXApp {
         ui.heading("Debug");
         if ui.checkbox(&mut self.config.debug_logging, "Debug level (verbose)").changed() {
             self.needs_save = true;
+            log::info!("[GUI] Debug level changed to {}", self.config.debug_logging);
         }
         if ui.checkbox(&mut self.config.log_to_console, "Log to console").changed() {
             self.needs_save = true;
+            log::info!("[GUI] Log to console changed to {}", self.config.log_to_console);
         }
         if ui.checkbox(&mut self.config.log_to_file, "Log to file (hyperx-ngenuity-open.log)").changed() {
             self.needs_save = true;
+            log::info!("[GUI] Log to file changed to {}", self.config.log_to_file);
         }
         ui.small("Logging changes require restart.");
     }
