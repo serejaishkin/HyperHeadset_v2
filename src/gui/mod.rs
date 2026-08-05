@@ -456,6 +456,7 @@ impl HyperXApp {
     fn show_settings(&mut self, ui: &mut egui::Ui) {
         use crate::input::GLOBAL_MUTE_HANDLER;
 
+        egui::ScrollArea::vertical().show(ui, |ui| {
         ui.heading("Headset Settings");
         ui.separator();
 
@@ -568,5 +569,6 @@ impl HyperXApp {
             else { ui.colored_label(egui::Color32::RED, "[ERR] eqMac not running"); }
         }
         ui.label("EQ is applied at OS level");
+        }); // ScrollArea end
     }
 }
