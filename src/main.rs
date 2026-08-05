@@ -68,6 +68,7 @@ fn setup_logging() {
 
 fn main() -> anyhow::Result<()> {
     setup_logging();
+    log::info!("[Main] === APP STARTING ===");
 
     let config = Config::load().unwrap_or_default();
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
@@ -96,6 +97,7 @@ fn main() -> anyhow::Result<()> {
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
     let tray = PlatformTray::new(tray_tx.clone());
+    log::info!("[Main] Tray initialized");
 
     #[cfg(target_os = "windows")]
     {
@@ -284,10 +286,14 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     let app = app.with_tray_receiver(tray_rx);
 
+    log::info!("[Main] Entering eframe::run_native...");
     eframe::run_native(
         "HyperX NGENUITY Open",
         options,
-        Box::new(|_cc| Ok(Box::new(app))),
+        Box::new(|_cc| {
+            log::info!("[Main] eframe init callback running...");
+            Ok(Box::new(app))
+        }),
     )
     .map_err(|e| anyhow!("eframe failed to run native app: {}", e))?;
 
