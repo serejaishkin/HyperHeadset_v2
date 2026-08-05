@@ -767,11 +767,11 @@ impl HyperXApp {
             let (rgba, w, h) = generate_battery_icon_rgba(&self.tray_icon_config, 75, false);
             let image = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba);
             let texture = ui.ctx().load_texture("preview_75", image, egui::TextureOptions::NEAREST);
-            ui.add(egui::Image::new(&texture).fit_to_exact_size([64.0, 64.0]));
+            ui.add(egui::Image::new(&texture).fit_to_exact_size([64.0, 64.0].into()));
             let (rgba2, w2, h2) = generate_battery_icon_rgba(&self.tray_icon_config, 42, true);
             let image2 = egui::ColorImage::from_rgba_unmultiplied([w2 as usize, h2 as usize], &rgba2);
             let texture2 = ui.ctx().load_texture("preview_chg", image2, egui::TextureOptions::NEAREST);
-            ui.add(egui::Image::new(&texture2).fit_to_exact_size([64.0, 64.0]));
+            ui.add(egui::Image::new(&texture2).fit_to_exact_size([64.0, 64.0].into()));
         });
 
         if ui.button("Save Tray Icon Config").clicked() {
