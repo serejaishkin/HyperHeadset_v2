@@ -95,6 +95,7 @@ pub enum MuteButtonMode {
     MediaPlayPause,
     SmartDouble,
     SmartHold,
+    HoldPlayPause,
 }
 
 impl Default for MuteButtonMode {
