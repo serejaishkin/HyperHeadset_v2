@@ -1,4 +1,25 @@
-// #![cfg_attr(target_os = "windows", windows_subsystem = "windows")] temporarily removed for debug
+fn setup_logging() {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    let log_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
+        .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
+    let _ = OpenOptions::new().create(true).append(true).open(&log_path);
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .format(move |buf, record| {
+            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
+            let _ = std::io::Write::write_all(buf, line.as_bytes());
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = std::io::Write::write_all(&mut file, line.as_bytes());
+            }
+            Ok(())
+        })
+        .init();
+}
+
+// #![cfg_attr(target_os = "windows", windows_subsystem = "windows") temporarily removed for debug
 
 use anyhow::anyhow;
 use eframe::NativeOptions;
@@ -46,36 +67,11 @@ fn check_apo_available() -> bool {
     false
 }
 
-fn setup_logging() {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    let log_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
-        .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
-    let _ = OpenOptions::new().create(true).append(true).open(&log_path);
-    env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Info)
-        .format(move |buf, record| {
-            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
-            let _ = std::io::Write::write_all(buf, line.as_bytes());
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                let _ = std::io::Write::write_all(&mut file, line.as_bytes());
-            }
-            Ok(())
-        })
-        .init();
-}
-
 fn main() -> anyhow::Result<()> {
-    println!("[Main] Starting HyperX NGENUITY Open...");
-    setup_logging();
-    log::info!("[Main] === APP STARTING ===");
+    env_logger::init();
 
     let config = Config::load().unwrap_or_default();
-    println!("[Main] Config loaded");
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
-    println!("[Main] Voice config updated");
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
@@ -100,9 +96,7 @@ fn main() -> anyhow::Result<()> {
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
-    println!("[Main] Creating tray...");
     let tray = PlatformTray::new(tray_tx.clone());
-    println!("[Main] Tray created");
 
     #[cfg(target_os = "windows")]
     {
@@ -142,7 +136,7 @@ fn main() -> anyhow::Result<()> {
         let mut last_charging = false;
         let mut last_battery_low = false;
         let mut error_count = 0;
-        let mut startup_battery_announced = false;
+            let mut startup_battery_announced = false;
 
         loop {
             if !device.state.connected {
@@ -155,7 +149,7 @@ fn main() -> anyhow::Result<()> {
                     Ok(_) => {
                         log::info!("[Device] Headset connected");
                         let _ = device_tx.send(DeviceEvent::Connected);
-                        hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
+                    hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
                     }
@@ -229,8 +223,7 @@ fn main() -> anyhow::Result<()> {
             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
-                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
-                hyperx_ngenuity_open::notifications::notify_low_battery(device.state.battery_percent);
+                    hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
                 log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
             }
             if device.state.battery_percent > 20 {
@@ -243,7 +236,6 @@ fn main() -> anyhow::Result<()> {
             }
             if device.state.battery_percent == 100 && device.state.charging && !last_charging {
                 hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
-                hyperx_ngenuity_open::notifications::notify_full_charge();
                 log::info!("[Device] Battery full");
             }
             last_charging = device.state.charging;
@@ -258,17 +250,15 @@ fn main() -> anyhow::Result<()> {
     });
 
     let discord_app_id = config.discord.direct.app_id.clone();
-    if !discord_app_id.is_empty() {
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
-                let discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
-                if let Err(e) = discord_ws.connect().await {
-                    log::warn!("Discord RPC WebSocket failed: {}", e);
-                }
-            });
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
+            if let Err(e) = discord_ws.connect().await {
+                log::warn!("Discord RPC WebSocket failed: {}", e);
+            }
         });
-    }
+    });
 
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -291,14 +281,10 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     let app = app.with_tray_receiver(tray_rx);
 
-    println!("[Main] Entering eframe::run_native...");
     eframe::run_native(
         "HyperX NGENUITY Open",
         options,
-        Box::new(|_cc| {
-            println!("[Main] eframe init callback running...");
-            Ok(Box::new(app))
-        }),
+        Box::new(|_cc| Ok(Box::new(app))),
     )
     .map_err(|e| anyhow!("eframe failed to run native app: {}", e))?;
 

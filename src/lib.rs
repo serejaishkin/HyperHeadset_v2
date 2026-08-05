@@ -43,7 +43,6 @@ use std::sync::OnceLock;
 
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
 
-
 #[macro_export]
 macro_rules! debug_print {
     ($($args:tt)*) => {
