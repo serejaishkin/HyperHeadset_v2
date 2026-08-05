@@ -14,26 +14,37 @@ pub struct WindowsTray {
     last_charging: bool,
     last_muted: bool,
     icon_config: TrayIconConfig,
+    initialized: bool,
 }
 
 impl WindowsTray {
     pub fn new(tx: Sender<super::TrayCommand>) -> Self {
+        println!("[TrayWin] new() called — deferred init");
+        Self {
+            tray: None,
+            tx: tx.clone(),
+            callbacks: Arc::new(Mutex::new(HashMap::new())),
+            last_percent: 0,
+            last_charging: false,
+            last_muted: false,
+            icon_config: TrayIconConfig::load_or_create(),
+            initialized: false,
+        }
+    }
+
+    fn init_tray(&mut self) {
+        println!("[TrayWin] init_tray() starting...");
         #[cfg(target_os = "windows")]
         unsafe {
             use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
             let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         }
 
-        let callbacks: Arc<Mutex<HashMap<MenuId, Box<dyn Fn() + Send + Sync>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-
-        let icon_config = TrayIconConfig::load_or_create();
-
-        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, 0, false);
         let icon = Icon::from_rgba(rgba, w, h)
             .unwrap_or_else(|_| Icon::from_rgba(vec![255; 4], 1, 1).unwrap());
 
-        println!("[TrayWin] Before build()...");
+        println!("[TrayWin] Building TrayIcon...");
         let tray = TrayIconBuilder::new()
             .with_tooltip("HyperX — подключение...")
             .with_icon(icon)
@@ -41,10 +52,9 @@ impl WindowsTray {
             .with_menu_on_left_click(false)
             .build();
 
-        println!("[TrayWin] build() returned: is_ok={}", tray.is_ok());
         let tray = match tray {
             Ok(t) => {
-                log::info!("[Tray] Tray icon created successfully");
+                println!("[TrayWin] Tray icon created OK");
                 Some(t)
             }
             Err(e) => {
@@ -53,24 +63,12 @@ impl WindowsTray {
             }
         };
 
-        let mut this = Self {
-            tray,
-            tx: tx.clone(),
-            callbacks,
-            last_percent: 0,
-            last_charging: false,
-            last_muted: false,
-            icon_config,
-        };
+        self.tray = tray;
+        self.update_tooltip();
+        self.rebuild_menu();
 
-        println!("[TrayWin] Returning WindowsTray instance");
-        this.update_tooltip();
-        println!("[TrayWin] Returning WindowsTray instance");
-        this.rebuild_menu();
-
-        println!("[TrayWin] Spawning menu thread...");
-        let tx_menu = tx.clone();
-        let cb_clone = this.callbacks.clone();
+        let tx_menu = self.tx.clone();
+        let cb_clone = self.callbacks.clone();
         std::thread::spawn(move || {
             let rx = MenuEvent::receiver();
             loop {
@@ -87,8 +85,7 @@ impl WindowsTray {
             }
         });
 
-        println!("[TrayWin] Spawning icon thread...");
-        let tx_icon = tx.clone();
+        let tx_icon = self.tx.clone();
         std::thread::spawn(move || {
             let rx = TrayIconEvent::receiver();
             loop {
@@ -103,8 +100,14 @@ impl WindowsTray {
             }
         });
 
-        println!("[TrayWin] Returning WindowsTray instance");
-        this
+        println!("[TrayWin] init_tray() done");
+    }
+
+    pub fn poll(&mut self) {
+        if !self.initialized {
+            self.initialized = true;
+            self.init_tray();
+        }
     }
 
     fn rebuild_menu(&mut self) {
@@ -176,8 +179,6 @@ impl WindowsTray {
             let _ = tray.set_icon(Some(icon));
         }
     }
-
-    pub fn poll(&self) {}
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {
         log::info!(
