@@ -38,6 +38,13 @@ impl LinuxTray {
         s.charging = charging;
     }
 
+    pub fn refresh_icon(&mut self) {
+        let mut s = self.state.lock().unwrap();
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, s.percent, s.charging);
+        s._rgba = rgba;
+        s._w = w;
+        s._h = h;
+    }
     pub fn update_mute(&self, muted: bool) {
         let mut s = self.state.lock().unwrap();
         s.muted = muted;

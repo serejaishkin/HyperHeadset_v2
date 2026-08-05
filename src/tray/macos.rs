@@ -75,6 +75,14 @@ impl MacOSTray {
     }
 
     pub fn poll(&mut self) {}
+    pub fn refresh_icon(&mut self) {
+        let percent = *self.current_percent.lock().unwrap();
+        let charging = *self.current_charging.lock().unwrap();
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, percent, charging);
+        if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
+            let _ = self.tray_icon.set_icon(Some(icon));
+        }
+    }
     pub fn update_battery(&self, percent: u8, charging: bool) {
         *self.current_percent.lock().unwrap() = percent;
         *self.current_charging.lock().unwrap() = charging;
