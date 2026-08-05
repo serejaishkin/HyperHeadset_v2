@@ -498,13 +498,6 @@ hold = mute");
             }
 
             ui.separator();
-            ui.heading("Debug");
-            if ui.checkbox(&mut self.config.debug_mode, "Debug mode (write logs to %TEMP%\\hyperx-debug.log)").changed() {
-                self.needs_save = true;
-                crate::DEBUG_MODE.store(self.config.debug_mode, std::sync::atomic::Ordering::Relaxed);
-            }
-
-            ui.separator();
             ui.heading("System Equalizer");
             ui.checkbox(&mut self.config.audio.system_eq_enabled, "Enable system EQ");
             #[cfg(target_os = "windows")] {
