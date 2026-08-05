@@ -52,13 +52,6 @@ pub enum SettingsTab {
     Debug,
 }
 
-pub enum SettingsTab {
-    Headset,
-    Voice,
-    TrayIcon,
-    Debug,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SettingsTab {
     Headset,
@@ -67,6 +60,7 @@ pub enum SettingsTab {
     Debug,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Tab {
     Dashboard,
     Equalizer,
