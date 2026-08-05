@@ -10,6 +10,7 @@ default = ["embedded-voice"]
 embedded-voice = ["dep:rodio"]
 
 [dependencies]
+notify-rust = "4"
 tokio = { version = "1.40", features = ["rt-multi-thread", "sync", "time", "net"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
