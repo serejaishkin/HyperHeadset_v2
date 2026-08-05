@@ -7,7 +7,7 @@ use tray_icon::{
 use super::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 pub struct WindowsTray {
-    tray: TrayIcon,
+    tray: Option<TrayIcon>,
     tx: Sender<super::TrayCommand>,
     callbacks: Arc<Mutex<HashMap<MenuId, Box<dyn Fn() + Send + Sync>>>>,
     last_percent: u8,
@@ -18,12 +18,18 @@ pub struct WindowsTray {
 
 impl WindowsTray {
     pub fn new(tx: Sender<super::TrayCommand>) -> Self {
+        #[cfg(target_os = "windows")]
+        unsafe {
+            use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
+            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        }
+
         let callbacks: Arc<Mutex<HashMap<MenuId, Box<dyn Fn() + Send + Sync>>>> =
             Arc::new(Mutex::new(HashMap::new()));
 
         let icon_config = TrayIconConfig::load_or_create();
 
-        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), 0, false);
+        let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
         let icon = Icon::from_rgba(rgba, w, h)
             .unwrap_or_else(|_| Icon::from_rgba(vec![255; 4], 1, 1).unwrap());
 
@@ -32,8 +38,18 @@ impl WindowsTray {
             .with_icon(icon)
             .with_menu(Box::new(Menu::new()))
             .with_menu_on_left_click(false)
-            .build()
-            .expect("Failed to create tray icon");
+            .build();
+
+        let tray = match tray {
+            Ok(t) => {
+                log::info!("[Tray] Tray icon created successfully");
+                Some(t)
+            }
+            Err(e) => {
+                log::error!("[Tray] Failed to create tray icon: {}. Continuing without tray.", e);
+                None
+            }
+        };
 
         let mut this = Self {
             tray,
@@ -85,6 +101,7 @@ impl WindowsTray {
     }
 
     fn rebuild_menu(&mut self) {
+        let Some(tray) = &self.tray else { return };
         let menu = Menu::new();
         let mut new_callbacks: HashMap<MenuId, Box<dyn Fn() + Send + Sync>> = HashMap::new();
 
@@ -131,30 +148,31 @@ impl WindowsTray {
         );
 
         *self.callbacks.lock().unwrap() = new_callbacks;
-        let _ = self.tray.set_menu(Some(Box::new(menu)));
+        let _ = tray.set_menu(Some(Box::new(menu)));
     }
 
     fn update_tooltip(&self) {
+        let Some(tray) = &self.tray else { return };
         let mic_status = if self.last_muted { "🔇 Выключен" } else { "🎙️ Включён" };
         let tooltip = if self.last_charging {
             format!("HyperX NGENUITY Open\n⚡ Заряжается: {}%\n🎤 Микрофон: {}", self.last_percent, mic_status)
         } else {
             format!("HyperX NGENUITY Open\n🔋 Батарея: {}%\n🎤 Микрофон: {}", self.last_percent, mic_status)
         };
-        let _ = self.tray.set_tooltip(Some(&tooltip));
+        let _ = tray.set_tooltip(Some(&tooltip));
     }
 
     fn update_icon(&mut self) {
-        let (rgba, w, h) = generate_battery_icon_rgba(&*crate::tray::icon::TRAY_ICON_CONFIG.lock().unwrap(), self.last_percent, self.last_charging);
+        let Some(tray) = &self.tray else { return };
+        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, self.last_percent, self.last_charging);
         if let Ok(icon) = Icon::from_rgba(rgba, w, h) {
-            let _ = self.tray.set_icon(Some(icon));
+            let _ = tray.set_icon(Some(icon));
         }
     }
 
     pub fn poll(&self) {}
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {
-        // === DEBUG LOG ===
         log::info!(
             "[Tray] update_battery called: percent={} charging={} (last={}/{})",
             percent, charging, self.last_percent, self.last_charging
