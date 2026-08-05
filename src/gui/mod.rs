@@ -147,8 +147,13 @@ impl eframe::App for HyperXApp {
             s.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(160, 20, 20);
         });
 
+        println!("[GUI] tray.poll() check...");
         if let Some(tray) = &mut self.tray {
+            println!("[GUI] Calling tray.poll()...");
             tray.poll();
+            println!("[GUI] tray.poll() done");
+        } else {
+            println!("[GUI] tray is None");
         }
 
         if let Some(rx) = &self.tray_rx {
