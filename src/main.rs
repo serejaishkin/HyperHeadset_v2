@@ -67,7 +67,7 @@ fn check_apo_available() -> bool {
 }
 
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    setup_logging();
 
     let config = Config::load().unwrap_or_default();
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
