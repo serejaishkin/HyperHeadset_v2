@@ -33,7 +33,6 @@ impl HyperXDevice {
 
     pub fn connect(&mut self) -> anyhow::Result<()> {
         let api = HidApi::new()?;
-
         for (vid, pid) in VENDOR_IDS.iter().zip(PRODUCT_IDS.iter()) {
             if let Ok(device) = api.open(*vid, *pid) {
                 self.device = Some(device);
@@ -42,7 +41,6 @@ impl HyperXDevice {
                 return Ok(());
             }
         }
-
         Err(anyhow::anyhow!("No HyperX Cloud II Wireless found"))
     }
 
@@ -58,33 +56,22 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-
-        // HyperX HID protocol: 31-byte packets, prefix 0x21 0xBB
         let mut buf = [0u8; 64];
 
-        // Request battery level (report 0x0b)
         let cmd = [0x21, 0xBB, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00];
         device.write(&cmd)?;
-
         let len = device.read_timeout(&mut buf, 1000)?;
-        if len > 0 {
-            // Parse response - byte[3] contains battery level
-            if buf[0] == 0x21 && buf[1] == 0xBB && buf[2] == 0x0b {
-                self.state.battery_percent = buf[3];
-                // byte[4] often contains charging bit (0x01 = charging) on some revisions
-                self.state.charging = len > 4 && buf[4] & 0x01 != 0;
-            }
+        if len > 0 && buf[0] == 0x21 && buf[1] == 0xBB && buf[2] == 0x0b {
+            self.state.battery_percent = buf[3];
+            self.state.charging = len > 4 && buf[4] & 0x01 != 0;
         }
 
-        // Request mute state (report 0x23)
         let cmd = [0x21, 0xBB, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00];
         device.write(&cmd)?;
-
         let len = device.read_timeout(&mut buf, 1000)?;
         if len > 0 && buf[2] == 0x23 {
             self.state.muted = buf[3] == 0x01;
         }
-
         Ok(())
     }
 
@@ -92,9 +79,9 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-
-        let cmd = [0x21, 0xBB, 0x24, 0x01, 0x00, 0x00, 0x00, 0x00]; // Toggle mute
+        let cmd = [0x21, 0xBB, 0x24, 0x01, 0x00, 0x00, 0x00, 0x00];
         device.write(&cmd)?;
+        self.state.muted = !self.state.muted;
         Ok(())
     }
 
@@ -102,7 +89,6 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-
         let cmd = [0x21, 0xBB, 0x10, enabled as u8, 0x00, 0x00, 0x00, 0x00];
         device.write(&cmd)?;
         self.state.sidetone = enabled;
@@ -113,7 +99,6 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-
         let cmd = [0x21, 0xBB, 0x12, enabled as u8, 0x00, 0x00, 0x00, 0x00];
         device.write(&cmd)?;
         self.state.voice_prompts = enabled;
