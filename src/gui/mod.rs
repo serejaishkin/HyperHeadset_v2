@@ -526,6 +526,7 @@ impl HyperXApp {
                 MuteButtonMode::MediaPlayPause => crate::input::MuteButtonMode::MediaPlayPause,
                 MuteButtonMode::SmartDouble => crate::input::MuteButtonMode::SmartDouble,
                 MuteButtonMode::SmartHold => crate::input::MuteButtonMode::SmartHold,
+                        MuteButtonMode::HoldPlayPause => crate::input::MuteButtonMode::HoldPlayPause,
             });
         }
         ui.separator();
