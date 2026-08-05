@@ -104,7 +104,7 @@ impl TrayIconConfig {
         }
         match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
-                Ok(cfg) => { let mut cfg = cfg; cfg.sanitize(); cfg },
+                Ok(cfg) => { let mut cfg: TrayIconConfig = cfg; cfg.sanitize(); cfg },
                 Err(e) => {
                     log::warn!("[TrayIcon] Bad config file, recreating default: {}", e);
                     let cfg = Self::default();
