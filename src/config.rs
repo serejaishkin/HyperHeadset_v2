@@ -157,6 +157,8 @@ pub struct Config {
     #[serde(default)]
     pub discord: DiscordConfig,
     #[serde(default)]
+    pub debug_logging: bool,
+    #[serde(default)]
     pub voice: VoiceConfig,
     #[serde(default)]
     pub input: InputConfig,
@@ -195,6 +197,11 @@ impl Config {
             if let Some(dir) = exe.parent() {
                 let portable = dir.join("config.toml");
                 if portable.exists() {
+                    return Ok(portable);
+                }
+                let test = dir.join(".write_test_tmp");
+                if std::fs::File::create(&test).is_ok() {
+                    let _ = std::fs::remove_file(&test);
                     return Ok(portable);
                 }
             }

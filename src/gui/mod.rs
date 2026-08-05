@@ -1,5 +1,6 @@
 use eframe::egui;
 use crate::config::{Config, MuteButtonMode};
+use crate::tray::icon::TrayIconConfig;
 use crate::device::DeviceState;
 use crate::audio::debounce::DebouncedEQ;
 use std::sync::Arc;
@@ -31,6 +32,7 @@ pub struct HyperXApp {
     pub window_hidden: bool,
     pub last_volume_check: Instant,
     pub show_discord_panel: bool,
+    pub tray_icon_config: TrayIconConfig,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -76,6 +78,7 @@ impl HyperXApp {
             window_hidden: false,
             last_volume_check: Instant::now(),
             show_discord_panel: false,
+            tray_icon_config: TrayIconConfig::load_or_create(),
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -498,6 +501,59 @@ impl HyperXApp {
         }
         if ui.button("Test: emulate press").clicked() {
             GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
+        }
+
+        ui.separator();
+        ui.heading("Voice Notifications");
+        if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() { self.needs_save = true; }
+        if self.config.voice.enabled {
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut self.config.voice.on_battery_low, "Battery low").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_charging, "Charging").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_full_charge, "Full charge").changed() { self.needs_save = true; }
+            });
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut self.config.voice.on_connected, "Connected").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_disconnected, "Disconnected").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_button_check, "Button check").changed() { self.needs_save = true; }
+            });
+            if ui.checkbox(&mut self.config.voice.exact_percent, "Exact percent").changed() { self.needs_save = true; }
+        }
+        if ui.button("Apply Voice Settings").clicked() {
+            self.needs_save = true;
+            crate::audio::voice::update_config(self.config.voice.clone());
+        }
+
+        ui.separator();
+        ui.heading("Tray Icon");
+        ui.horizontal(|ui| {
+            ui.label("Size:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).clamp_range(32..=512)).changed() { self.needs_save = true; }
+            ui.label("Font:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).clamp_range(1..=20)).changed() { self.needs_save = true; }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Outline:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).clamp_range(0..=10)).changed() { self.needs_save = true; }
+            ui.label("Border:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).clamp_range(0..=20)).changed() { self.needs_save = true; }
+            ui.label("Gap:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).clamp_range(0..=20)).changed() { self.needs_save = true; }
+        });
+        if ui.button("Save Tray Icon Config").clicked() {
+            if let Err(e) = self.tray_icon_config.save(TrayIconConfig::default_path()) {
+                log::warn!("Failed to save tray icon config: {}", e);
+            }
+        }
+        if ui.button("Reset Tray Icon Colors").clicked() {
+            self.tray_icon_config.colors = TrayIconConfig::default().colors;
+            self.needs_save = true;
+        }
+
+        ui.separator();
+        ui.heading("Debug");
+        if ui.checkbox(&mut self.config.debug_logging, "Debug logging (requires restart)").changed() {
+            self.needs_save = true;
         }
 
         ui.separator();
