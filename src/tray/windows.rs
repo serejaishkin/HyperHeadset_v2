@@ -33,6 +33,7 @@ impl WindowsTray {
         let icon = Icon::from_rgba(rgba, w, h)
             .unwrap_or_else(|_| Icon::from_rgba(vec![255; 4], 1, 1).unwrap());
 
+        println!("[TrayWin] Before build()...");
         let tray = TrayIconBuilder::new()
             .with_tooltip("HyperX — подключение...")
             .with_icon(icon)
@@ -40,6 +41,7 @@ impl WindowsTray {
             .with_menu_on_left_click(false)
             .build();
 
+        println!("[TrayWin] build() returned: is_ok={}", tray.is_ok());
         let tray = match tray {
             Ok(t) => {
                 log::info!("[Tray] Tray icon created successfully");
@@ -61,9 +63,12 @@ impl WindowsTray {
             icon_config,
         };
 
+        println!("[TrayWin] Returning WindowsTray instance");
         this.update_tooltip();
+        println!("[TrayWin] Returning WindowsTray instance");
         this.rebuild_menu();
 
+        println!("[TrayWin] Spawning menu thread...");
         let tx_menu = tx.clone();
         let cb_clone = this.callbacks.clone();
         std::thread::spawn(move || {
@@ -82,6 +87,7 @@ impl WindowsTray {
             }
         });
 
+        println!("[TrayWin] Spawning icon thread...");
         let tx_icon = tx.clone();
         std::thread::spawn(move || {
             let rx = TrayIconEvent::receiver();
@@ -97,6 +103,7 @@ impl WindowsTray {
             }
         });
 
+        println!("[TrayWin] Returning WindowsTray instance");
         this
     }
 
