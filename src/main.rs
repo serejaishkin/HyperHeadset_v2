@@ -1,11 +1,9 @@
-// #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]  // DEBUG: commented out to see console
+// #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]  // DEBUG: commented out
 
 use anyhow::anyhow;
 use eframe::NativeOptions;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use std::fs::OpenOptions;
-use std::io::Write;
 
 use hyperx_ngenuity_open::{
     audio::DebouncedEQ,
@@ -21,14 +19,6 @@ use hyperx_ngenuity_open::{
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
 #[cfg(target_os = "windows")]
 use windows::core::PCWSTR;
-
-fn dlog(msg: &str) {
-    let line = format!("[DEBUG] {}\n", msg);
-    eprint!("{}", line);
-    let path = std::env::temp_dir().join("hyperx-debug.log");
-    let _ = OpenOptions::new().create(true).append(true).open(&path)
-        .and_then(|mut f| f.write_all(line.as_bytes()));
-}
 
 #[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
@@ -57,16 +47,17 @@ fn check_apo_available() -> bool {
 }
 
 fn main() -> anyhow::Result<()> {
-    dlog("=== MAIN START ===");
+    hyperx_ngenuity_open::dlog("=== MAIN START ===");
 
     env_logger::init();
-    dlog("env_logger init ok");
+    hyperx_ngenuity_open::dlog("env_logger init ok");
 
     let config = Config::load().unwrap_or_default();
-    dlog("Config loaded");
+    hyperx_ngenuity_open::dlog("Config loaded");
 
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
-    dlog("Voice config updated");
+    hyperx_ngenuity_open::DEBUG_MODE.store(config.debug_mode, std::sync::atomic::Ordering::Relaxed);
+    hyperx_ngenuity_open::dlog("Voice config + debug_mode updated");
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
@@ -74,30 +65,30 @@ fn main() -> anyhow::Result<()> {
         hyperx_ngenuity_open::config::MuteButtonMode::SmartDouble => input::MuteButtonMode::SmartDouble,
         hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => input::MuteButtonMode::SmartHold,
     });
-    dlog("Mute handler mode set");
+    hyperx_ngenuity_open::dlog("Mute handler mode set");
 
     if let Some(keybind) = config.discord.keybind.clone() {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind));
     }
 
     let apo_available = check_apo_available();
-    dlog(&format!("APO available: {}", apo_available));
+    hyperx_ngenuity_open::dlog(&format!("APO available: {}", apo_available));
 
     let debounced_eq = Arc::new(DebouncedEQ::new(500));
-    dlog("DebouncedEQ created");
+    hyperx_ngenuity_open::dlog("DebouncedEQ created");
 
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
-    dlog("DeviceState Arc created");
+    hyperx_ngenuity_open::dlog("DeviceState Arc created");
 
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
-    dlog("Channels created");
+    hyperx_ngenuity_open::dlog("Channels created");
 
-    dlog("Creating PlatformTray...");
+    hyperx_ngenuity_open::dlog("Creating PlatformTray...");
     let tray = PlatformTray::new(tray_tx.clone());
-    dlog("PlatformTray created");
+    hyperx_ngenuity_open::dlog("PlatformTray created");
 
     #[cfg(target_os = "windows")]
     {
@@ -128,7 +119,7 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         });
-        dlog("Windows tray thread spawned");
+        hyperx_ngenuity_open::dlog("Windows tray thread spawned");
     }
 
     std::thread::spawn(move || {
@@ -252,7 +243,7 @@ fn main() -> anyhow::Result<()> {
             std::thread::sleep(Duration::from_millis(500));
         }
     });
-    dlog("Device thread spawned");
+    hyperx_ngenuity_open::dlog("Device thread spawned");
 
     let discord_app_id = config.discord.direct.app_id.clone();
     if !discord_app_id.is_empty() {
@@ -265,9 +256,9 @@ fn main() -> anyhow::Result<()> {
                 }
             });
         });
-        dlog("Discord thread spawned");
+        hyperx_ngenuity_open::dlog("Discord thread spawned");
     } else {
-        dlog("Discord thread SKIPPED (empty app_id)");
+        hyperx_ngenuity_open::dlog("Discord thread SKIPPED (empty app_id)");
     }
 
     let options = NativeOptions {
@@ -276,35 +267,35 @@ fn main() -> anyhow::Result<()> {
             .with_min_inner_size([600.0, 400.0]),
         ..Default::default()
     };
-    dlog("NativeOptions created");
+    hyperx_ngenuity_open::dlog("NativeOptions created");
 
     let initial_state = {
         let state = device_state.lock().unwrap();
         state.clone()
     };
-    dlog("Initial device state cloned");
+    hyperx_ngenuity_open::dlog("Initial device state cloned");
 
-    dlog("Building HyperXApp...");
+    hyperx_ngenuity_open::dlog("Building HyperXApp...");
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
         .with_device_receiver(device_rx)
         .with_device_command_sender(device_cmd_tx);
-    dlog("HyperXApp built");
+    hyperx_ngenuity_open::dlog("HyperXApp built");
 
     #[cfg(target_os = "linux")]
     let app = app.with_tray_receiver(tray_rx);
 
-    dlog("Calling eframe::run_native...");
+    hyperx_ngenuity_open::dlog("Calling eframe::run_native...");
     let result = eframe::run_native(
         "HyperX NGENUITY Open",
         options,
         Box::new(|_cc| Ok(Box::new(app))),
     );
-    dlog(&format!("eframe::run_native returned: {:?}", result.is_ok()));
+    hyperx_ngenuity_open::dlog(&format!("eframe::run_native returned: {:?}", result.is_ok()));
 
     result.map_err(|e| anyhow!("eframe failed to run native app: {}", e))?;
 
-    dlog("=== MAIN END ===");
+    hyperx_ngenuity_open::dlog("=== MAIN END ===");
     Ok(())
 }

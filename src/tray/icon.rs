@@ -121,7 +121,7 @@ pub fn generate_battery_icon_rgba(
     percent: u8,
     charging: bool,
 ) -> (Vec<u8>, u32, u32) {
-    let size = config.size;
+    let size = config.size.clamp(32, 512);
     let mut img = RgbaImage::new(size, size);
 
     let scheme = if charging {

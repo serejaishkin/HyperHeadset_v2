@@ -164,6 +164,8 @@ pub struct Config {
     pub device: DeviceConfig,
     #[serde(default)]
     pub voice: VoiceConfig,
+    #[serde(default)]
+    pub debug_mode: bool,
 }
 
 impl Config {
