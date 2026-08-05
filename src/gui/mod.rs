@@ -34,6 +34,8 @@ pub struct HyperXApp {
     pub show_discord_panel: bool,
     pub selected_settings_tab: SettingsTab,
     pub tray_icon_config: TrayIconConfig,
+    pub selected_settings_tab: SettingsTab,
+    pub tray_icon_config: TrayIconConfig,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -50,7 +52,21 @@ pub enum SettingsTab {
     Debug,
 }
 
+pub enum SettingsTab {
+    Headset,
+    Voice,
+    TrayIcon,
+    Debug,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SettingsTab {
+    Headset,
+    Voice,
+    TrayIcon,
+    Debug,
+}
+
 pub enum Tab {
     Dashboard,
     Equalizer,
@@ -87,6 +103,8 @@ impl HyperXApp {
             window_hidden: false,
             last_volume_check: Instant::now(),
             show_discord_panel: false,
+            selected_settings_tab: SettingsTab::Headset,
+            tray_icon_config: TrayIconConfig::load_or_create(),
             selected_settings_tab: SettingsTab::Headset,
             tray_icon_config: TrayIconConfig::load_or_create(),
             #[cfg(target_os = "windows")]
@@ -487,121 +505,127 @@ impl HyperXApp {
     }
 
     fn show_settings_headset(&mut self, ui: &mut egui::Ui) {
- fn show_settings_headset(&mut self, ui: &mut egui::Ui) {
         use crate::input::GLOBAL_MUTE_HANDLER;
 
         ui.heading("Headset Settings");
         ui.separator();
 
-        // --- Device ---
-        ui.group(|ui| {
-            ui.label("Device");
-            if ui.checkbox(&mut self.config.device.sidetone, "Sidetone (hear yourself)").changed() {
-                self.needs_save = true;
-                log::info!("[GUI] Sidetone changed to {}", self.config.device.sidetone);
-            }
-            if ui.checkbox(&mut self.config.device.voice_prompts, "Voice prompts").changed() {
-                self.needs_save = true;
-                log::info!("[GUI] Voice prompts changed to {}", self.config.device.voice_prompts);
-            }
-            ui.horizontal(|ui| {
-                ui.label("Auto-shutdown:");
-                if ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min")).changed() {
-                    self.needs_save = true;
-                }
-            });
+        ui.checkbox(&mut self.config.device.sidetone, "Sidetone (hear yourself)");
+        if ui.checkbox(&mut self.config.device.voice_prompts, "Voice prompts").changed() {
+            self.needs_save = true;
+        }
+        ui.horizontal(|ui| {
+            ui.label("Auto-shutdown:");
+            ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min"));
+            if ui.button("Apply").clicked() { self.needs_save = true; }
         });
 
         ui.separator();
-
-        // --- Mute Button ---
-        ui.heading("Mute Button");
+        ui.heading("Mute Button Settings");
         ui.label("Headset mute button mode:");
         let prev_mode = self.config.input.mute_button_mode;
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard
-(MicMute)");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard\n(always MicMute)");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Always Play/Pause");
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single=mute
-double=Play/Pause");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short=Play/Pause
-hold=mute");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single = mute\ndouble = Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short = Play/Pause\nhold = mute");
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short=mute
-hold=Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short = mute\nhold = Play/Pause");
             });
         });
         if self.config.input.mute_button_mode != prev_mode {
             self.needs_save = true;
-            log::info!("[GUI] Mute button mode changed to {:?}", self.config.input.mute_button_mode);
             GLOBAL_MUTE_HANDLER.set_mode(match self.config.input.mute_button_mode {
                 MuteButtonMode::Standard => crate::input::MuteButtonMode::Standard,
                 MuteButtonMode::MediaPlayPause => crate::input::MuteButtonMode::MediaPlayPause,
                 MuteButtonMode::SmartDouble => crate::input::MuteButtonMode::SmartDouble,
                 MuteButtonMode::SmartHold => crate::input::MuteButtonMode::SmartHold,
-                MuteButtonMode::HoldPlayPause => crate::input::MuteButtonMode::HoldPlayPause,
+                        MuteButtonMode::HoldPlayPause => crate::input::MuteButtonMode::HoldPlayPause,
             });
         }
         ui.separator();
         match self.config.input.mute_button_mode {
-            MuteButtonMode::Standard => { ui.label("Always toggles microphone in Discord."); }
-            MuteButtonMode::MediaPlayPause => { ui.label("Always pauses/plays media."); ui.small("Spotify, YouTube, VLC"); }
-            MuteButtonMode::SmartDouble => { ui.label("Single click (<400ms) → MicMute"); ui.label("Double click (<400ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400ms delay"); }
-            MuteButtonMode::SmartHold => { ui.label("Short press (<500ms) → Play/Pause"); ui.label("Long hold (>500ms) → MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
-            MuteButtonMode::HoldPlayPause => { ui.label("Short press (<500ms) → MicMute"); ui.label("Long hold (>500ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::Standard => { ui.label("Mute button always toggles microphone in Discord."); }
+            MuteButtonMode::MediaPlayPause => { ui.label("Mute button always pauses/plays media."); ui.small("Works with Spotify, YouTube, VLC."); }
+            MuteButtonMode::SmartDouble => { ui.label("Single click (< 400 ms) -> MicMute"); ui.label("Double click (< 400 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400 ms delay"); }
+            MuteButtonMode::SmartHold => { ui.label("Short press (< 500 ms) -> Play/Pause"); ui.label("Long hold (> 500 ms) -> MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::HoldPlayPause => { ui.label("Short press (< 500 ms) -> MicMute"); ui.label("Long hold (> 500 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
         }
         if ui.button("Test: emulate press").clicked() {
-            log::info!("[GUI] Test emulate press");
-            if self.config.input.mute_button_mode == MuteButtonMode::SmartHold || self.config.input.mute_button_mode == MuteButtonMode::HoldPlayPause {
-                ui.label("Test not available for hold modes");
-            } else {
-                GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
-            }
+            GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
         }
 
         ui.separator();
+        ui.heading("Voice Notifications");
+        if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() { self.needs_save = true; }
+        if self.config.voice.enabled {
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut self.config.voice.on_battery_low, "Battery low").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_charging, "Charging").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_full_charge, "Full charge").changed() { self.needs_save = true; }
+            });
+            ui.horizontal(|ui| {
+                if ui.checkbox(&mut self.config.voice.on_connected, "Connected").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_disconnected, "Disconnected").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_button_check, "Button check").changed() { self.needs_save = true; }
+            });
+            if ui.checkbox(&mut self.config.voice.exact_percent, "Exact percent").changed() { self.needs_save = true; }
+        }
+        if ui.button("Apply Voice Settings").clicked() {
+            self.needs_save = true;
+            crate::audio::voice::update_config(self.config.voice.clone());
+        }
 
-        // --- Discord ---
-        ui.heading("Discord");
+        ui.separator();
+        ui.heading("Tray Icon");
         ui.horizontal(|ui| {
-            ui.label("Mode:");
-            ui.selectable_value(&mut self.config.discord.mode, crate::config::DiscordMode::None, "None");
-            ui.selectable_value(&mut self.config.discord.mode, crate::config::DiscordMode::Keybind, "Keybind");
-            ui.selectable_value(&mut self.config.discord.mode, crate::config::DiscordMode::Direct, "Direct");
+            ui.label("Size:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).range(32..=512)).changed() { self.needs_save = true; }
+            ui.label("Font:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).range(1..=20)).changed() { self.needs_save = true; }
         });
-        if self.config.discord.mode == crate::config::DiscordMode::Keybind {
-            ui.horizontal(|ui| {
-                ui.label("Keybind:");
-                if ui.text_edit_singleline(self.config.discord.keybind.as_mut().unwrap_or(&mut String::new())).changed() {
-                    self.needs_save = true;
-                }
-            });
-        }
-        if self.config.discord.mode == crate::config::DiscordMode::Direct {
-            ui.horizontal(|ui| {
-                ui.label("App ID:");
-                if ui.text_edit_singleline(&mut self.config.discord.direct.app_id).changed() {
-                    self.needs_save = true;
-                }
-            });
-            if ui.checkbox(&mut self.config.discord.direct.show_battery, "Show battery").changed() { self.needs_save = true; }
-            if ui.checkbox(&mut self.config.discord.direct.show_mute_status, "Show mute status").changed() { self.needs_save = true; }
-        }
-        if self.config.discord.mode != crate::config::DiscordMode::None {
-            if ui.button("Reconnect Discord").clicked() {
-                log::info!("[GUI] Discord reconnect clicked");
-                if let Some(tx) = &self.discord_cmd_tx {
-                    let _ = tx.send(crate::DiscordCommand::Reconnect);
-                }
+        ui.horizontal(|ui| {
+            ui.label("Outline:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).range(0..=10)).changed() { self.needs_save = true; }
+            ui.label("Border:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).range(0..=20)).changed() { self.needs_save = true; }
+            ui.label("Gap:");
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).range(0..=20)).changed() { self.needs_save = true; }
+        });
+        if ui.button("Save Tray Icon Config").clicked() {
+            if let Err(e) = self.tray_icon_config.save(TrayIconConfig::default_path()) {
+                log::warn!("Failed to save tray icon config: {}", e);
             }
         }
+        if ui.button("Reset Tray Icon Colors").clicked() {
+            self.tray_icon_config.colors = TrayIconConfig::default().colors;
+            self.needs_save = true;
+        }
+
+        ui.separator();
+        ui.heading("Debug");
+        if ui.checkbox(&mut self.config.debug_logging, "Debug logging (requires restart)").changed() {
+            self.needs_save = true;
+        }
+
+        ui.separator();
+        ui.heading("System Equalizer");
+        ui.checkbox(&mut self.config.audio.system_eq_enabled, "Enable system EQ");
+        #[cfg(target_os = "windows")] {
+            if self.apo_available { ui.colored_label(egui::Color32::GREEN, "[OK] Equalizer APO detected"); }
+            else { ui.colored_label(egui::Color32::RED, "[ERR] Equalizer APO not found"); }
+        }
+        #[cfg(target_os = "macos")] {
+            if self.apo_available { ui.colored_label(egui::Color32::GREEN, "[OK] eqMac detected"); }
+            else { ui.colored_label(egui::Color32::RED, "[ERR] eqMac not running"); }
+        }
+        ui.label("EQ is applied at OS level");
     }
 
-    fn show_settings_voice
     fn show_settings_voice(&mut self, ui: &mut egui::Ui) {
         ui.heading("Voice Notifications");
         if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() {
