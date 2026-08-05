@@ -10,6 +10,7 @@ pub struct DeviceState {
     pub connected: bool,
     pub battery_percent: u8,
     pub charging: bool,
+    pub muted: bool,
     pub sidetone: bool,
     pub voice_prompts: bool,
     pub signal_dbm: i8,
