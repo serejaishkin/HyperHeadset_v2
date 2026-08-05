@@ -56,16 +56,7 @@ fn setup_logging() {
     let _ = OpenOptions::new().create(true).append(true).open(&log_path);
     env_logger::Builder::from_default_env()
         .format(move |buf, record| {
-            let line = format!(
-                "[{}] {} - {} - {}\n",
-                record.level(),
-                record.target(),
-                record.args(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-            );
+            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
             let _ = std::io::Write::write_all(buf, line.as_bytes());
             if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
                 let _ = std::io::Write::write_all(&mut file, line.as_bytes());

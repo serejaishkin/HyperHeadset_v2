@@ -189,7 +189,6 @@ impl Config {
     }
 
     pub fn path() -> anyhow::Result<PathBuf> {
-        // Portable: если config.toml рядом с exe — используем его
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
                 let portable = dir.join("config.toml");
@@ -198,7 +197,6 @@ impl Config {
                 }
             }
         }
-        // Иначе — стандартный путь в %APPDATA%
         let mut path = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("No config dir"))?;
         path.push("hyperx-ngenuity-open");
         path.push("config.toml");
