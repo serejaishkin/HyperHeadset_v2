@@ -49,7 +49,8 @@ fn check_apo_available() -> bool {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let config = Config::load();\n    crate::audio::voice::update_config(config.voice.clone());.unwrap_or_default();
+    let config = Config::load().unwrap_or_default();
+    crate::audio::voice::update_config(config.voice.clone());
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
