@@ -1,6 +1,5 @@
 fn setup_logging() {
     use std::fs::OpenOptions;
-    use std::io::Write;
     let log_path = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
