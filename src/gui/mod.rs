@@ -510,6 +510,9 @@ impl HyperXApp {
                 ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single = mute\ndouble = Play/Pause");
                 ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short = Play/Pause\nhold = mute");
             });
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short = mute\nhold = Play/Pause");
+            });
         });
         if self.config.input.mute_button_mode != prev_mode {
             self.needs_save = true;
@@ -526,6 +529,7 @@ impl HyperXApp {
             MuteButtonMode::MediaPlayPause => { ui.label("Mute button always pauses/plays media."); ui.small("Works with Spotify, YouTube, VLC."); }
             MuteButtonMode::SmartDouble => { ui.label("Single click (< 400 ms) -> MicMute"); ui.label("Double click (< 400 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400 ms delay"); }
             MuteButtonMode::SmartHold => { ui.label("Short press (< 500 ms) -> Play/Pause"); ui.label("Long hold (> 500 ms) -> MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::HoldPlayPause => { ui.label("Short press (< 500 ms) -> MicMute"); ui.label("Long hold (> 500 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
         }
         if ui.button("Test: emulate press").clicked() {
             GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
@@ -779,6 +783,9 @@ impl HyperXApp {
             if let Err(e) = self.tray_icon_config.save(crate::tray::icon::TrayIconConfig::default_path()) {
                 log::warn!("Failed to save tray icon config: {}", e);
             }
+            if let Some(tray) = &mut self.tray {
+                tray.refresh_icon();
+            }
         }
         if ui.button("Reset to Default").clicked() {
             self.tray_icon_config = crate::tray::icon::TrayIconConfig::default();
@@ -793,8 +800,15 @@ impl HyperXApp {
 
     fn show_settings_debug(&mut self, ui: &mut egui::Ui) {
         ui.heading("Debug");
-        if ui.checkbox(&mut self.config.debug_logging, "Debug logging (requires restart)").changed() {
+        if ui.checkbox(&mut self.config.debug_logging, "Debug level (verbose)").changed() {
             self.needs_save = true;
         }
+        if ui.checkbox(&mut self.config.log_to_console, "Log to console").changed() {
+            self.needs_save = true;
+        }
+        if ui.checkbox(&mut self.config.log_to_file, "Log to file (hyperx-ngenuity-open.log)").changed() {
+            self.needs_save = true;
+        }
+        ui.small("Logging changes require restart.");
     }
 }

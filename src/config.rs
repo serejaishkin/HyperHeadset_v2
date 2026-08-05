@@ -158,6 +158,10 @@ pub struct Config {
     pub discord: DiscordConfig,
     #[serde(default)]
     pub debug_logging: bool,
+    #[serde(default = "default_true")]
+    pub log_to_console: bool,
+    #[serde(default)]
+    pub log_to_file: bool,
     #[serde(default)]
     pub voice: VoiceConfig,
     #[serde(default)]

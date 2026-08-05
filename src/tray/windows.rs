@@ -170,6 +170,10 @@ impl WindowsTray {
         }
     }
 
+    pub fn refresh_icon(&mut self) {
+        self.update_icon();
+    }
+
     pub fn poll(&self) {}
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {

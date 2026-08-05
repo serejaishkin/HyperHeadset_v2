@@ -128,6 +128,9 @@ impl MuteHandler {
             MuteButtonMode::SmartHold => {
                 self.do_mute();
             }
+            MuteButtonMode::HoldPlayPause => {
+                // Handled by on_button_down/up
+            }
         }
     }
 
@@ -154,7 +157,8 @@ impl MuteHandler {
     }
 
     pub fn on_button_up(&self) {
-        if self.get_mode() != MuteButtonMode::SmartHold {
+        let mode = self.get_mode();
+        if mode != MuteButtonMode::SmartHold && mode != MuteButtonMode::HoldPlayPause {
             return;
         }
 
@@ -162,10 +166,18 @@ impl MuteHandler {
         if let Some(start) = *press {
             let held = start.elapsed();
 
-            if held < Duration::from_millis(LONG_PRESS_MS) {
-                self.do_media_play_pause();
-            } else {
-                self.do_mute();
+            if mode == MuteButtonMode::SmartHold {
+                if held < Duration::from_millis(LONG_PRESS_MS) {
+                    self.do_media_play_pause();
+                } else {
+                    self.do_mute();
+                }
+            } else if mode == MuteButtonMode::HoldPlayPause {
+                if held < Duration::from_millis(LONG_PRESS_MS) {
+                    self.do_mute();
+                } else {
+                    self.do_media_play_pause();
+                }
             }
             *press = None;
         }

@@ -1,21 +1,30 @@
-fn setup_logging() {
+fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     use std::fs::OpenOptions;
-    let log_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
-        .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
-    let _ = OpenOptions::new().create(true).append(true).open(&log_path);
-    env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Info)
-        .format(move |buf, record| {
+    use std::io::Write;
+    let mut builder = env_logger::Builder::from_default_env();
+    builder.filter_level(if config.debug_logging { log::LevelFilter::Debug } else { log::LevelFilter::Info });
+
+    if config.log_to_file {
+        let log_path = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
+            .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
+        let _ = OpenOptions::new().create(true).append(true).open(&log_path);
+        builder.format(move |buf, record| {
             let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
-            let _ = std::io::Write::write_all(buf, line.as_bytes());
+            if config.log_to_console {
+                let _ = std::io::Write::write_all(buf, line.as_bytes());
+            }
             if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
                 let _ = std::io::Write::write_all(&mut file, line.as_bytes());
             }
             Ok(())
-        })
-        .init();
+        });
+    } else if !config.log_to_console {
+        builder.filter_level(log::LevelFilter::Off);
+    }
+
+    builder.init();
 }
 
 // #![cfg_attr(target_os = "windows", windows_subsystem = "windows") temporarily removed for debug
@@ -67,9 +76,8 @@ fn check_apo_available() -> bool {
 }
 
 fn main() -> anyhow::Result<()> {
-    setup_logging();
-
     let config = Config::load().unwrap_or_default();
+    setup_logging(&config);
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
