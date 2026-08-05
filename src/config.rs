@@ -51,7 +51,6 @@ impl Default for DiscordConfig {
     }
 }
 
-// ===== Voice Config =====
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceConfig {
     #[serde(default = "default_true")]
@@ -87,7 +86,6 @@ impl Default for VoiceConfig {
     }
 }
 
-// ===== Mute button action modes =====
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MuteButtonMode {
@@ -164,8 +162,6 @@ pub struct Config {
     pub device: DeviceConfig,
     #[serde(default)]
     pub voice: VoiceConfig,
-    #[serde(default)]
-    pub debug_mode: bool,
 }
 
 impl Config {
@@ -193,6 +189,16 @@ impl Config {
     }
 
     pub fn path() -> anyhow::Result<PathBuf> {
+        // Portable: если config.toml рядом с exe — используем его
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                let portable = dir.join("config.toml");
+                if portable.exists() {
+                    return Ok(portable);
+                }
+            }
+        }
+        // Иначе — стандартный путь в %APPDATA%
         let mut path = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("No config dir"))?;
         path.push("hyperx-ngenuity-open");
         path.push("config.toml");
