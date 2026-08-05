@@ -1,30 +1,3 @@
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct VoiceConfig {
-    pub enabled: bool,
-    pub exact_percent: bool,
-    pub on_battery_low: bool,
-    pub on_charging: bool,
-    pub on_full_charge: bool,
-    pub on_connected: bool,
-    pub on_disconnected: bool,
-    pub on_button_check: bool,
-}
-
-impl Default for VoiceConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            exact_percent: false,
-            on_battery_low: true,
-            on_charging: true,
-            on_full_charge: true,
-            on_connected: false,
-            on_disconnected: false,
-            on_button_check: true,
-        }
-    }
-}
-
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -74,6 +47,42 @@ impl Default for DiscordConfig {
             mode: DiscordMode::Keybind,
             keybind: Some("F20".to_string()),
             direct: DirectDiscordConfig::default(),
+        }
+    }
+}
+
+// ===== Voice Config =====
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoiceConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub exact_percent: bool,
+    #[serde(default = "default_true")]
+    pub on_battery_low: bool,
+    #[serde(default = "default_true")]
+    pub on_charging: bool,
+    #[serde(default = "default_true")]
+    pub on_full_charge: bool,
+    #[serde(default)]
+    pub on_connected: bool,
+    #[serde(default)]
+    pub on_disconnected: bool,
+    #[serde(default = "default_true")]
+    pub on_button_check: bool,
+}
+
+impl Default for VoiceConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            exact_percent: false,
+            on_battery_low: true,
+            on_charging: true,
+            on_full_charge: true,
+            on_connected: false,
+            on_disconnected: false,
+            on_button_check: true,
         }
     }
 }
@@ -151,9 +160,10 @@ pub struct Config {
     pub input: InputConfig,
     #[serde(default)]
     pub audio: AudioConfig,
-    pub voice: VoiceConfig,
     #[serde(default)]
     pub device: DeviceConfig,
+    #[serde(default)]
+    pub voice: VoiceConfig,
 }
 
 impl Config {

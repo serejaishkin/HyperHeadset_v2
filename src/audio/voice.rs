@@ -1,11 +1,13 @@
-use std::sync::Mutex;
+use std::sync::OnceLock;
 
-lazy_static::lazy_static! {
-    static ref VOICE_CFG: Mutex<crate::config::VoiceConfig> = Mutex::new(crate::config::VoiceConfig::default());
+static VOICE_CFG: OnceLock<std::sync::Mutex<crate::config::VoiceConfig>> = OnceLock::new();
+
+fn get_cfg() -> &'static std::sync::Mutex<crate::config::VoiceConfig> {
+    VOICE_CFG.get_or_init(|| std::sync::Mutex::new(crate::config::VoiceConfig::default()))
 }
 
 pub fn update_config(cfg: crate::config::VoiceConfig) {
-    *VOICE_CFG.lock().unwrap() = cfg;
+    *get_cfg().lock().unwrap() = cfg;
 }
 
 #[cfg(feature = "embedded-voice")]
@@ -32,7 +34,7 @@ pub enum VoiceEvent {
 
 #[cfg(feature = "embedded-voice")]
 pub fn play(event: VoiceEvent) {
-    let cfg = VOICE_CFG.lock().unwrap().clone();
+    let cfg = get_cfg().lock().unwrap().clone();
     if !cfg.enabled { return; }
 
     let bytes: Option<&'static [u8]> = match event {
@@ -93,11 +95,13 @@ fn select_battery(_percent: u8, _exact: bool) -> &'static [u8] {
 #[cfg(feature = "embedded-voice")]
 fn get_exact_battery(percent: u8) -> Option<&'static [u8]> {
     match percent {
-        0 => Some(embedded::BAT_000),
+        0  => Some(embedded::BAT_000),
         10 => Some(embedded::BAT_010),
         20 => Some(embedded::BAT_020),
         50 => Some(embedded::BAT_050),
         100 => Some(embedded::BAT_100),
+        // Добавляй сюда остальные проценты:
+        // 1 => Some(include_bytes!("../../assets/voice/bat_001.wav")),
         _ => None,
     }
 }
@@ -110,11 +114,11 @@ fn get_exact_battery(_percent: u8) -> Option<&'static [u8]> {
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {
     match percent {
-        0..=5 => embedded::BAT_000,
-        6..=15 => embedded::BAT_010,
+        0..=5   => embedded::BAT_000,
+        6..=15  => embedded::BAT_010,
         16..=35 => embedded::BAT_020,
         36..=65 => embedded::BAT_050,
-        _ => embedded::BAT_100,
+        _       => embedded::BAT_100,
     }
 }
 

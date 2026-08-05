@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub mod eq_tab;
-pub mod discord_tab;
 pub mod tray_tab;
+pub mod discord_tab;
 
 pub struct HyperXApp {
     pub config: Config,
@@ -441,18 +441,22 @@ impl HyperXApp {
                 ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min"));
                 if ui.button("Apply").clicked() { self.needs_save = true; }
             });
+
             ui.separator();
             ui.heading("Mute Button Settings");
             ui.label("Headset mute button mode:");
             let prev_mode = self.config.input.mute_button_mode;
             ui.group(|ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard\n(always MicMute)");
+                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard
+(always MicMute)");
                     ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Always Play/Pause");
                 });
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single = mute\ndouble = Play/Pause");
-                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short = Play/Pause\nhold = mute");
+                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single = mute
+double = Play/Pause");
+                    ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short = Play/Pause
+hold = mute");
                 });
             });
             if self.config.input.mute_button_mode != prev_mode {
@@ -474,7 +478,7 @@ impl HyperXApp {
             if ui.button("Test: emulate press").clicked() {
                 GLOBAL_MUTE_HANDLER.on_mute_toggled(true);
             }
-            
+
             ui.separator();
             ui.heading("Voice Prompts");
             let voice = &mut self.config.voice;
@@ -505,6 +509,7 @@ impl HyperXApp {
                 else { ui.colored_label(egui::Color32::RED, "[ERR] eqMac not running"); }
             }
             ui.label("EQ is applied at OS level");
+
             ui.separator();
             let ctx = ui.ctx().clone();
             self.tray_editor.show(ui, &ctx);

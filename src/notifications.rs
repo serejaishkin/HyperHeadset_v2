@@ -17,3 +17,13 @@ pub fn notify_full_charge() {
         .timeout(notify_rust::Timeout::Never)
         .show();
 }
+
+pub fn notify_startup_battery(percent: u8, charging: bool) {
+    let status = if charging { "⚡ Charging" } else { "🔋 On Battery" };
+    let _ = Notification::new()
+        .summary("HyperX Headset Connected")
+        .body(&format!("{} — Battery: {}%", status, percent))
+        .icon(if charging { "battery-full-charging" } else { "battery-good" })
+        .timeout(notify_rust::Timeout::Milliseconds(5000))
+        .show();
+}
