@@ -1,4 +1,4 @@
-// #![cfg_attr(target_os = "windows", windows_subsystem = "windows") temporarily removed for debug
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use anyhow::anyhow;
 use eframe::NativeOptions;
@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let config = Config::load().unwrap_or_default();
-    crate::audio::voice::update_config(config.voice.clone());
+    hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
@@ -115,6 +115,7 @@ fn main() -> anyhow::Result<()> {
         let mut last_charging = false;
         let mut last_battery_low = false;
         let mut error_count = 0;
+        let mut startup_battery_announced = false;
 
         loop {
             if !device.state.connected {
@@ -220,6 +221,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     let discord_app_id = config.discord.direct.app_id.clone();
+    if !discord_app_id.is_empty() {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -229,6 +231,7 @@ fn main() -> anyhow::Result<()> {
             }
         });
     });
+    }
 
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
