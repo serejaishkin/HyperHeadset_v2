@@ -55,6 +55,7 @@ fn setup_logging() {
         .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
     let _ = OpenOptions::new().create(true).append(true).open(&log_path);
     env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
         .format(move |buf, record| {
             let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
             let _ = std::io::Write::write_all(buf, line.as_bytes());
@@ -67,11 +68,14 @@ fn setup_logging() {
 }
 
 fn main() -> anyhow::Result<()> {
+    println!("[Main] Starting HyperX NGENUITY Open...");
     setup_logging();
     log::info!("[Main] === APP STARTING ===");
 
     let config = Config::load().unwrap_or_default();
+    println!("[Main] Config loaded");
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
+    println!("[Main] Voice config updated");
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => input::MuteButtonMode::Standard,
@@ -96,8 +100,9 @@ fn main() -> anyhow::Result<()> {
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
+    println!("[Main] Creating tray...");
     let tray = PlatformTray::new(tray_tx.clone());
-    log::info!("[Main] Tray initialized");
+    println!("[Main] Tray created");
 
     #[cfg(target_os = "windows")]
     {
@@ -286,12 +291,12 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     let app = app.with_tray_receiver(tray_rx);
 
-    log::info!("[Main] Entering eframe::run_native...");
+    println!("[Main] Entering eframe::run_native...");
     eframe::run_native(
         "HyperX NGENUITY Open",
         options,
         Box::new(|_cc| {
-            log::info!("[Main] eframe init callback running...");
+            println!("[Main] eframe init callback running...");
             Ok(Box::new(app))
         }),
     )
