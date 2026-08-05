@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 
 pub static TRAY_ICON_CONFIG: OnceLock<std::sync::Mutex<TrayIconConfig>> = OnceLock::new();
 
-pub pub fn get_tray_icon_config() -> &'static std::sync::Mutex<TrayIconConfig> {
+pub fn get_tray_icon_config() -> &'static std::sync::Mutex<TrayIconConfig> {
     TRAY_ICON_CONFIG.get_or_init(|| std::sync::Mutex::new(TrayIconConfig::load_or_create()))
 }
 
