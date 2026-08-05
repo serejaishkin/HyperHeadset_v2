@@ -560,17 +560,17 @@ impl HyperXApp {
         ui.heading("Tray Icon");
         ui.horizontal(|ui| {
             ui.label("Size:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).clamp_range(32..=512)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).range(32..=512)).changed() { self.needs_save = true; }
             ui.label("Font:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).clamp_range(1..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).range(1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
             ui.label("Outline:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).clamp_range(0..=10)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).range(0..=10)).changed() { self.needs_save = true; }
             ui.label("Border:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).clamp_range(0..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).range(0..=20)).changed() { self.needs_save = true; }
             ui.label("Gap:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).clamp_range(0..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).range(0..=20)).changed() { self.needs_save = true; }
         });
         if ui.button("Save Tray Icon Config").clicked() {
             if let Err(e) = self.tray_icon_config.save(TrayIconConfig::default_path()) {
@@ -629,17 +629,17 @@ impl HyperXApp {
         ui.heading("Tray Icon");
         ui.horizontal(|ui| {
             ui.label("Size:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).clamp_range(16..=512)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).range(16..=512)).changed() { self.needs_save = true; }
             ui.label("Font:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).clamp_range(1..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).range(1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
             ui.label("Outline:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).clamp_range(0..=10)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).range(0..=10)).changed() { self.needs_save = true; }
             ui.label("Border:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).clamp_range(0..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).range(0..=20)).changed() { self.needs_save = true; }
             ui.label("Gap:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).clamp_range(0..=50)).changed() { self.needs_save = true; }
+            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).range(0..=50)).changed() { self.needs_save = true; }
         });
 
         ui.separator();
