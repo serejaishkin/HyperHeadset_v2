@@ -1,12 +1,13 @@
 use image::{RgbaImage, Rgba};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-lazy_static::lazy_static! {
-    pub static ref TRAY_ICON_CONFIG: std::sync::Mutex<TrayIconConfig> = 
-        std::sync::Mutex::new(TrayIconConfig::load_or_create());
+static TRAY_ICON_CONFIG: OnceLock<std::sync::Mutex<TrayIconConfig>> = OnceLock::new();
+
+pub fn get_tray_icon_config() -> &'static std::sync::Mutex<TrayIconConfig> {
+    TRAY_ICON_CONFIG.get_or_init(|| std::sync::Mutex::new(TrayIconConfig::load_or_create()))
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrayIconConfig {
@@ -86,7 +87,6 @@ impl TrayIconConfig {
             log::info!("[TrayIcon] Config not found, creating default at {:?}", path);
             let cfg = Self::default();
             let _ = cfg.save(&path);
-            *TRAY_ICON_CONFIG.lock().unwrap() = cfg.clone();
             return cfg;
         }
         let cfg = match std::fs::read_to_string(&path) {
@@ -104,14 +104,12 @@ impl TrayIconConfig {
                 Self::default()
             }
         };
-        *TRAY_ICON_CONFIG.lock().unwrap() = cfg.clone();
         cfg
     }
 
     pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, &content)?;
-        *TRAY_ICON_CONFIG.lock().unwrap() = self.clone();
         Ok(())
     }
 }
