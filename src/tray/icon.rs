@@ -67,6 +67,26 @@ impl Default for TrayIconConfig {
 }
 
 impl TrayIconConfig {
+
+    pub fn sanitize(&mut self) {
+        self.size = self.size.clamp(16, 512);
+        self.font_scale = self.font_scale.clamp(1, 20);
+        self.outline_width = self.outline_width.clamp(0, 10);
+        self.border_width = self.border_width.clamp(0, 20);
+        self.gap_between_digits = self.gap_between_digits.clamp(0, 50);
+        let all_colors = [
+            &mut self.colors.charging,
+            &mut self.colors.high,
+            &mut self.colors.medium,
+            &mut self.colors.low,
+        ];
+        for c in all_colors {
+            for arr in [&mut c.bg, &mut c.fg, &mut c.outline, &mut c.border] {
+                for v in arr.iter_mut() { *v = (*v).min(255); }
+            }
+        }
+    }
+
     pub fn default_path() -> PathBuf {
         std::env::current_exe()
             .ok()
@@ -84,7 +104,7 @@ impl TrayIconConfig {
         }
         match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
-                Ok(cfg) => cfg,
+                Ok(cfg) => { let mut cfg = cfg; cfg.sanitize(); cfg },
                 Err(e) => {
                     log::warn!("[TrayIcon] Bad config file, recreating default: {}", e);
                     let cfg = Self::default();
@@ -100,7 +120,9 @@ impl TrayIconConfig {
     }
 
     pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        let content = toml::to_string_pretty(self)?;
+        let mut cfg = self.clone();
+        cfg.sanitize();
+        let content = toml::to_string_pretty(&cfg)?;
         std::fs::write(path, content)?;
         Ok(())
     }
