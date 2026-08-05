@@ -66,6 +66,10 @@ pub fn play(event: VoiceEvent) {
     };
 
     if let Some(bytes) = bytes {
+        if bytes.len() < 44 {
+            log::warn!("[Voice] Audio file is empty or too small ({} bytes), skipping playback", bytes.len());
+            return;
+        }
         std::thread::spawn(move || {
             if let Err(e) = play_blocking(bytes) {
                 log::warn!("[Voice] Playback error: {}", e);
@@ -100,8 +104,6 @@ fn get_exact_battery(percent: u8) -> Option<&'static [u8]> {
         20 => Some(embedded::BAT_020),
         50 => Some(embedded::BAT_050),
         100 => Some(embedded::BAT_100),
-        // Добавляй сюда остальные проценты:
-        // 1 => Some(include_bytes!("../../assets/voice/bat_001.wav")),
         _ => None,
     }
 }
