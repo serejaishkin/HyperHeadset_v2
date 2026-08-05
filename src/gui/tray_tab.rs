@@ -1,4 +1,3 @@
-use crate::tray::icon::TRAY_ICON_CONFIG;
 use crate::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 use egui::{Color32, TextureHandle};
 
