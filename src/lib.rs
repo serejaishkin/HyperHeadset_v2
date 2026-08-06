@@ -10,7 +10,7 @@ mod airoha_race;
 pub mod device;
 pub mod devices;
 pub mod input;
-pub mod tray;
+pub mod tray;\npub mod i18n;
 pub mod hotkey;
 pub mod dialog;
 pub mod platform;

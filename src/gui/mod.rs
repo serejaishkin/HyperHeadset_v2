@@ -33,7 +33,7 @@ pub struct HyperXApp {
     pub last_volume_check: Instant,
     pub show_discord_panel: bool,
     pub selected_settings_tab: SettingsTab,
-    pub tray_icon_config: TrayIconConfig,
+    pub tray_icon_config: TrayIconConfig,\n    pub i18n: crate::i18n::I18n,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -62,7 +62,7 @@ impl Default for Tab {
 }
 
 impl HyperXApp {
-    pub fn new(config: Config, device_state: DeviceState, apo_available: bool, debounced_eq: Arc<DebouncedEQ>) -> Self {
+    pub fn new(config: Config, device_state: DeviceState, apo_available: bool, debounced_eq: Arc<DebouncedEQ>, i18n: crate::i18n::I18n) -> Self {
         let eq_bands = config.audio.eq_bands;
         Self {
             config,
@@ -88,7 +88,7 @@ impl HyperXApp {
             last_volume_check: Instant::now(),
             show_discord_panel: false,
             selected_settings_tab: SettingsTab::Headset,
-            tray_icon_config: TrayIconConfig::load_or_create(),
+            tray_icon_config: TrayIconConfig::load_or_create(),\n            i18n,
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -262,7 +262,7 @@ impl eframe::App for HyperXApp {
                     ui.add_space(10.0);
 
                     // --- Master Volume ---
-                    ui.heading("VOL");
+                    ui.heading(self.i18n.t("VOL"));
                     let mut vol = self.volume;
                     ui.add(
                         egui::Slider::new(&mut vol, 0.0..=100.0)
@@ -281,7 +281,7 @@ impl eframe::App for HyperXApp {
                     ui.add_space(15.0);
 
                     // --- Mic Volume ---
-                    ui.heading("MIC");
+                    ui.heading(self.i18n.t("MIC"));
                     let mut mic_vol = self.mic_volume;
                     ui.add(
                         egui::Slider::new(&mut mic_vol, 0.0..=100.0)
@@ -316,7 +316,7 @@ impl eframe::App for HyperXApp {
 
                     // --- Sidetone ---
                     let mut sidetone = self.device_state.sidetone;
-                    if ui.checkbox(&mut sidetone, "Sidetone").changed() {
+                    if ui.checkbox(&mut sidetone, self.i18n.t("Sidetone")).changed() {
                         if let Some(tx) = &self.device_cmd_tx {
                             let _ = tx.send(crate::DeviceCommand::SetSidetone(sidetone));
                         }
@@ -335,15 +335,15 @@ impl eframe::App for HyperXApp {
         // === TOP PANEL ===
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("HyperX NGENUITY Open");
+                ui.heading(self.i18n.t("HyperX NGENUITY Open"));
                 ui.separator();
 
-                ui.selectable_value(&mut self.selected_tab, Tab::Dashboard, "Dashboard");
-                ui.selectable_value(&mut self.selected_tab, Tab::Equalizer, "Equalizer");
-                ui.selectable_value(&mut self.selected_tab, Tab::Settings, "Settings");
+                ui.selectable_value(&mut self.selected_tab, Tab::Dashboard, self.i18n.t("Dashboard"));
+                ui.selectable_value(&mut self.selected_tab, Tab::Equalizer, self.i18n.t("Equalizer"));
+                ui.selectable_value(&mut self.selected_tab, Tab::Settings, self.i18n.t("Settings"));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Discord").clicked() {
+                    if ui.button(self.i18n.t("Discord")).clicked() {
                         self.show_discord_panel = !self.show_discord_panel;
                     }
                     ui.separator();
@@ -366,7 +366,7 @@ impl eframe::App for HyperXApp {
                 .max_width(350.0)
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
-                        ui.heading("Discord");
+                        ui.heading(self.i18n.t("Discord"));
                         if ui.button("X").clicked() {
                             self.show_discord_panel = false;
                         }
@@ -395,7 +395,7 @@ impl eframe::App for HyperXApp {
         if self.needs_save {
             egui::TopBottomPanel::bottom("save_bar").show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.colored_label(egui::Color32::YELLOW, "(!) Unsaved changes");
+                    ui.colored_label(egui::Color32::YELLOW, self.i18n.t("(!) Unsaved changes"));
                     if ui.button("Save").clicked() { self.save_config(); }
                 });
             });
@@ -405,12 +405,12 @@ impl eframe::App for HyperXApp {
 
 impl HyperXApp {
     fn show_dashboard(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Headset Status");
+        ui.heading(self.i18n.t("Headset Status"));
         ui.separator();
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
-                ui.label("Battery:");
+                ui.label(self.i18n.t("Battery") + ":");
                 if self.device_state.charging {
                     ui.colored_label(egui::Color32::YELLOW, "Charging");
                 }
@@ -425,26 +425,26 @@ impl HyperXApp {
             ui.separator();
 
             ui.vertical(|ui| {
-                ui.label("Microphone:");
+                ui.label(self.i18n.t("Microphone") + ":");
                 if self.device_state.muted {
                     ui.colored_label(egui::Color32::RED, "Muted");
                 } else {
                     ui.colored_label(egui::Color32::GREEN, "Active");
                 }
                 ui.add_space(10.0);
-                ui.label("Signal:");
+                ui.label(self.i18n.t("Signal:"));
                 ui.label(format!("{} dBm", self.device_state.signal_dbm));
             });
         });
 
         ui.separator();
-        ui.heading("Quick Actions");
+        ui.heading(self.i18n.t("Quick Actions"));
         ui.horizontal(|ui| {
-            if ui.button(if self.device_state.muted { "Unmute Mic" } else { "Mute Mic" }).clicked() {
+            if ui.button(if self.device_state.muted { self.i18n.t("Unmute Mic") } else { self.i18n.t("Mute Mic") }).clicked() {
                 log::info!("[GUI] Dashboard: ToggleMute clicked");
                 if let Some(tx) = &self.device_cmd_tx { let _ = tx.send(crate::DeviceCommand::ToggleMute); }
             }
-            if ui.button("Check Battery (Voice)").clicked() {
+            if ui.button(self.i18n.t("Check Battery (Voice)")).clicked() {
                 log::info!("[GUI] Dashboard: Check Battery voice clicked");
                 crate::audio::voice::play(crate::audio::voice::VoiceEvent::Battery(self.device_state.battery_percent));
             }
@@ -452,11 +452,11 @@ impl HyperXApp {
     }
 
     fn show_equalizer(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Equalizer");
+        ui.heading(self.i18n.t("Equalizer"));
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
-            ui.label("Presets:");
+            ui.label(self.i18n.t("Presets:"));
             for preset in ["Flat", "Bass Boost", "Bass Cut", "Treble Boost", "Voice Chat", "Gaming"] {
                 if ui.button(preset).clicked() {
                     self.apply_eq_preset(preset);
@@ -470,10 +470,10 @@ impl HyperXApp {
 
     fn show_settings(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Headset, "Headset");
-            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Voice, "Voice");
-            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::TrayIcon, "Tray Icon");
-            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Debug, "Debug");
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Headset, self.i18n.t("Headset"));
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Voice, self.i18n.t("Voice"));
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::TrayIcon, self.i18n.t("Tray Icon"));
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Debug, self.i18n.t("Debug"));
         });
         ui.separator();
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -489,34 +489,34 @@ impl HyperXApp {
     fn show_settings_headset(&mut self, ui: &mut egui::Ui) {
         use crate::input::GLOBAL_MUTE_HANDLER;
 
-        ui.heading("Headset Settings");
+        ui.heading(self.i18n.t("Headset Settings"));
         ui.separator();
 
-        ui.checkbox(&mut self.config.device.sidetone, "Sidetone (hear yourself)");
-        if ui.checkbox(&mut self.config.device.voice_prompts, "Voice prompts").changed() {
+        ui.checkbox(&mut self.config.device.sidetone, self.i18n.t("Sidetone (hear yourself)"));
+        if ui.checkbox(&mut self.config.device.voice_prompts, self.i18n.t("Voice prompts")).changed() {
             self.needs_save = true;
         }
         ui.horizontal(|ui| {
-            ui.label("Auto-shutdown:");
+            ui.label(self.i18n.t("Auto-shutdown:"));
             ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min"));
-            if ui.button("Apply").clicked() { self.needs_save = true; }
+            if ui.button(self.i18n.t("Apply")).clicked() { self.needs_save = true; }
         });
 
         ui.separator();
-        ui.heading("Mute Button");
-        ui.label("Headset mute button mode:");
+        ui.heading(self.i18n.t("Mute Button"));
+        ui.label(self.i18n.t("Headset mute button mode:"));
         let prev_mode = self.config.input.mute_button_mode;
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard\n(MicMute)");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, self.i18n.t("Standard\n(MicMute)"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, self.i18n.t("Play/Pause"));
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single=mute\ndouble=Play/Pause");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short=Play/Pause\nhold=mute");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, self.i18n.t("Smart: single=mute\ndouble=Play/Pause"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, self.i18n.t("Smart: short=Play/Pause\nhold=mute"));
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short=mute\nhold=Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, self.i18n.t("Smart: short=mute\nhold=Play/Pause"));
             });
         });
         if self.config.input.mute_button_mode != prev_mode {
@@ -531,13 +531,13 @@ impl HyperXApp {
         }
         ui.separator();
         match self.config.input.mute_button_mode {
-            MuteButtonMode::Standard => { ui.label("Always toggles microphone in Discord."); }
-            MuteButtonMode::MediaPlayPause => { ui.label("Always pauses/plays media."); ui.small("Spotify, YouTube, VLC"); }
-            MuteButtonMode::SmartDouble => { ui.label("Single click (<400ms) → MicMute"); ui.label("Double click (<400ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400ms delay"); }
-            MuteButtonMode::SmartHold => { ui.label("Short press (<500ms) → Play/Pause"); ui.label("Long hold (>500ms) → MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
-            MuteButtonMode::HoldPlayPause => { ui.label("Short press (<500ms) → MicMute"); ui.label("Long hold (>500ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::Standard => { ui.label(self.i18n.t("Always toggles microphone in Discord.")); }
+            MuteButtonMode::MediaPlayPause => { ui.label(self.i18n.t("Always pauses/plays media.")); ui.small(self.i18n.t("Spotify, YouTube, VLC")); }
+            MuteButtonMode::SmartDouble => { ui.label(self.i18n.t("Single click (<400ms) → MicMute")); ui.label(self.i18n.t("Double click (<400ms) → Play/Pause")); ui.colored_label(egui::Color32::YELLOW, self.i18n.t("(!) 400ms delay")); }
+            MuteButtonMode::SmartHold => { ui.label(self.i18n.t("Short press (<500ms) → Play/Pause")); ui.label(self.i18n.t("Long hold (>500ms) → MicMute")); ui.colored_label(egui::Color32::YELLOW, self.i18n.t("(!) Requires down/up HID events")); }
+            MuteButtonMode::HoldPlayPause => { ui.label(self.i18n.t("Short press (<500ms) → MicMute")); ui.label(self.i18n.t("Long hold (>500ms) → Play/Pause")); ui.colored_label(egui::Color32::YELLOW, self.i18n.t("(!) Requires down/up HID events")); }
         }
-        if ui.button("Test: emulate press").clicked() {
+        if ui.button(self.i18n.t("Test: emulate press")).clicked() {
             if self.config.input.mute_button_mode == MuteButtonMode::SmartHold || self.config.input.mute_button_mode == MuteButtonMode::HoldPlayPause {
                 ui.label("Test not available for hold modes");
             } else {
@@ -546,25 +546,25 @@ impl HyperXApp {
         }
     }
     fn show_settings_voice(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Voice Notifications");
-        if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() {
+        ui.heading(self.i18n.t("Voice Notifications"));
+        if ui.checkbox(&mut self.config.voice.enabled, self.i18n.t("Enable voice")).changed() {
             self.needs_save = true;
             log::info!("[GUI] Voice enabled changed to {}", self.config.voice.enabled);
         }
         if self.config.voice.enabled {
             ui.horizontal(|ui| {
-                if ui.checkbox(&mut self.config.voice.on_battery_low, "Battery low").changed() { self.needs_save = true; }
-                if ui.checkbox(&mut self.config.voice.on_charging, "Charging").changed() { self.needs_save = true; }
-                if ui.checkbox(&mut self.config.voice.on_full_charge, "Full charge").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_battery_low, self.i18n.t("Battery low")).changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_charging, self.i18n.t("Charging")).changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_full_charge, self.i18n.t("Full charge")).changed() { self.needs_save = true; }
             });
             ui.horizontal(|ui| {
-                if ui.checkbox(&mut self.config.voice.on_connected, "Connected").changed() { self.needs_save = true; }
-                if ui.checkbox(&mut self.config.voice.on_disconnected, "Disconnected").changed() { self.needs_save = true; }
-                if ui.checkbox(&mut self.config.voice.on_button_check, "Button check").changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_connected, self.i18n.t("Connected")).changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_disconnected, self.i18n.t("Disconnected")).changed() { self.needs_save = true; }
+                if ui.checkbox(&mut self.config.voice.on_button_check, self.i18n.t("Button check")).changed() { self.needs_save = true; }
             });
-            if ui.checkbox(&mut self.config.voice.exact_percent, "Exact percent").changed() { self.needs_save = true; }
+            if ui.checkbox(&mut self.config.voice.exact_percent, self.i18n.t("Exact percent")).changed() { self.needs_save = true; }
         }
-        if ui.button("Apply Voice Settings").clicked() {
+        if ui.button(self.i18n.t("Apply Voice Settings")).clicked() {
             log::info!("[GUI] Apply Voice Settings clicked");
             self.needs_save = true;
             crate::audio::voice::update_config(self.config.voice.clone());
@@ -573,27 +573,27 @@ impl HyperXApp {
 
     fn show_settings_tray_icon(&mut self, ui: &mut egui::Ui) {
         use crate::tray::icon::generate_battery_icon_rgba;
-        ui.heading("Tray Icon");
+        ui.heading(self.i18n.t("Tray Icon"));
         ui.horizontal(|ui| {
-            ui.label("Size:");
+            ui.label(self.i18n.t("Size:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.size, 16..=512)).changed() { self.needs_save = true; }
-            ui.label("Font:");
+            ui.label(self.i18n.t("Font:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.font_scale, 1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
-            ui.label("Outline:");
+            ui.label(self.i18n.t("Outline:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.outline_width, 0..=10)).changed() { self.needs_save = true; }
-            ui.label("Border:");
+            ui.label(self.i18n.t("Border:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.border_width, 0..=20)).changed() { self.needs_save = true; }
-            ui.label("Gap:");
+            ui.label(self.i18n.t("Gap:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.gap_between_digits, 0..=50)).changed() { self.needs_save = true; }
         });
 
         ui.separator();
-        ui.label("Colors");
+        ui.label(self.i18n.t("Colors"));
 
         ui.group(|ui| {
-            ui.label("Charging");
+            ui.label(self.i18n.t("Charging"));
             ui.horizontal(|ui| {
                 let mut bg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.charging.bg[0], self.tray_icon_config.colors.charging.bg[1], self.tray_icon_config.colors.charging.bg[2], self.tray_icon_config.colors.charging.bg[3]);
                 let mut fg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.charging.fg[0], self.tray_icon_config.colors.charging.fg[1], self.tray_icon_config.colors.charging.fg[2], self.tray_icon_config.colors.charging.fg[3]);
@@ -603,27 +603,27 @@ impl HyperXApp {
                     self.tray_icon_config.colors.charging.bg = [bg.r(), bg.g(), bg.b(), bg.a()];
                     self.needs_save = true;
                 }
-                ui.label("BG");
+                ui.label(self.i18n.t("BG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut fg, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.charging.fg = [fg.r(), fg.g(), fg.b(), fg.a()];
                     self.needs_save = true;
                 }
-                ui.label("FG");
+                ui.label(self.i18n.t("FG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut outline, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.charging.outline = [outline.r(), outline.g(), outline.b(), outline.a()];
                     self.needs_save = true;
                 }
-                ui.label("Out");
+                ui.label(self.i18n.t("Out"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut border, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.charging.border = [border.r(), border.g(), border.b(), border.a()];
                     self.needs_save = true;
                 }
-                ui.label("Bdr");
+                ui.label(self.i18n.t("Bdr"));
             });
         });
 
         ui.group(|ui| {
-            ui.label("High (>50%)");
+            ui.label(self.i18n.t("High (>50%)"));
             ui.horizontal(|ui| {
                 let mut bg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.high.bg[0], self.tray_icon_config.colors.high.bg[1], self.tray_icon_config.colors.high.bg[2], self.tray_icon_config.colors.high.bg[3]);
                 let mut fg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.high.fg[0], self.tray_icon_config.colors.high.fg[1], self.tray_icon_config.colors.high.fg[2], self.tray_icon_config.colors.high.fg[3]);
@@ -633,27 +633,27 @@ impl HyperXApp {
                     self.tray_icon_config.colors.high.bg = [bg.r(), bg.g(), bg.b(), bg.a()];
                     self.needs_save = true;
                 }
-                ui.label("BG");
+                ui.label(self.i18n.t("BG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut fg, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.high.fg = [fg.r(), fg.g(), fg.b(), fg.a()];
                     self.needs_save = true;
                 }
-                ui.label("FG");
+                ui.label(self.i18n.t("FG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut outline, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.high.outline = [outline.r(), outline.g(), outline.b(), outline.a()];
                     self.needs_save = true;
                 }
-                ui.label("Out");
+                ui.label(self.i18n.t("Out"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut border, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.high.border = [border.r(), border.g(), border.b(), border.a()];
                     self.needs_save = true;
                 }
-                ui.label("Bdr");
+                ui.label(self.i18n.t("Bdr"));
             });
         });
 
         ui.group(|ui| {
-            ui.label("Medium (20-50%)");
+            ui.label(self.i18n.t("Medium (20-50%)"));
             ui.horizontal(|ui| {
                 let mut bg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.medium.bg[0], self.tray_icon_config.colors.medium.bg[1], self.tray_icon_config.colors.medium.bg[2], self.tray_icon_config.colors.medium.bg[3]);
                 let mut fg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.medium.fg[0], self.tray_icon_config.colors.medium.fg[1], self.tray_icon_config.colors.medium.fg[2], self.tray_icon_config.colors.medium.fg[3]);
@@ -663,27 +663,27 @@ impl HyperXApp {
                     self.tray_icon_config.colors.medium.bg = [bg.r(), bg.g(), bg.b(), bg.a()];
                     self.needs_save = true;
                 }
-                ui.label("BG");
+                ui.label(self.i18n.t("BG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut fg, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.medium.fg = [fg.r(), fg.g(), fg.b(), fg.a()];
                     self.needs_save = true;
                 }
-                ui.label("FG");
+                ui.label(self.i18n.t("FG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut outline, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.medium.outline = [outline.r(), outline.g(), outline.b(), outline.a()];
                     self.needs_save = true;
                 }
-                ui.label("Out");
+                ui.label(self.i18n.t("Out"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut border, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.medium.border = [border.r(), border.g(), border.b(), border.a()];
                     self.needs_save = true;
                 }
-                ui.label("Bdr");
+                ui.label(self.i18n.t("Bdr"));
             });
         });
 
         ui.group(|ui| {
-            ui.label("Low (<20%)");
+            ui.label(self.i18n.t("Low (<20%)"));
             ui.horizontal(|ui| {
                 let mut bg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.low.bg[0], self.tray_icon_config.colors.low.bg[1], self.tray_icon_config.colors.low.bg[2], self.tray_icon_config.colors.low.bg[3]);
                 let mut fg = egui::Color32::from_rgba_premultiplied(self.tray_icon_config.colors.low.fg[0], self.tray_icon_config.colors.low.fg[1], self.tray_icon_config.colors.low.fg[2], self.tray_icon_config.colors.low.fg[3]);
@@ -693,27 +693,27 @@ impl HyperXApp {
                     self.tray_icon_config.colors.low.bg = [bg.r(), bg.g(), bg.b(), bg.a()];
                     self.needs_save = true;
                 }
-                ui.label("BG");
+                ui.label(self.i18n.t("BG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut fg, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.low.fg = [fg.r(), fg.g(), fg.b(), fg.a()];
                     self.needs_save = true;
                 }
-                ui.label("FG");
+                ui.label(self.i18n.t("FG"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut outline, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.low.outline = [outline.r(), outline.g(), outline.b(), outline.a()];
                     self.needs_save = true;
                 }
-                ui.label("Out");
+                ui.label(self.i18n.t("Out"));
                 if egui::color_picker::color_edit_button_srgba(ui, &mut border, egui::color_picker::Alpha::BlendOrAdditive).changed() {
                     self.tray_icon_config.colors.low.border = [border.r(), border.g(), border.b(), border.a()];
                     self.needs_save = true;
                 }
-                ui.label("Bdr");
+                ui.label(self.i18n.t("Bdr"));
             });
         });
 
         ui.separator();
-        ui.heading("Preview");
+        ui.heading(self.i18n.t("Preview"));
         ui.horizontal(|ui| {
             let (rgba, w, h) = generate_battery_icon_rgba(&self.tray_icon_config, 75, false);
             let image = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba);
@@ -725,7 +725,7 @@ impl HyperXApp {
             ui.add(egui::Image::new(&texture2).fit_to_exact_size([64.0, 64.0].into()));
         });
 
-        if ui.button("Save Tray Icon Config").clicked() {
+        if ui.button(self.i18n.t("Save Tray Icon Config")).clicked() {
             log::info!("[GUI] Save Tray Icon Config clicked");
             self.tray_icon_config.sanitize();
             if let Err(e) = self.tray_icon_config.save(crate::tray::icon::TrayIconConfig::default_path()) {
@@ -736,12 +736,12 @@ impl HyperXApp {
                 log::info!("[GUI] Tray icon config updated and refreshed");
             }
         }
-        if ui.button("Reset to Default").clicked() {
+        if ui.button(self.i18n.t("Reset to Default")).clicked() {
             log::info!("[GUI] Reset tray icon to default");
             self.tray_icon_config = crate::tray::icon::TrayIconConfig::default();
             self.needs_save = true;
         }
-        if ui.button("Apply to Tray Now").clicked() {
+        if ui.button(self.i18n.t("Apply to Tray Now")).clicked() {
             log::info!("[GUI] Apply to Tray Now clicked");
             if let Some(tray) = &mut self.tray {
                 tray.update_battery(self.device_state.battery_percent, self.device_state.charging);
@@ -750,19 +750,19 @@ impl HyperXApp {
     }
 
     fn show_settings_debug(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Debug");
-        if ui.checkbox(&mut self.config.debug_logging, "Debug level (verbose)").changed() {
+        ui.heading(self.i18n.t("Debug"));
+        if ui.checkbox(&mut self.config.debug_logging, self.i18n.t("Debug level (verbose)")).changed() {
             self.needs_save = true;
             log::info!("[GUI] Debug level changed to {}", self.config.debug_logging);
         }
-        if ui.checkbox(&mut self.config.log_to_console, "Log to console").changed() {
+        if ui.checkbox(&mut self.config.log_to_console, self.i18n.t("Log to console")).changed() {
             self.needs_save = true;
             log::info!("[GUI] Log to console changed to {}", self.config.log_to_console);
         }
-        if ui.checkbox(&mut self.config.log_to_file, "Log to file (hyperx-ngenuity-open.log)").changed() {
+        if ui.checkbox(&mut self.config.log_to_file, self.i18n.t("Log to file (hyperx-ngenuity-open.log)")).changed() {
             self.needs_save = true;
             log::info!("[GUI] Log to file changed to {}", self.config.log_to_file);
         }
-        ui.small("Logging changes require restart.");
+        ui.small(self.i18n.t("Logging changes require restart."));
     }
 }
