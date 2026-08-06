@@ -211,6 +211,7 @@ fn main() -> anyhow::Result<()> {
                 log::warn!("[Device] Refresh failed ({}/3): {}", error_count, e);
                 if error_count >= 3 {
                     log::warn!("[Device] Too many errors, disconnecting");
+                    let _ = device_tx.send(DeviceEvent::Disconnected);
                     device.disconnect();
                     error_count = 0;
                 }

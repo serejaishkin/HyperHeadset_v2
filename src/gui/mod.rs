@@ -48,6 +48,7 @@ pub enum SettingsTab {
     Headset,
     Voice,
     TrayIcon,
+    Discord,
     Debug,
 }
 
@@ -345,10 +346,6 @@ impl eframe::App for HyperXApp {
                 ui.selectable_value(&mut self.selected_tab, Tab::Settings, self.i18n.t("Settings"));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(self.i18n.t("Discord")).clicked() {
-                        self.show_discord_panel = !self.show_discord_panel;
-                    }
-                    ui.separator();
                     if self.device_state.connected {
                         let icon = if self.device_state.charging { "[CHG]" } else { "[BAT]" };
                         ui.label(format!("{} {}%", icon, self.device_state.battery_percent));
@@ -359,31 +356,6 @@ impl eframe::App for HyperXApp {
                 });
             });
         });
-
-        // === DISCORD PANEL (right) ===
-        if self.show_discord_panel {
-            egui::SidePanel::right("discord_panel")
-                .resizable(true)
-                .default_width(280.0)
-                .max_width(350.0)
-                .show(ctx, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.heading(self.i18n.t("Discord"));
-                        if ui.button("X").clicked() {
-                            self.show_discord_panel = false;
-                        }
-                    });
-                    ui.separator();
-                    discord_tab::show(
-                        ui,
-                        &mut self.config.discord,
-                        self.discord_connected,
-                        &mut self.needs_save,
-                        &mut self.recording_keybind,
-                        &mut self.keybind_capture,
-                    );
-                });
-        }
 
         // === CENTER ===
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -475,6 +447,7 @@ impl HyperXApp {
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Headset, self.i18n.t("Headset"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Voice, self.i18n.t("Voice"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::TrayIcon, self.i18n.t("Tray Icon"));
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Discord, self.i18n.t("Discord"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Debug, self.i18n.t("Debug"));
         });
         ui.separator();
@@ -483,6 +456,7 @@ impl HyperXApp {
                 SettingsTab::Headset => self.show_settings_headset(ui),
                 SettingsTab::Voice => self.show_settings_voice(ui),
                 SettingsTab::TrayIcon => self.show_settings_tray_icon(ui),
+                SettingsTab::Discord => self.show_settings_discord(ui),
                 SettingsTab::Debug => self.show_settings_debug(ui),
             }
         });
@@ -755,6 +729,10 @@ hold=Play/Pause"));
         }
     }
 
+    fn show_settings_discord(&mut self, ui: &mut egui::Ui) {
+        discord_tab::show(ui, &mut self.config.discord, self.discord_connected, &mut self.needs_save, &mut self.recording_keybind, &mut self.keybind_capture);
+    }
+
     fn show_settings_debug(&mut self, ui: &mut egui::Ui) {
         ui.heading(self.i18n.t("Debug"));
         if ui.checkbox(&mut self.config.debug_logging, self.i18n.t("Debug level (verbose)")).changed() {
@@ -770,5 +748,23 @@ hold=Play/Pause"));
             log::info!("[GUI] Log to file changed to {}", self.config.log_to_file);
         }
         ui.small(self.i18n.t("Logging changes require restart."));
+
+        ui.separator();
+        ui.heading(self.i18n.t("Language"));
+        let lang_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("lang"))).unwrap_or_else(|| std::path::PathBuf::from("lang"));
+        let available = crate::i18n::I18n::list_available(&lang_dir);
+        let mut selected = self.i18n.current_lang().to_string();
+        let current_name = available.iter().find(|(code, _)| code == &selected).map(|(_, name)| name.clone()).unwrap_or_else(|| "English".to_string());
+        egui::ComboBox::from_label("").selected_text(current_name).show_ui(ui, |ui| {
+            for (code, name) in &available {
+                if ui.selectable_value(&mut selected, code.clone(), name.clone()).changed() {
+                    if selected != self.config.language {
+                        self.config.language = selected.clone();
+                        self.i18n = crate::i18n::I18n::new(&lang_dir, &selected);
+                        self.needs_save = true;
+                    }
+                }
+            }
+        });
     }
 }
