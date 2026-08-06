@@ -41,4 +41,4 @@ impl LinuxTray {
         s.percent = percent;
         s.charging = charging;
     }
-
+}
