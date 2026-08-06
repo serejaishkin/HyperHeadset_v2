@@ -337,10 +337,7 @@ impl eframe::App for HyperXApp {
 
         // === TOP PANEL ===
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading(self.i18n.t("HyperX NGENUITY Open"));
-                ui.separator();
-
+            ui.horizontal_wrapped(|ui| {
                 ui.selectable_value(&mut self.selected_tab, Tab::Dashboard, self.i18n.t("Dashboard"));
                 ui.selectable_value(&mut self.selected_tab, Tab::Equalizer, self.i18n.t("Equalizer"));
                 ui.selectable_value(&mut self.selected_tab, Tab::Settings, self.i18n.t("Settings"));
