@@ -297,8 +297,8 @@ fn main() -> anyhow::Result<()> {
 
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([980.0, 600.0])
-            .with_min_inner_size([600.0, 400.0]),
+            .with_inner_size(if config.start_in_compact_mode { egui::vec2(220.0, 200.0) } else { egui::vec2(980.0, 600.0) })
+            .with_min_inner_size(if config.start_in_compact_mode { egui::vec2(200.0, 180.0) } else { egui::vec2(600.0, 400.0) }),
         ..Default::default()
     };
 

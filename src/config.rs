@@ -160,6 +160,10 @@ pub struct Config {
     #[serde(default)]
     pub debug_logging: bool,
     #[serde(default)]
+    pub compact_mode: bool,
+    #[serde(default)]
+    pub start_in_compact_mode: bool,
+    #[serde(default)]
     pub language: String,
     #[serde(default = "default_true")]
     pub log_to_console: bool,

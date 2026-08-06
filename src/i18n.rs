@@ -16,6 +16,8 @@ pub const DEFAULT_KEYS: &[&str] = &[
     "Voice",
     "Tray Icon",
     "Debug",
+    "Expand",
+    "Compact mode",
     "Headset Settings",
     "Mute Button",
     "Voice Notifications",
