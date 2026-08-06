@@ -14,7 +14,8 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
             .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
         let _ = OpenOptions::new().create(true).append(true).open(&log_path);
         builder.format(move |buf, record| {
-            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
+            let line = format!("[{}] {} - {}
+", record.level(), record.target(), record.args());
             if log_to_console {
                 let _ = std::io::Write::write_all(buf, line.as_bytes());
             }

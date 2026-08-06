@@ -33,7 +33,8 @@ pub struct HyperXApp {
     pub last_volume_check: Instant,
     pub show_discord_panel: bool,
     pub selected_settings_tab: SettingsTab,
-    pub tray_icon_config: TrayIconConfig,\n    pub i18n: crate::i18n::I18n,
+    pub tray_icon_config: TrayIconConfig,
+    pub i18n: crate::i18n::I18n,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -88,7 +89,8 @@ impl HyperXApp {
             last_volume_check: Instant::now(),
             show_discord_panel: false,
             selected_settings_tab: SettingsTab::Headset,
-            tray_icon_config: TrayIconConfig::load_or_create(),\n            i18n,
+            tray_icon_config: TrayIconConfig::load_or_create(),
+            i18n,
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -508,15 +510,19 @@ impl HyperXApp {
         let prev_mode = self.config.input.mute_button_mode;
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, self.i18n.t("Standard\n(MicMute)"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, self.i18n.t("Standard
+(MicMute)"));
                 ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, self.i18n.t("Play/Pause"));
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, self.i18n.t("Smart: single=mute\ndouble=Play/Pause"));
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, self.i18n.t("Smart: short=Play/Pause\nhold=mute"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, self.i18n.t("Smart: single=mute
+double=Play/Pause"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, self.i18n.t("Smart: short=Play/Pause
+hold=mute"));
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, self.i18n.t("Smart: short=mute\nhold=Play/Pause"));
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, self.i18n.t("Smart: short=mute
+hold=Play/Pause"));
             });
         });
         if self.config.input.mute_button_mode != prev_mode {
