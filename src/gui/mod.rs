@@ -256,6 +256,13 @@ impl eframe::App for HyperXApp {
             self.last_volume_check = Instant::now();
         }
 
+        if self.config.compact_mode {
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([220.0, 200.0].into()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
+            self.show_compact_ui(ctx);
+        } else {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(true));
+
         // === LEFT PANEL: sound + microphone (always visible) ===
         egui::SidePanel::left("audio_panel")
             .resizable(false)
@@ -343,6 +350,11 @@ impl eframe::App for HyperXApp {
                 ui.selectable_value(&mut self.selected_tab, Tab::Settings, self.i18n.t("Settings"));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("⛶").clicked() {
+                        self.config.compact_mode = !self.config.compact_mode;
+                        self.needs_save = true;
+                    }
+                    ui.separator();
                     if self.device_state.connected {
                         let icon = if self.device_state.charging { "[CHG]" } else { "[BAT]" };
                         ui.label(format!("{} {}%", icon, self.device_state.battery_percent));
@@ -371,10 +383,44 @@ impl eframe::App for HyperXApp {
                 });
             });
         }
+        }
     }
 }
 
 impl HyperXApp {
+    fn show_compact_ui(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.add_space(5.0);
+                let icon = if self.device_state.charging { "⚡" } else { "🔋" };
+                let color = if self.device_state.battery_percent > 30 { egui::Color32::GREEN }
+                    else if self.device_state.battery_percent > 15 { egui::Color32::YELLOW }
+                    else { egui::Color32::RED };
+                ui.colored_label(color, format!("{} {}%", icon, self.device_state.battery_percent));
+                ui.add(egui::ProgressBar::new(self.device_state.battery_percent as f32 / 100.0).desired_width(180.0).fill(color));
+                ui.add_space(5.0);
+                let mic_icon = if self.device_state.muted { "🔇" } else { "🎙️" };
+                let mic_text = if self.device_state.muted { self.i18n.t("MUTE") } else { self.i18n.t("MIC ON") };
+                ui.label(format!("{} {}", mic_icon, mic_text));
+                ui.add_space(5.0);
+                ui.label(self.i18n.t("VOL"));
+                let mut vol = self.volume;
+                ui.add(egui::Slider::new(&mut vol, 0.0..=100.0).show_value(true).text(""));
+                if vol != self.volume {
+                    self.volume = vol;
+                    if let Some(ref controller) = self.volume_controller {
+                        controller.set_master_volume(vol);
+                    }
+                }
+                ui.add_space(5.0);
+                if ui.button(format!("⛶ {}", self.i18n.t("Expand"))).clicked() {
+                    self.config.compact_mode = false;
+                    self.needs_save = true;
+                }
+            });
+        });
+    }
+
     fn show_dashboard(&mut self, ui: &mut egui::Ui) {
         ui.heading(self.i18n.t("Headset Status"));
         ui.separator();
