@@ -211,12 +211,19 @@ fn main() -> anyhow::Result<()> {
 
             if !startup_battery_announced && device.state.battery_percent > 0 {
                 startup_battery_announced = true;
-                hyperx_ngenuity_open::audio::voice::play(
-                    hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent)
-                );
+                if !device.state.charging {
+                    hyperx_ngenuity_open::audio::voice::play(
+                        hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent)
+                    );
+                } else {
+                    hyperx_ngenuity_open::audio::voice::play(
+                        hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging
+                    );
+                }
                 hyperx_ngenuity_open::notifications::notify_startup_battery(
                     device.state.battery_percent, device.state.charging
                 );
+                last_charging = device.state.charging;
             }
 
             log::info!(
@@ -245,10 +252,6 @@ fn main() -> anyhow::Result<()> {
             if device.state.charging && !last_charging {
                 log::info!("[Device] Headset charging");
                 hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging);
-            }
-            if device.state.battery_percent == 100 && device.state.charging && !last_charging {
-                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
-                log::info!("[Device] Battery full");
             }
             if device.state.battery_percent == 100 && device.state.charging && !last_full_charge_announced {
             hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
