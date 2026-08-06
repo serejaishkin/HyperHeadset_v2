@@ -568,13 +568,13 @@ impl HyperXApp {
             ui.label("Size:");
             if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).range(32..=512)).changed() { self.needs_save = true; }
             ui.label("Font:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).range(1..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.font_scale, 1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
             ui.label("Outline:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).range(0..=10)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.outline_width, 0..=10)).changed() { self.needs_save = true; }
             ui.label("Border:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).range(0..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.border_width, 0..=20)).changed() { self.needs_save = true; }
             ui.label("Gap:");
             if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).range(0..=20)).changed() { self.needs_save = true; }
         });
@@ -639,17 +639,17 @@ impl HyperXApp {
         ui.heading("Tray Icon");
         ui.horizontal(|ui| {
             ui.label("Size:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.size).speed(1).range(16..=512)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.size, 16..=512)).changed() { self.needs_save = true; }
             ui.label("Font:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.font_scale).speed(1).range(1..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.font_scale, 1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
             ui.label("Outline:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.outline_width).speed(1).range(0..=10)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.outline_width, 0..=10)).changed() { self.needs_save = true; }
             ui.label("Border:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.border_width).speed(1).range(0..=20)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.border_width, 0..=20)).changed() { self.needs_save = true; }
             ui.label("Gap:");
-            if ui.add(egui::DragValue::new(&mut self.tray_icon_config.gap_between_digits).speed(1).range(0..=50)).changed() { self.needs_save = true; }
+            if ui.add(egui::Slider::new(&mut self.tray_icon_config.gap_between_digits, 0..=50)).changed() { self.needs_save = true; }
         });
 
         ui.separator();
