@@ -12,22 +12,23 @@ struct TrayState {
 
 pub struct LinuxTray {
     state: Arc<Mutex<TrayState>>,
+    icon_config: Arc<Mutex<TrayIconConfig>>,
 }
 
 impl LinuxTray {
     pub fn new(tx: Sender<TrayCommand>) -> Self {
-        let icon_config = TrayIconConfig::load_or_create();
+        let icon_config = Arc::new(Mutex::new(TrayIconConfig::load_or_create()));
         let state = Arc::new(Mutex::new(TrayState { percent: 100, charging: false, muted: false }));
         let service = ksni::TrayService::new(MyTray {
             tx: tx.clone(),
             state: state.clone(),
-            icon_config,
+            icon_config: icon_config.clone(),
         });
         std::thread::spawn(move || {
             let _handle = service.spawn();
             std::thread::park();
         });
-        Self { state }
+        Self { state, icon_config }
     }
 
     pub fn refresh_icon(&self) {}
@@ -44,12 +45,16 @@ impl LinuxTray {
         let mut s = self.state.lock().unwrap();
         s.muted = muted;
     }
+
+    pub fn update_icon_config(&self, config: TrayIconConfig) {
+        *self.icon_config.lock().unwrap() = config;
+    }
 }
 
 struct MyTray {
     tx: Sender<TrayCommand>,
     state: Arc<Mutex<TrayState>>,
-    icon_config: TrayIconConfig,
+    icon_config: Arc<Mutex<TrayIconConfig>>,
 }
 
 impl ksni::Tray for MyTray {
@@ -68,7 +73,8 @@ impl ksni::Tray for MyTray {
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
-        let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, s.percent, s.charging);
+        let icon_config = self.icon_config.lock().unwrap();
+        let (rgba, w, h) = generate_battery_icon_rgba(&*icon_config, s.percent, s.charging);
         let argb = rgba_to_argb32(&rgba);
         vec![ksni::Icon {
             width: w as i32,
@@ -85,9 +91,9 @@ impl ksni::Tray for MyTray {
             format!("🔋 Батарея: {}%", s.percent)
         };
         let mic_text = if s.muted {
-            "🔇 Микрофон: выкл"
+            "🔇 Микрофон: выкл".to_string()
         } else {
-            "🎙️ Микрофон: вкл"
+            "🎙️ Микрофон: вкл".to_string()
         };
         vec![
             ksni::MenuItem::Standard(ksni::menu::StandardItem {
@@ -103,7 +109,7 @@ impl ksni::Tray for MyTray {
                 label: "Открыть".into(),
                 activate: {
                     let tx = self.tx.clone();
-                    Some(Box::new(move || { let _ = tx.send(TrayCommand::ShowWindow); }))
+                    Box::new(move |_tray| { let _ = tx.send(TrayCommand::ShowWindow); })
                 },
                 ..Default::default()
             }),
@@ -111,7 +117,7 @@ impl ksni::Tray for MyTray {
                 label: "Переключить мьют".into(),
                 activate: {
                     let tx = self.tx.clone();
-                    Some(Box::new(move || { let _ = tx.send(TrayCommand::ToggleMute); }))
+                    Box::new(move |_tray| { let _ = tx.send(TrayCommand::ToggleMute); })
                 },
                 ..Default::default()
             }),
@@ -120,7 +126,7 @@ impl ksni::Tray for MyTray {
                 label: "Выход".into(),
                 activate: {
                     let tx = self.tx.clone();
-                    Some(Box::new(move || { let _ = tx.send(TrayCommand::Quit); }))
+                    Box::new(move |_tray| { let _ = tx.send(TrayCommand::Quit); })
                 },
                 ..Default::default()
             }),
