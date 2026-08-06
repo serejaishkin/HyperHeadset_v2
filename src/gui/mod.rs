@@ -732,8 +732,8 @@ impl HyperXApp {
                 log::warn!("Failed to save tray icon config: {}", e);
             }
             if let Some(tray) = &mut self.tray {
-                tray.refresh_icon();
-                log::info!("[GUI] Tray icon refreshed after save");
+                tray.update_icon_config(self.tray_icon_config.clone());
+                log::info!("[GUI] Tray icon config updated and refreshed");
             }
         }
         if ui.button("Reset to Default").clicked() {
