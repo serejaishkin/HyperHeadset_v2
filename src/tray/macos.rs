@@ -83,6 +83,11 @@ impl MacOSTray {
             let _ = self.tray_icon.set_icon(Some(icon));
         }
     }
+
+    pub fn update_icon_config(&mut self, config: TrayIconConfig) {
+        self.icon_config = config;
+        self.refresh_icon();
+    }
     pub fn update_battery(&self, percent: u8, charging: bool) {
         *self.current_percent.lock().unwrap() = percent;
         *self.current_charging.lock().unwrap() = charging;
