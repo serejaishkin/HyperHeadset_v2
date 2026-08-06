@@ -145,6 +145,7 @@ fn main() -> anyhow::Result<()> {
         let mut last_mute: Option<bool> = None;
         let mut was_connected = false;
         let mut last_charging = false;
+        let mut last_full_charge_announced = false;
         let mut last_battery_low = false;
         let mut error_count = 0;
             let mut startup_battery_announced = false;
@@ -249,7 +250,16 @@ fn main() -> anyhow::Result<()> {
                 hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
                 log::info!("[Device] Battery full");
             }
-            last_charging = device.state.charging;
+            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge_announced {
+            hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
+            hyperx_ngenuity_open::notifications::notify_full_charge();
+            log::info!("[Device] Battery full — announced");
+            last_full_charge_announced = true;
+        }
+        if !device.state.charging {
+            last_full_charge_announced = false;
+        }
+        last_charging = device.state.charging;
 
             if last_mute != Some(device.state.muted) {
                 last_mute = Some(device.state.muted);
