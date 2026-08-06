@@ -30,6 +30,8 @@ impl LinuxTray {
         Self { state }
     }
 
+    pub fn refresh_icon(&self) {}
+
     pub fn poll(&self) {}
 
     pub fn update_battery(&self, percent: u8, charging: bool) {
@@ -38,4 +40,3 @@ impl LinuxTray {
         s.charging = charging;
     }
 
-    pub fn refresh_icon(&self) {}
