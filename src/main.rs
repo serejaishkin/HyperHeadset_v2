@@ -81,6 +81,15 @@ fn check_apo_available() -> bool {
 fn main() -> anyhow::Result<()> {
     let config = Config::load().unwrap_or_default();
     setup_logging(&config);
+
+    let lang_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join("lang")))
+        .unwrap_or_else(|| std::path::PathBuf::from("lang"));
+    let i18n = hyperx_ngenuity_open::i18n::I18n::new(&lang_dir, &config.language);
+    if !lang_dir.join("default.lang").exists() {
+        let _ = hyperx_ngenuity_open::i18n::I18n::generate_default(&lang_dir, hyperx_ngenuity_open::i18n::DEFAULT_KEYS);
+    }
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
 
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
@@ -296,7 +305,7 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
-    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq)
+    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
         .with_device_receiver(device_rx)
