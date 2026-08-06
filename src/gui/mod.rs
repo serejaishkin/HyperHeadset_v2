@@ -503,20 +503,20 @@ impl HyperXApp {
         });
 
         ui.separator();
-        ui.heading("Mute Button Settings");
+        ui.heading("Mute Button");
         ui.label("Headset mute button mode:");
         let prev_mode = self.config.input.mute_button_mode;
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard\n(always MicMute)");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Always Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::Standard, "Standard\n(MicMute)");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::MediaPlayPause, "Play/Pause");
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single = mute\ndouble = Play/Pause");
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short = Play/Pause\nhold = mute");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartDouble, "Smart: single=mute\ndouble=Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::SmartHold, "Smart: short=Play/Pause\nhold=mute");
             });
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short = mute\nhold = Play/Pause");
+                ui.selectable_value(&mut self.config.input.mute_button_mode, MuteButtonMode::HoldPlayPause, "Smart: short=mute\nhold=Play/Pause");
             });
         });
         if self.config.input.mute_button_mode != prev_mode {
@@ -526,16 +526,16 @@ impl HyperXApp {
                 MuteButtonMode::MediaPlayPause => crate::input::MuteButtonMode::MediaPlayPause,
                 MuteButtonMode::SmartDouble => crate::input::MuteButtonMode::SmartDouble,
                 MuteButtonMode::SmartHold => crate::input::MuteButtonMode::SmartHold,
-                        MuteButtonMode::HoldPlayPause => crate::input::MuteButtonMode::HoldPlayPause,
+                MuteButtonMode::HoldPlayPause => crate::input::MuteButtonMode::HoldPlayPause,
             });
         }
         ui.separator();
         match self.config.input.mute_button_mode {
-            MuteButtonMode::Standard => { ui.label("Mute button always toggles microphone in Discord."); }
-            MuteButtonMode::MediaPlayPause => { ui.label("Mute button always pauses/plays media."); ui.small("Works with Spotify, YouTube, VLC."); }
-            MuteButtonMode::SmartDouble => { ui.label("Single click (< 400 ms) -> MicMute"); ui.label("Double click (< 400 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400 ms delay"); }
-            MuteButtonMode::SmartHold => { ui.label("Short press (< 500 ms) -> Play/Pause"); ui.label("Long hold (> 500 ms) -> MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
-            MuteButtonMode::HoldPlayPause => { ui.label("Short press (< 500 ms) -> MicMute"); ui.label("Long hold (> 500 ms) -> Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::Standard => { ui.label("Always toggles microphone in Discord."); }
+            MuteButtonMode::MediaPlayPause => { ui.label("Always pauses/plays media."); ui.small("Spotify, YouTube, VLC"); }
+            MuteButtonMode::SmartDouble => { ui.label("Single click (<400ms) → MicMute"); ui.label("Double click (<400ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) 400ms delay"); }
+            MuteButtonMode::SmartHold => { ui.label("Short press (<500ms) → Play/Pause"); ui.label("Long hold (>500ms) → MicMute"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
+            MuteButtonMode::HoldPlayPause => { ui.label("Short press (<500ms) → MicMute"); ui.label("Long hold (>500ms) → Play/Pause"); ui.colored_label(egui::Color32::YELLOW, "(!) Requires down/up HID events"); }
         }
         if ui.button("Test: emulate press").clicked() {
             if self.config.input.mute_button_mode == MuteButtonMode::SmartHold || self.config.input.mute_button_mode == MuteButtonMode::HoldPlayPause {
@@ -545,7 +545,6 @@ impl HyperXApp {
             }
         }
     }
-
     fn show_settings_voice(&mut self, ui: &mut egui::Ui) {
         ui.heading("Voice Notifications");
         if ui.checkbox(&mut self.config.voice.enabled, "Enable voice").changed() {
