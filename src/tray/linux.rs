@@ -69,7 +69,7 @@ impl ksni::Tray for MyTray {
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
         let (rgba, w, h) = generate_battery_icon_rgba(&self.icon_config, s.percent, s.charging);
-        let argb = rgba_to_argb32(&rgba, w, h);
+        let argb = rgba_to_argb32(&rgba);
         vec![ksni::Icon {
             width: w as i32,
             height: h as i32,
@@ -90,16 +90,16 @@ impl ksni::Tray for MyTray {
             "🎙️ Микрофон: вкл"
         };
         vec![
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: battery_text,
                 ..Default::default()
             }),
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: mic_text,
                 ..Default::default()
             }),
             ksni::MenuItem::Separator,
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Открыть".into(),
                 activate: {
                     let tx = self.tx.clone();
@@ -107,7 +107,7 @@ impl ksni::Tray for MyTray {
                 },
                 ..Default::default()
             }),
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Переключить мьют".into(),
                 activate: {
                     let tx = self.tx.clone();
@@ -116,7 +116,7 @@ impl ksni::Tray for MyTray {
                 ..Default::default()
             }),
             ksni::MenuItem::Separator,
-            ksni::MenuItem::Standard(ksni::StandardItem {
+            ksni::MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Выход".into(),
                 activate: {
                     let tx = self.tx.clone();

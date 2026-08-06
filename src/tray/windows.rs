@@ -174,6 +174,11 @@ impl WindowsTray {
         self.update_icon();
     }
 
+    pub fn update_icon_config(&mut self, config: TrayIconConfig) {
+        self.icon_config = config;
+        self.update_icon();
+    }
+
     pub fn poll(&self) {}
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {
