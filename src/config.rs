@@ -158,7 +158,9 @@ pub struct Config {
     #[serde(default)]
     pub discord: DiscordConfig,
     #[serde(default)]
-    pub debug_logging: bool,\n    #[serde(default)]\n    pub language: String,
+    pub debug_logging: bool,
+    #[serde(default)]
+    pub language: String,
     #[serde(default = "default_true")]
     pub log_to_console: bool,
     #[serde(default)]
