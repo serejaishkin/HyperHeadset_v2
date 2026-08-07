@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use tray_icon::{TrayIcon, TrayIconBuilder, menu::Menu};
 use crate::tray_battery_icon_state::{TrayBatteryIconState, WindowsIconKey};
 use crate::device::DeviceState;
+use crate::config::TrayConfig;
 
 const SZ: u32 = 16;
 
@@ -30,11 +31,15 @@ fn digit(img: &mut image::RgbaImage, d: char, x: i32, y: i32, s: i32, c: image::
     }
 }
 
-fn render_battery_icon(key: WindowsIconKey) -> Vec<u8> {
+fn render_battery_icon(key: WindowsIconKey, cfg: &TrayConfig) -> Vec<u8> {
     let mut img = image::RgbaImage::from_pixel(SZ, SZ, image::Rgba([0,0,0,0]));
-    let bg = if key.charging { image::Rgba([245,216,64,255]) }
-             else if key.percent<30 { image::Rgba([220,90,90,255]) }
-             else { image::Rgba([96,196,106,255]) };
+    let bg = if key.charging { 
+        image::Rgba([cfg.color_charging[0], cfg.color_charging[1], cfg.color_charging[2], 255]) 
+    } else if key.percent < 30 { 
+        image::Rgba([cfg.color_low[0], cfg.color_low[1], cfg.color_low[2], 255]) 
+    } else { 
+        image::Rgba([cfg.color_high[0], cfg.color_high[1], cfg.color_high[2], 255]) 
+    };
     rect(&mut img, 0, 0, SZ as i32, SZ as i32, bg);
 
     if key.percent == 100 {
@@ -86,27 +91,35 @@ pub struct TrayBatteryManager {
     tray: Option<TrayIcon>,
     cache: HashMap<WindowsIconKey, Vec<u8>>,
     current_key: Option<WindowsIconKey>,
+    config: TrayConfig,
 }
 
 impl TrayBatteryManager {
-    pub fn new() -> Self {
+    pub fn new(config: TrayConfig) -> Self {
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(Menu::new()))
             .with_icon(default_icon())
             .with_tooltip("HyperX NGENUITY Open")
             .build()
             .ok();
-        Self { tray, cache: HashMap::new(), current_key: None }
+        Self { tray, cache: HashMap::new(), current_key: None, config }
     }
 
     pub fn update(&mut self, state: Option<&DeviceState>) {
+        if !self.config.show_battery_percentage {
+            if let Some(tray) = self.tray.as_ref() {
+                let _ = tray.set_icon(Some(default_icon()));
+            }
+            return;
+        }
+
         let st = TrayBatteryIconState::from_device_state(state);
         let desired = st.windows_icon_key();
         if desired == self.current_key { return; }
-        let Some(tray) = self.tray.as_ref() else { return };
+        let Some(tray) = self.tray.as_ref() else { return; };
 
         if let Some(key) = desired {
-            let rgba = self.cache.entry(key).or_insert_with(|| render_battery_icon(key)).clone();
+            let rgba = self.cache.entry(key).or_insert_with(|| render_battery_icon(key, &self.config)).clone();
             if let Ok(icon) = tray_icon::Icon::from_rgba(rgba, 16, 16) {
                 let _ = tray.set_icon(Some(icon));
             }
@@ -123,14 +136,15 @@ impl TrayBatteryManager {
     }
 }
 
-pub fn spawn_tray_battery_thread(shared_state: Arc<Mutex<Option<DeviceState>>>) {
+pub fn spawn_tray_battery_thread(shared_state: Arc<Mutex<Option<DeviceState>>>, config: TrayConfig) {
     std::thread::spawn(move || {
-        let mut manager = TrayBatteryManager::new();
+        let mut manager = TrayBatteryManager::new(config);
+        let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
         loop {
             if let Ok(lock) = shared_state.lock() {
                 manager.update(lock.as_ref());
             }
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            std::thread::sleep(interval);
         }
     });
 }

@@ -177,6 +177,8 @@ pub struct Config {
     pub audio: AudioConfig,
     #[serde(default)]
     pub device: DeviceConfig,
+    #[serde(default)]
+    pub tray: TrayConfig,
 }
 
 impl Config {

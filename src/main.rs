@@ -1,4 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
+mod tray_manager;
+
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     use std::fs::OpenOptions;
     use std::io::Write;
@@ -15,8 +18,7 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
             .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
         let _ = OpenOptions::new().create(true).append(true).open(&log_path);
         builder.format(move |buf, record| {
-            let line = format!("[{}] {} - {}
-", record.level(), record.target(), record.args());
+            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
             if log_to_console {
                 let _ = std::io::Write::write_all(buf, line.as_bytes());
             }
@@ -32,8 +34,6 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     builder.init();
 }
 
-
-
 use anyhow::anyhow;
 use eframe::NativeOptions;
 use std::sync::{Arc, Mutex};
@@ -48,6 +48,7 @@ use hyperx_ngenuity_open::{
     tray::{PlatformTray, TrayCommand},
     DeviceEvent,
 };
+use tray_manager::spawn_tray_battery_thread;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
@@ -58,10 +59,10 @@ use windows::core::PCWSTR;
 fn check_apo_available() -> bool {
     use std::path::Path;
     let paths = [
-        r"C:\Program Files\EqualizerAPO\Editor.exe",
-        r"C:\Program Files\EqualizerAPO\config.txt",
-        r"C:\Program Files (x86)\EqualizerAPO\Editor.exe",
-        r"C:\Program Files (x86)\EqualizerAPO\config.txt",
+        r"C:\\Program Files\\EqualizerAPO\\Editor.exe",
+        r"C:\\Program Files\\EqualizerAPO\\config.txt",
+        r"C:\\Program Files (x86)\\EqualizerAPO\\Editor.exe",
+        r"C:\\Program Files (x86)\\EqualizerAPO\\config.txt",
     ];
     if paths.iter().any(|p| Path::new(p).exists()) {
         return true;
@@ -69,10 +70,10 @@ fn check_apo_available() -> bool {
     use winreg::enums::HKEY_LOCAL_MACHINE;
     use winreg::RegKey;
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    if hklm.open_subkey(r"SOFTWARE\EqualizerAPO").is_ok() {
+    if hklm.open_subkey(r"SOFTWARE\\EqualizerAPO").is_ok() {
         return true;
     }
-    hklm.open_subkey(r"SOFTWARE\WOW6432Node\EqualizerAPO").is_ok()
+    hklm.open_subkey(r"SOFTWARE\\WOW6432Node\\EqualizerAPO").is_ok()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -114,9 +115,14 @@ fn main() -> anyhow::Result<()> {
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
-    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    // Tray battery icon shared state
+    let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
+    let tray_state_clone = Arc::clone(&tray_state);
+    spawn_tray_battery_thread(tray_state_clone, config.tray.clone());
+
+    let (device_tx, device_rx) = std::sync::mpsc::channel();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel();
 
     let tray = PlatformTray::new(tray_tx.clone());
 
@@ -127,7 +133,7 @@ fn main() -> anyhow::Result<()> {
             while let Ok(cmd) = tray_rx.recv() {
                 match cmd {
                     TrayCommand::ShowWindow => {
-                        let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
+                        let title: Vec<u16> = "HyperX NGENUITY Open\\0".encode_utf16().collect();
                         unsafe {
                             match FindWindowW(None, PCWSTR(title.as_ptr())) {
                                 Ok(hwnd) if !hwnd.0.is_null() => {
@@ -159,7 +165,7 @@ fn main() -> anyhow::Result<()> {
         let mut last_full_charge_announced = false;
         let mut last_battery_low = false;
         let mut error_count = 0;
-            let mut startup_battery_announced = false;
+        let mut startup_battery_announced = false;
 
         loop {
             if !device.state.connected {
@@ -167,14 +173,29 @@ fn main() -> anyhow::Result<()> {
                     log::warn!("[Device] Headset disconnected");
                     let _ = device_tx.send(DeviceEvent::Disconnected);
                     was_connected = false;
+                    // Reset all cached state on disconnect
+                    last_mute = None;
+                    last_charging = false;
+                    startup_battery_announced = false;
+                    last_battery_low = false;
+                    last_full_charge_announced = false;
+                    // Send empty state to GUI and tray
+                    let _ = device_tx.send(DeviceEvent::StateChanged(DeviceState::default()));
+                    if let Ok(mut tray_lock) = tray_state.lock() {
+                        *tray_lock = Some(DeviceState::default());
+                    }
                 }
                 match device.connect() {
                     Ok(_) => {
                         log::info!("[Device] Headset connected");
                         let _ = device_tx.send(DeviceEvent::Connected);
-                    hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
+                        hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
+                        // Force immediate state read after reconnect
+                        if let Err(e) = device.refresh_state() {
+                            log::warn!("[Device] Initial refresh after connect failed: {}", e);
+                        }
                     }
                     Err(e) => {
                         log::debug!("Connection failed: {}", e);
@@ -251,10 +272,15 @@ fn main() -> anyhow::Result<()> {
             }
             let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
 
+            // Update tray battery icon state
+            if let Ok(mut tray_lock) = tray_state.lock() {
+                *tray_lock = Some(device.state.clone());
+            }
+
             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;
                 let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
-                    hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
+                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
                 log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
             }
             if device.state.battery_percent > 20 {
@@ -266,15 +292,15 @@ fn main() -> anyhow::Result<()> {
                 hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging);
             }
             if device.state.battery_percent == 100 && device.state.charging && !last_full_charge_announced {
-            hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
-            hyperx_ngenuity_open::notifications::notify_full_charge();
-            log::info!("[Device] Battery full — announced");
-            last_full_charge_announced = true;
-        }
-        if !device.state.charging {
-            last_full_charge_announced = false;
-        }
-        last_charging = device.state.charging;
+                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge);
+                hyperx_ngenuity_open::notifications::notify_full_charge();
+                log::info!("[Device] Battery full — announced");
+                last_full_charge_announced = true;
+            }
+            if !device.state.charging {
+                last_full_charge_announced = false;
+            }
+            last_charging = device.state.charging;
 
             if last_mute != Some(device.state.muted) {
                 last_mute = Some(device.state.muted);
