@@ -119,6 +119,7 @@ fn main() -> anyhow::Result<()> {
 
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
+    #[allow(unused_variables)]
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
     let tray = PlatformTray::new(tray_tx.clone());
