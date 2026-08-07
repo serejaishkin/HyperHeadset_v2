@@ -353,6 +353,9 @@ impl eframe::App for HyperXApp {
                     if ui.button("⛶").clicked() {
                         self.config.compact_mode = !self.config.compact_mode;
                         self.needs_save = true;
+                        if !self.config.compact_mode {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([980.0, 600.0].into()));
+                        }
                     }
                     ui.separator();
                     if self.device_state.connected {
@@ -413,9 +416,22 @@ impl HyperXApp {
                     }
                 }
                 ui.add_space(5.0);
+                ui.add_space(4.0);
+                ui.label(self.i18n.t("MIC"));
+                let mut mic_vol = self.mic_volume;
+                ui.add(egui::Slider::new(&mut mic_vol, 0.0..=100.0).show_value(true).text(""));
+                if mic_vol != self.mic_volume {
+                    self.mic_volume = mic_vol;
+                    if let Some(ref controller) = self.volume_controller {
+                        controller.set_microphone_volume(mic_vol);
+                    }
+                }
+                ui.add_space(4.0);
                 if ui.button(format!("⛶ {}", self.i18n.t("Expand"))).clicked() {
                     self.config.compact_mode = false;
                     self.needs_save = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([980.0, 600.0].into()));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(true));
                 }
             });
         });

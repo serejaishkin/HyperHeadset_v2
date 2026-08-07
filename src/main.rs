@@ -1,3 +1,4 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     use std::fs::OpenOptions;
     use std::io::Write;
@@ -31,7 +32,7 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     builder.init();
 }
 
-// #![cfg_attr(target_os = "windows", windows_subsystem = "windows") temporarily removed for debug
+
 
 use anyhow::anyhow;
 use eframe::NativeOptions;
