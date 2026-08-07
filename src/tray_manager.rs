@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tray_icon::{TrayIcon, TrayIconBuilder, menu::Menu};
+use tray_icon::{
+    TrayIcon, TrayIconBuilder, TrayIconEvent,
+    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+};
 use hyperx_ngenuity_open::device::DeviceState;
 use hyperx_ngenuity_open::config::TrayConfig;
 use crate::tray_battery_icon_state::{TrayBatteryIconState, WindowsIconKey};
@@ -96,12 +99,22 @@ pub struct TrayBatteryManager {
 
 impl TrayBatteryManager {
     pub fn new(config: TrayConfig) -> Self {
+        let menu = Menu::new();
+        let show_i = MenuItem::new("Show", true, None);
+        let mute_i = MenuItem::new("Toggle Mute", true, None);
+        let quit_i = MenuItem::new("Quit", true, None);
+        menu.append(&show_i).unwrap();
+        menu.append(&mute_i).unwrap();
+        menu.append(&PredefinedMenuItem::separator()).unwrap();
+        menu.append(&quit_i).unwrap();
+
         let tray = TrayIconBuilder::new()
-            .with_menu(Box::new(Menu::new()))
+            .with_menu(Box::new(menu))
             .with_icon(default_icon())
             .with_tooltip("HyperX NGENUITY Open")
             .build()
             .ok();
+
         Self { tray, cache: HashMap::new(), current_key: None, config }
     }
 
@@ -129,17 +142,68 @@ impl TrayBatteryManager {
         } else {
             let _ = tray.set_icon(Some(default_icon()));
             let tip = if state.map(|s| s.connected).unwrap_or(false) { "HyperX — Battery unknown" }
-                        else { "HyperX NGENUITY Open" };
+                        else { "HyperX NGENUITY Open — No device" };
             let _ = tray.set_tooltip(Some(tip));
         }
         self.current_key = desired;
     }
+
+    pub fn run_event_loop(&self, device_cmd_tx: std::sync::mpsc::Sender<hyperx_ngenuity_open::DeviceCommand>) {
+        std::thread::spawn(move || {
+            let menu_channel = MenuEvent::receiver();
+            let tray_channel = TrayIconEvent::receiver();
+            loop {
+                if let Ok(event) = menu_channel.try_recv() {
+                    log::info!("[Tray] Menu event: {:?}", event.id);
+                    // Menu item IDs are auto-generated, match by creation order
+                    // 0 = Show, 1 = Toggle Mute, 3 = Quit
+                    match event.id.0 {
+                        0 => {
+                            // Show window — handled by tray click
+                        }
+                        1 => {
+                            let _ = device_cmd_tx.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
+                        }
+                        3 => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
+                    }
+                }
+                if let Ok(event) = tray_channel.try_recv() {
+                    if let TrayIconEvent::Click { .. } = event {
+                        // Show window on left click
+                        #[cfg(target_os = "windows")]
+                        {
+                            let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
+                            unsafe {
+                                use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
+                                use windows::core::PCWSTR;
+                                if let Ok(hwnd) = FindWindowW(None, PCWSTR(title.as_ptr())) {
+                                    if !hwnd.0.is_null() {
+                                        let _ = ShowWindow(hwnd, SW_RESTORE);
+                                        let _ = SetForegroundWindow(hwnd);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
+    }
 }
 
-pub fn spawn_tray_battery_thread(shared_state: Arc<Mutex<Option<DeviceState>>>, config: TrayConfig) {
-    let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
+pub fn spawn_tray_battery_thread(
+    shared_state: Arc<Mutex<Option<DeviceState>>>,
+    config: TrayConfig,
+    device_cmd_tx: std::sync::mpsc::Sender<hyperx_ngenuity_open::DeviceCommand>,
+) {
     std::thread::spawn(move || {
         let mut manager = TrayBatteryManager::new(config);
+        manager.run_event_loop(device_cmd_tx);
+        let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
         loop {
             if let Ok(lock) = shared_state.lock() {
                 manager.update(lock.as_ref());

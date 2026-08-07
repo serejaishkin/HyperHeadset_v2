@@ -52,6 +52,14 @@ use hyperx_ngenuity_open::{
 };
 
 #[cfg(target_os = "windows")]
+use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
+
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
+#[cfg(target_os = "windows")]
+use windows::core::PCWSTR;
+
+#[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
     use std::path::Path;
     let paths = [
@@ -111,16 +119,53 @@ fn main() -> anyhow::Result<()> {
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    // Tray battery icon (Windows/macOS only)
+    let (device_tx, device_rx) = std::sync::mpsc::channel();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
+
+    // Tray: Linux = PlatformTray (ksni), Windows/macOS = TrayBatteryManager
+    #[cfg(target_os = "linux")]
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel();
+    #[cfg(target_os = "linux")]
+    let tray = PlatformTray::new(tray_tx.clone());
+
     #[cfg(not(target_os = "linux"))]
     {
         let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
         let tray_state_clone = Arc::clone(&tray_state);
-        tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone());
+        let device_cmd_tx_clone = device_cmd_tx.clone();
+        tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone(), device_cmd_tx_clone);
     }
 
-    let (device_tx, device_rx) = std::sync::mpsc::channel();
-    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
+    #[cfg(target_os = "windows")]
+    {
+        let device_cmd_tx_tray = device_cmd_tx.clone();
+        std::thread::spawn(move || {
+            while let Ok(cmd) = tray_rx.recv() {
+                match cmd {
+                    TrayCommand::ShowWindow => {
+                        let title: Vec<u16> = "HyperX NGENUITY Open\\0".encode_utf16().collect();
+                        unsafe {
+                            match FindWindowW(None, PCWSTR(title.as_ptr())) {
+                                Ok(hwnd) if !hwnd.0.is_null() => {
+                                    let _ = ShowWindow(hwnd, SW_RESTORE);
+                                    let _ = SetForegroundWindow(hwnd);
+                                }
+                                Ok(_) => log::warn!("[TrayThread] HWND is null"),
+                                Err(e) => log::warn!("[TrayThread] FindWindow failed: {:?}", e),
+                            }
+                        }
+                    }
+                    TrayCommand::ToggleMute => {
+                        let _ = device_cmd_tx_tray.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
+                    }
+                    TrayCommand::Quit => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
 
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
@@ -288,6 +333,14 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
+    #[cfg(target_os = "linux")]
+    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
+        .with_tray(tray_tx)
+        .with_tray_backend(tray)
+        .with_device_receiver(device_rx)
+        .with_device_command_sender(device_cmd_tx);
+
+    #[cfg(not(target_os = "linux"))]
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
         .with_device_receiver(device_rx)
         .with_device_command_sender(device_cmd_tx);
