@@ -1,6 +1,9 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+#[cfg(not(target_os = "linux"))]
 mod tray_manager;
+#[cfg(not(target_os = "linux"))]
+mod tray_battery_icon_state;
 
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     use std::fs::OpenOptions;
@@ -48,7 +51,6 @@ use hyperx_ngenuity_open::{
     tray::{PlatformTray, TrayCommand},
     DeviceEvent,
 };
-use tray_manager::spawn_tray_battery_thread;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
@@ -115,10 +117,13 @@ fn main() -> anyhow::Result<()> {
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    // Tray battery icon shared state
-    let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
-    let tray_state_clone = Arc::clone(&tray_state);
-    spawn_tray_battery_thread(tray_state_clone, config.tray.clone());
+    // Tray battery icon (Windows/macOS only)
+    #[cfg(not(target_os = "linux"))]
+    {
+        let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
+        let tray_state_clone = Arc::clone(&tray_state);
+        tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone());
+    }
 
     let (device_tx, device_rx) = std::sync::mpsc::channel();
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
@@ -173,17 +178,12 @@ fn main() -> anyhow::Result<()> {
                     log::warn!("[Device] Headset disconnected");
                     let _ = device_tx.send(DeviceEvent::Disconnected);
                     was_connected = false;
-                    // Reset all cached state on disconnect
                     last_mute = None;
                     last_charging = false;
                     startup_battery_announced = false;
                     last_battery_low = false;
                     last_full_charge_announced = false;
-                    // Send empty state to GUI and tray
                     let _ = device_tx.send(DeviceEvent::StateChanged(DeviceState::default()));
-                    if let Ok(mut tray_lock) = tray_state.lock() {
-                        *tray_lock = Some(DeviceState::default());
-                    }
                 }
                 match device.connect() {
                     Ok(_) => {
@@ -192,7 +192,6 @@ fn main() -> anyhow::Result<()> {
                         hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
-                        // Force immediate state read after reconnect
                         if let Err(e) = device.refresh_state() {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
@@ -271,11 +270,6 @@ fn main() -> anyhow::Result<()> {
                 *state = device.state.clone();
             }
             let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
-
-            // Update tray battery icon state
-            if let Ok(mut tray_lock) = tray_state.lock() {
-                *tray_lock = Some(device.state.clone());
-            }
 
             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;

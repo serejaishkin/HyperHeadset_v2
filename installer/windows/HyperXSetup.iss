@@ -1,4 +1,4 @@
-﻿[Setup]
+[Setup]
 AppName=HyperX NGENUITY Open
 AppVersion=0.2.0
 AppPublisher=serezaiskin-cell
@@ -13,6 +13,7 @@ WizardStyle=modern
 
 [Files]
 Source: "..\..\target\release\hyperx-ngenuity-open.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\lang\*.lang"; DestDir: "{app}\lang"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\HyperX NGENUITY Open"; Filename: "{app}\hyperx-ngenuity-open.exe"
@@ -27,3 +28,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\hyperx-ngenuity-open.exe"; Description: "Launch HyperX NGENUITY Open"; Flags: postinstall skipifsilent nowait
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\lang"

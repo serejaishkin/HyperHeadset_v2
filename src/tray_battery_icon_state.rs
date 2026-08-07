@@ -1,8 +1,7 @@
-use crate::device::DeviceState;
+use hyperx_ngenuity_open::device::DeviceState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TrayBatteryIconState {
-    NoDevice,
     Disconnected,
     ConnectedUnknown,
     Connected { percent: u8, charging: bool },
@@ -17,18 +16,17 @@ pub struct WindowsIconKey {
 impl TrayBatteryIconState {
     pub fn from_device_state(state: Option<&DeviceState>) -> Self {
         let Some(state) = state else {
-            return Self::NoDevice;
+            return Self::Disconnected;
         };
         if !state.connected {
             return Self::Disconnected;
         }
-        let charging = state.charging;
         if state.battery_percent == 0 {
             return Self::ConnectedUnknown;
         }
         Self::Connected {
             percent: state.battery_percent.min(100),
-            charging,
+            charging: state.charging,
         }
     }
 
