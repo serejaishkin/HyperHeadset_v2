@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tray_icon::{
     TrayIcon, TrayIconBuilder, TrayIconEvent,
-    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, MenuId},
 };
 use hyperx_ngenuity_open::device::DeviceState;
 use hyperx_ngenuity_open::config::TrayConfig;
@@ -95,6 +95,9 @@ pub struct TrayBatteryManager {
     cache: HashMap<WindowsIconKey, Vec<u8>>,
     current_key: Option<WindowsIconKey>,
     config: TrayConfig,
+    show_id: MenuId,
+    mute_id: MenuId,
+    quit_id: MenuId,
 }
 
 impl TrayBatteryManager {
@@ -103,6 +106,11 @@ impl TrayBatteryManager {
         let show_i = MenuItem::new("Show", true, None);
         let mute_i = MenuItem::new("Toggle Mute", true, None);
         let quit_i = MenuItem::new("Quit", true, None);
+        
+        let show_id = show_i.id().clone();
+        let mute_id = mute_i.id().clone();
+        let quit_id = quit_i.id().clone();
+        
         menu.append(&show_i).unwrap();
         menu.append(&mute_i).unwrap();
         menu.append(&PredefinedMenuItem::separator()).unwrap();
@@ -115,7 +123,7 @@ impl TrayBatteryManager {
             .build()
             .ok();
 
-        Self { tray, cache: HashMap::new(), current_key: None, config }
+        Self { tray, cache: HashMap::new(), current_key: None, config, show_id, mute_id, quit_id }
     }
 
     pub fn update(&mut self, state: Option<&DeviceState>) {
@@ -149,30 +157,25 @@ impl TrayBatteryManager {
     }
 
     pub fn run_event_loop(&self, device_cmd_tx: std::sync::mpsc::Sender<hyperx_ngenuity_open::DeviceCommand>) {
+        let show_id = self.show_id.clone();
+        let mute_id = self.mute_id.clone();
+        let quit_id = self.quit_id.clone();
+        
         std::thread::spawn(move || {
             let menu_channel = MenuEvent::receiver();
             let tray_channel = TrayIconEvent::receiver();
             loop {
                 if let Ok(event) = menu_channel.try_recv() {
-                    log::info!("[Tray] Menu event: {:?}", event.id);
-                    // Menu item IDs are auto-generated, match by creation order
-                    // 0 = Show, 1 = Toggle Mute, 3 = Quit
-                    match event.id.0 {
-                        0 => {
-                            // Show window — handled by tray click
-                        }
-                        1 => {
-                            let _ = device_cmd_tx.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
-                        }
-                        3 => {
-                            std::process::exit(0);
-                        }
-                        _ => {}
+                    if event.id == show_id {
+                        // Show window — handled by tray click
+                    } else if event.id == mute_id {
+                        let _ = device_cmd_tx.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
+                    } else if event.id == quit_id {
+                        std::process::exit(0);
                     }
                 }
                 if let Ok(event) = tray_channel.try_recv() {
                     if let TrayIconEvent::Click { .. } = event {
-                        // Show window on left click
                         #[cfg(target_os = "windows")]
                         {
                             let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
@@ -200,10 +203,10 @@ pub fn spawn_tray_battery_thread(
     config: TrayConfig,
     device_cmd_tx: std::sync::mpsc::Sender<hyperx_ngenuity_open::DeviceCommand>,
 ) {
+    let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
     std::thread::spawn(move || {
         let mut manager = TrayBatteryManager::new(config);
         manager.run_event_loop(device_cmd_tx);
-        let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
         loop {
             if let Ok(lock) = shared_state.lock() {
                 manager.update(lock.as_ref());
