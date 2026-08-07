@@ -1,80 +1,136 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tray_icon::{
-    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
-    TrayIcon, TrayIconBuilder,
-};
+use tray_icon::{TrayIcon, TrayIconBuilder, menu::Menu};
 use crate::tray_battery_icon_state::{TrayBatteryIconState, WindowsIconKey};
-use crate::tray_icon_renderer::{render_windows_battery_icon_rgba, create_default_tray_icon};
 use crate::device::DeviceState;
 
-const NO_DEVICE_TOOLTIP: &str = "HyperX NGENUITY Open — No device";
-const DISCONNECTED_TOOLTIP: &str = "HyperX NGENUITY Open — Headset disconnected";
+const SZ: u32 = 16;
 
-pub struct TrayManager {
-    tray_icon: Option<TrayIcon>,
-    icon_cache: HashMap<WindowsIconKey, Vec<u8>>,
-    current_icon_key: Option<WindowsIconKey>,
-}
-
-impl TrayManager {
-    pub fn new() -> Self {
-        let tray_icon = TrayIconBuilder::new()
-            .with_menu(Box::new(Menu::new()))
-            .with_icon(create_default_tray_icon())
-            .with_tooltip(NO_DEVICE_TOOLTIP)
-            .with_menu_on_left_click(true)
-            .build()
-            .ok();
-
-        Self {
-            tray_icon,
-            icon_cache: HashMap::new(),
-            current_icon_key: None,
+fn rect(img: &mut image::RgbaImage, x: i32, y: i32, w: i32, h: i32, c: image::Rgba<u8>) {
+    for px in x.max(0)..(x+w).min(SZ as i32) {
+        for py in y.max(0)..(y+h).min(SZ as i32) {
+            img.put_pixel(px as u32, py as u32, c);
         }
     }
+}
 
-    pub fn update(&mut self, device_state: Option<&DeviceState>) {
-        let icon_state = TrayBatteryIconState::from_device_state(device_state);
-        let desired_key = icon_state.windows_icon_key();
-
-        // Only update icon if state changed
-        if desired_key == self.current_icon_key {
-            return;
+fn digit(img: &mut image::RgbaImage, d: char, x: i32, y: i32, s: i32, c: image::Rgba<u8>) {
+    let rows = match d {
+        '0'=>&["111","101","101","101","111"], '1'=>&["01","01","01","01","01"],
+        '2'=>&["111","001","111","100","111"], '3'=>&["111","001","111","001","111"],
+        '4'=>&["101","101","111","001","001"], '5'=>&["111","100","111","001","111"],
+        '6'=>&["111","100","111","101","111"], '7'=>&["111","001","010","010","010"],
+        '8'=>&["111","101","111","101","111"], '9'=>&["111","101","111","001","111"],
+        _ =>&["000","000","000","000","000"],
+    };
+    for (ri,row) in rows.iter().enumerate() {
+        for (ci,b) in row.chars().enumerate() {
+            if b=='1' { rect(img, x+(ci as i32*s), y+(ri as i32*s), s, s, c); }
         }
+    }
+}
 
-        let Some(tray) = self.tray_icon.as_ref() else {
-            return;
-        };
+fn render_battery_icon(key: WindowsIconKey) -> Vec<u8> {
+    let mut img = image::RgbaImage::from_pixel(SZ, SZ, image::Rgba([0,0,0,0]));
+    let bg = if key.charging { image::Rgba([245,216,64,255]) }
+             else if key.percent<30 { image::Rgba([220,90,90,255]) }
+             else { image::Rgba([96,196,106,255]) };
+    rect(&mut img, 0, 0, SZ as i32, SZ as i32, bg);
 
-        if let Some(key) = desired_key {
-            let rgba = self
-                .icon_cache
-                .entry(key)
-                .or_insert_with(|| render_windows_battery_icon_rgba(key))
-                .clone();
+    if key.percent == 100 {
+        let tc = image::Rgba([10,10,10,255]); let y=3;
+        rect(&mut img, 1, y, 1, 10, tc); rect(&mut img, 0, y+9, 3, 1, tc);
+        let z1=4;
+        rect(&mut img, z1, y, 5, 1, tc); rect(&mut img, z1, y+9, 5, 1, tc);
+        rect(&mut img, z1, y, 1, 10, tc); rect(&mut img, z1+4, y, 1, 10, tc);
+        let z2=10;
+        rect(&mut img, z2, y, 5, 1, tc); rect(&mut img, z2, y+9, 5, 1, tc);
+        rect(&mut img, z2, y, 1, 10, tc); rect(&mut img, z2+4, y, 1, 10, tc);
+        return img.into_raw();
+    }
 
+    let text = key.percent.to_string();
+    let mut scale = 2;
+    let sp = if text.len()>=3 {0} else {1};
+    let hp = if text.len()>=3 {0} else {1};
+    let il = hp;
+    let ir = (SZ as i32-1-hp).max(il);
+    let us = (ir-il+1).max(1);
+
+    let mut widths: Vec<i32> = text.chars().map(|d| if d=='1'{2*scale}else{3*scale}).collect();
+    let mut total = widths.iter().sum::<i32>() + sp*(text.len().saturating_sub(1) as i32);
+    if total>us && scale>1 {
+        scale=1;
+        widths = text.chars().map(|d| if d=='1'{2*scale}else{3*scale}).collect();
+        total = widths.iter().sum::<i32>() + sp*(text.len().saturating_sub(1) as i32);
+    }
+    let sx = (il+((us-total).max(0)/2)).clamp(il, (ir-total+1).max(il));
+    let sy = if scale==2{3}else{5};
+    let tc = image::Rgba([10,10,10,255]);
+    let mut x = sx;
+    for (idx,d) in text.chars().enumerate() {
+        digit(&mut img, d, x, sy, scale, tc);
+        x += widths[idx] + sp;
+    }
+    img.into_raw()
+}
+
+fn default_icon() -> tray_icon::Icon {
+    let bytes = include_bytes!("../assets/headphone.png");
+    let img = image::load_from_memory(bytes).unwrap().into_rgba8();
+    let (w,h) = img.dimensions();
+    tray_icon::Icon::from_rgba(img.into_raw(), w, h).unwrap()
+}
+
+pub struct TrayBatteryManager {
+    tray: Option<TrayIcon>,
+    cache: HashMap<WindowsIconKey, Vec<u8>>,
+    current_key: Option<WindowsIconKey>,
+}
+
+impl TrayBatteryManager {
+    pub fn new() -> Self {
+        let tray = TrayIconBuilder::new()
+            .with_menu(Box::new(Menu::new()))
+            .with_icon(default_icon())
+            .with_tooltip("HyperX NGENUITY Open")
+            .build()
+            .ok();
+        Self { tray, cache: HashMap::new(), current_key: None }
+    }
+
+    pub fn update(&mut self, state: Option<&DeviceState>) {
+        let st = TrayBatteryIconState::from_device_state(state);
+        let desired = st.windows_icon_key();
+        if desired == self.current_key { return; }
+        let Some(tray) = self.tray.as_ref() else { return };
+
+        if let Some(key) = desired {
+            let rgba = self.cache.entry(key).or_insert_with(|| render_battery_icon(key)).clone();
             if let Ok(icon) = tray_icon::Icon::from_rgba(rgba, 16, 16) {
                 let _ = tray.set_icon(Some(icon));
             }
-
-            let tooltip = if key.charging {
-                format!("HyperX — {}% (charging)", key.percent)
-            } else {
-                format!("HyperX — {}% battery", key.percent)
-            };
-            let _ = tray.set_tooltip(Some(&tooltip));
+            let tip = if key.charging { format!("HyperX — {}% (charging)", key.percent) }
+                        else { format!("HyperX — {}% battery", key.percent) };
+            let _ = tray.set_tooltip(Some(&tip));
         } else {
-            let _ = tray.set_icon(Some(create_default_tray_icon()));
-            let tooltip = match icon_state {
-                TrayBatteryIconState::NoDevice => NO_DEVICE_TOOLTIP,
-                TrayBatteryIconState::Disconnected => DISCONNECTED_TOOLTIP,
-                TrayBatteryIconState::ConnectedUnknown => "HyperX — Battery unknown",
-                _ => NO_DEVICE_TOOLTIP,
-            };
-            let _ = tray.set_tooltip(Some(tooltip));
+            let _ = tray.set_icon(Some(default_icon()));
+            let tip = if state.map(|s| s.connected).unwrap_or(false) { "HyperX — Battery unknown" }
+                        else { "HyperX NGENUITY Open" };
+            let _ = tray.set_tooltip(Some(tip));
         }
-
-        self.current_icon_key = desired_key;
+        self.current_key = desired;
     }
+}
+
+pub fn spawn_tray_battery_thread(shared_state: Arc<Mutex<Option<DeviceState>>>) {
+    std::thread::spawn(move || {
+        let mut manager = TrayBatteryManager::new();
+        loop {
+            if let Ok(lock) = shared_state.lock() {
+                manager.update(lock.as_ref());
+            }
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+    });
 }

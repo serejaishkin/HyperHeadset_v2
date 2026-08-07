@@ -225,3 +225,38 @@ impl Config {
 }
 
 fn default_true() -> bool { true }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrayConfig {
+    #[serde(default = "default_true")]
+    pub show_battery_percentage: bool,
+    #[serde(default = "default_three")]
+    pub refresh_interval_secs: u64,
+    #[serde(default = "color_high")]
+    pub color_high: [u8; 3],
+    #[serde(default = "color_medium")]
+    pub color_medium: [u8; 3],
+    #[serde(default = "color_low")]
+    pub color_low: [u8; 3],
+    #[serde(default = "color_charging")]
+    pub color_charging: [u8; 3],
+}
+
+impl Default for TrayConfig {
+    fn default() -> Self {
+        Self {
+            show_battery_percentage: true,
+            refresh_interval_secs: 3,
+            color_high: [96, 196, 106],
+            color_medium: [245, 166, 35],
+            color_low: [220, 90, 90],
+            color_charging: [245, 216, 64],
+        }
+    }
+}
+
+fn default_three() -> u64 { 3 }
+fn color_high() -> [u8; 3] { [96, 196, 106] }
+fn color_medium() -> [u8; 3] { [245, 166, 35] }
+fn color_low() -> [u8; 3] { [220, 90, 90] }
+fn color_charging() -> [u8; 3] { [245, 216, 64] }
