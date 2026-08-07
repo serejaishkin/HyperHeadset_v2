@@ -51,15 +51,15 @@ use hyperx_ngenuity_open::{
     DeviceEvent,
 };
 
-#[cfg(target_os = "windows")]
+
 use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
 
-#[cfg(target_os = "windows")]
+
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
-#[cfg(target_os = "windows")]
+
 use windows::core::PCWSTR;
 
-#[cfg(target_os = "windows")]
+
 fn check_apo_available() -> bool {
     use std::path::Path;
     let paths = [
@@ -136,7 +136,7 @@ fn main() -> anyhow::Result<()> {
         tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone(), device_cmd_tx_clone);
     }
 
-    #[cfg(target_os = "windows")]
+
     {
         let device_cmd_tx_tray = device_cmd_tx.clone();
         std::thread::spawn(move || {
