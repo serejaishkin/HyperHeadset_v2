@@ -48,25 +48,23 @@ use hyperx_ngenuity_open::{
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
     input::{self, GLOBAL_MUTE_HANDLER},
+    tray::{PlatformTray, TrayCommand},
     DeviceEvent,
 };
 
-
-use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
-
-
+#[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
-
+#[cfg(target_os = "windows")]
 use windows::core::PCWSTR;
 
-
+#[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
     use std::path::Path;
     let paths = [
-        r"C:\\Program Files\\EqualizerAPO\\Editor.exe",
-        r"C:\\Program Files\\EqualizerAPO\\config.txt",
-        r"C:\\Program Files (x86)\\EqualizerAPO\\Editor.exe",
-        r"C:\\Program Files (x86)\\EqualizerAPO\\config.txt",
+        r"C:\Program Files\EqualizerAPO\Editor.exe",
+        r"C:\Program Files\EqualizerAPO\config.txt",
+        r"C:\Program Files (x86)\EqualizerAPO\Editor.exe",
+        r"C:\Program Files (x86)\EqualizerAPO\config.txt",
     ];
     if paths.iter().any(|p| Path::new(p).exists()) {
         return true;
@@ -74,10 +72,10 @@ fn check_apo_available() -> bool {
     use winreg::enums::HKEY_LOCAL_MACHINE;
     use winreg::RegKey;
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    if hklm.open_subkey(r"SOFTWARE\\EqualizerAPO").is_ok() {
+    if hklm.open_subkey(r"SOFTWARE\EqualizerAPO").is_ok() {
         return true;
     }
-    hklm.open_subkey(r"SOFTWARE\\WOW6432Node\\EqualizerAPO").is_ok()
+    hklm.open_subkey(r"SOFTWARE\WOW6432Node\EqualizerAPO").is_ok()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -119,15 +117,13 @@ fn main() -> anyhow::Result<()> {
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    let (device_tx, device_rx) = std::sync::mpsc::channel();
-    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
+    let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
-    // Tray: Linux = PlatformTray (ksni), Windows/macOS = TrayBatteryManager
-    #[cfg(target_os = "linux")]
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel();
-    #[cfg(target_os = "linux")]
     let tray = PlatformTray::new(tray_tx.clone());
 
+    // Tray battery icon (Windows/macOS only) — alongside existing PlatformTray
     #[cfg(not(target_os = "linux"))]
     {
         let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
@@ -136,14 +132,14 @@ fn main() -> anyhow::Result<()> {
         tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone(), device_cmd_tx_clone);
     }
 
-
+    #[cfg(target_os = "windows")]
     {
         let device_cmd_tx_tray = device_cmd_tx.clone();
         std::thread::spawn(move || {
             while let Ok(cmd) = tray_rx.recv() {
                 match cmd {
                     TrayCommand::ShowWindow => {
-                        let title: Vec<u16> = "HyperX NGENUITY Open\\0".encode_utf16().collect();
+                        let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
                         unsafe {
                             match FindWindowW(None, PCWSTR(title.as_ptr())) {
                                 Ok(hwnd) if !hwnd.0.is_null() => {
@@ -183,12 +179,12 @@ fn main() -> anyhow::Result<()> {
                     log::warn!("[Device] Headset disconnected");
                     let _ = device_tx.send(DeviceEvent::Disconnected);
                     was_connected = false;
+                    // Reset cached state on disconnect
                     last_mute = None;
                     last_charging = false;
                     startup_battery_announced = false;
                     last_battery_low = false;
                     last_full_charge_announced = false;
-                    let _ = device_tx.send(DeviceEvent::StateChanged(DeviceState::default()));
                 }
                 match device.connect() {
                     Ok(_) => {
@@ -197,6 +193,7 @@ fn main() -> anyhow::Result<()> {
                         hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
+                        // Force immediate state read after reconnect
                         if let Err(e) = device.refresh_state() {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
@@ -333,17 +330,14 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
-    #[cfg(target_os = "linux")]
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
         .with_device_receiver(device_rx)
         .with_device_command_sender(device_cmd_tx);
 
-    #[cfg(not(target_os = "linux"))]
-    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
-        .with_device_receiver(device_rx)
-        .with_device_command_sender(device_cmd_tx);
+    #[cfg(target_os = "linux")]
+    let app = app.with_tray_receiver(tray_rx);
 
     eframe::run_native(
         "HyperX NGENUITY Open",
