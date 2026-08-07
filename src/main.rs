@@ -48,9 +48,11 @@ use hyperx_ngenuity_open::{
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
     input::{self, GLOBAL_MUTE_HANDLER},
-    tray::{PlatformTray, TrayCommand},
     DeviceEvent,
 };
+
+#[cfg(target_os = "linux")]
+use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
@@ -119,12 +121,13 @@ fn main() -> anyhow::Result<()> {
 
     let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
     let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
-    #[allow(unused_variables)]
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
 
+    // Linux: PlatformTray (ksni) — Windows/macOS: TrayBatteryManager (tray-icon)
+    #[cfg(target_os = "linux")]
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    #[cfg(target_os = "linux")]
     let tray = PlatformTray::new(tray_tx.clone());
 
-    // Tray battery icon (Windows/macOS only) — alongside existing PlatformTray
     #[cfg(not(target_os = "linux"))]
     {
         let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
@@ -180,7 +183,6 @@ fn main() -> anyhow::Result<()> {
                     log::warn!("[Device] Headset disconnected");
                     let _ = device_tx.send(DeviceEvent::Disconnected);
                     was_connected = false;
-                    // Reset cached state on disconnect
                     last_mute = None;
                     last_charging = false;
                     startup_battery_announced = false;
@@ -194,7 +196,6 @@ fn main() -> anyhow::Result<()> {
                         hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                         was_connected = true;
                         error_count = 0;
-                        // Force immediate state read after reconnect
                         if let Err(e) = device.refresh_state() {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
@@ -331,14 +332,18 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
+    // Linux: HyperXApp with PlatformTray — Windows/macOS: without tray backend
+    #[cfg(target_os = "linux")]
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
         .with_tray(tray_tx)
         .with_tray_backend(tray)
         .with_device_receiver(device_rx)
         .with_device_command_sender(device_cmd_tx);
 
-    #[cfg(target_os = "linux")]
-    let app = app.with_tray_receiver(tray_rx);
+    #[cfg(not(target_os = "linux"))]
+    let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
+        .with_device_receiver(device_rx)
+        .with_device_command_sender(device_cmd_tx);
 
     eframe::run_native(
         "HyperX NGENUITY Open",
