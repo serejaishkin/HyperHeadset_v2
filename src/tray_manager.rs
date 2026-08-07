@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tray_icon::{TrayIcon, TrayIconBuilder, menu::Menu};
+use hyperx_ngenuity_open::device::DeviceState;
+use hyperx_ngenuity_open::config::TrayConfig;
 use crate::tray_battery_icon_state::{TrayBatteryIconState, WindowsIconKey};
-use crate::device::DeviceState;
-use crate::config::TrayConfig;
 
 const SZ: u32 = 16;
 
@@ -137,9 +137,9 @@ impl TrayBatteryManager {
 }
 
 pub fn spawn_tray_battery_thread(shared_state: Arc<Mutex<Option<DeviceState>>>, config: TrayConfig) {
+    let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
     std::thread::spawn(move || {
         let mut manager = TrayBatteryManager::new(config);
-        let interval = std::time::Duration::from_secs(config.refresh_interval_secs);
         loop {
             if let Ok(lock) = shared_state.lock() {
                 manager.update(lock.as_ref());
