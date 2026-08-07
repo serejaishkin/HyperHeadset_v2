@@ -6,7 +6,6 @@ mod tray_manager;
 mod tray_battery_icon_state;
 
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
-    use std::fs::OpenOptions;
     let mut builder = env_logger::Builder::from_default_env();
     builder.filter_level(if config.debug_logging { log::LevelFilter::Debug } else { log::LevelFilter::Info });
 
@@ -18,13 +17,13 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
             .ok()
             .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
             .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
-        let _ = OpenOptions::new().create(true).append(true).open(&log_path);
+        let _ = std::fs::OpenOptions::new().create(true).append(true).open(&log_path);
         builder.format(move |buf, record| {
             let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
             if log_to_console {
                 let _ = std::io::Write::write_all(buf, line.as_bytes());
             }
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
                 let _ = std::io::Write::write_all(&mut file, line.as_bytes());
             }
             Ok(())
@@ -123,7 +122,7 @@ fn main() -> anyhow::Result<()> {
 
     // Linux: PlatformTray (ksni) — Windows/macOS: TrayBatteryManager (tray-icon)
     #[cfg(target_os = "linux")]
-    let (tray_tx, _tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
     #[cfg(target_os = "linux")]
     let tray = PlatformTray::new(tray_tx.clone());
 
@@ -133,37 +132,6 @@ fn main() -> anyhow::Result<()> {
         let tray_state_clone = Arc::clone(&tray_state);
         let device_cmd_tx_clone = device_cmd_tx.clone();
         tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone(), device_cmd_tx_clone);
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let device_cmd_tx_tray = device_cmd_tx.clone();
-        std::thread::spawn(move || {
-            while let Ok(cmd) = tray_rx.recv() {
-                match cmd {
-                    TrayCommand::ShowWindow => {
-                        let title: Vec<u16> = "HyperX NGENUITY Open\0".encode_utf16().collect();
-                        unsafe {
-                            match FindWindowW(None, PCWSTR(title.as_ptr())) {
-                                Ok(hwnd) if !hwnd.0.is_null() => {
-                                    let _ = ShowWindow(hwnd, SW_RESTORE);
-                                    let _ = SetForegroundWindow(hwnd);
-                                }
-                                Ok(_) => log::warn!("[TrayThread] HWND is null"),
-                                Err(e) => log::warn!("[TrayThread] FindWindow failed: {:?}", e),
-                            }
-                        }
-                    }
-                    TrayCommand::ToggleMute => {
-                        let _ = device_cmd_tx_tray.send(hyperx_ngenuity_open::DeviceCommand::ToggleMute);
-                    }
-                    TrayCommand::Quit => {
-                        std::process::exit(0);
-                    }
-                    _ => {}
-                }
-            }
-        });
     }
 
     std::thread::spawn(move || {
@@ -331,7 +299,6 @@ fn main() -> anyhow::Result<()> {
         state.clone()
     };
 
-    // Linux: HyperXApp with PlatformTray — Windows/macOS: without tray backend
     #[cfg(target_os = "linux")]
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
         .with_tray(tray_tx)
