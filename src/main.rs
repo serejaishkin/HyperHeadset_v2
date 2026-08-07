@@ -7,7 +7,6 @@ mod tray_battery_icon_state;
 
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     use std::fs::OpenOptions;
-    use std::io::Write;
     let mut builder = env_logger::Builder::from_default_env();
     builder.filter_level(if config.debug_logging { log::LevelFilter::Debug } else { log::LevelFilter::Info });
 
@@ -124,7 +123,7 @@ fn main() -> anyhow::Result<()> {
 
     // Linux: PlatformTray (ksni) — Windows/macOS: TrayBatteryManager (tray-icon)
     #[cfg(target_os = "linux")]
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (tray_tx, _tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
     #[cfg(target_os = "linux")]
     let tray = PlatformTray::new(tray_tx.clone());
 
