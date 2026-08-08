@@ -45,13 +45,10 @@ use hyperx_ngenuity_open::{
     DeviceEvent,
 };
 
-#[cfg(target_os = "linux")]
 use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
 
 #[cfg(target_os = "windows")]
-use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE};
 #[cfg(target_os = "windows")]
-use windows::core::PCWSTR;
 
 #[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
