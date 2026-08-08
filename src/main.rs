@@ -280,7 +280,7 @@ fn main() -> anyhow::Result<()> {
         });
     });
 
-    let icon = eframe::IconData::try_from_png_bytes(include_bytes!("../assets/icon.png")).ok();
+    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png")).ok();
 
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
