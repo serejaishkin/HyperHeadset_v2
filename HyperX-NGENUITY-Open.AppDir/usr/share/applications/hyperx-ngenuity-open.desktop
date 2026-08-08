@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=HyperX NGENUITY Open
-Comment=Open-source HyperX headset manager
-Exec=hyperx-ngenuity-open
-Icon=hyperx-ngenuity-open
-Type=Application
-Categories=AudioVideo;Utility;
-Terminal=false
