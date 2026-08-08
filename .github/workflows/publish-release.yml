@@ -21,6 +21,7 @@ jobs:
         run: cargo build --release
       - name: Pack
         run: |
+          rm -rf dist
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyperx-ngenuity-open-cli dist/
@@ -43,6 +44,7 @@ jobs:
         run: cargo build --release --no-default-features
       - name: Pack
         run: |
+          rm -rf dist
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyperx-ngenuity-open-cli dist/
@@ -63,6 +65,7 @@ jobs:
         run: cargo build --release
       - name: Pack
         run: |
+          rm -rf dist
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyperx-ngenuity-open-cli dist/
@@ -83,6 +86,7 @@ jobs:
         run: cargo build --release --no-default-features
       - name: Pack
         run: |
+          rm -rf dist
           mkdir -p dist
           cp target/release/hyperx-ngenuity-open dist/
           cp target/release/hyperx-ngenuity-open-cli dist/
@@ -102,6 +106,7 @@ jobs:
       - name: Pack
         shell: pwsh
         run: |
+          Remove-Item -Recurse -Force -Path dist -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
           Copy-Item target/release/hyperx-ngenuity-open-cli.exe dist/
@@ -122,6 +127,7 @@ jobs:
       - name: Pack
         shell: pwsh
         run: |
+          Remove-Item -Recurse -Force -Path dist -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/release/hyperx-ngenuity-open.exe dist/
           Copy-Item target/release/hyperx-ngenuity-open-cli.exe dist/
