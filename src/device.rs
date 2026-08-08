@@ -128,7 +128,7 @@ impl HyperXDevice {
 
         // Charging (cmd 3, status at byte 4)
         self.prepare_write();
-        log::debug!('[Device] Reading charging status...');
+        log::debug!("[Device] Reading charging status...");
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
             Ok((status, raw)) => {
                 voice::vlog(&format!(
