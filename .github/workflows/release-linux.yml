@@ -1,0 +1,79 @@
+name: Release Linux
+on:
+  push:
+    tags:
+      - 'v*'
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config imagemagick desktop-file-utils wget file
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build release
+        run: cargo build --release
+      - name: Check glibc compatibility
+        run: objdump -T target/release/hyperx-ngenuity-open | grep GLIBC | sed 's/.*GLIBC_/GLIBC_/' | sort -Vu | tail -5
+      - name: Pack portable
+        run: |
+          mkdir -p dist
+          cp target/release/hyperx-ngenuity-open dist/
+          cp -r lang dist/ 2>/dev/null || true
+          cp 99-HyperHeadset.rules dist/
+          cat > dist/README.txt << 'EOF'
+          HyperX NGENUITY Open — Linux Portable
+          =====================================
+          Запуск: ./hyperx-ngenuity-open
+          Права на USB (один раз):
+            sudo cp 99-HyperHeadset.rules /etc/udev/rules.d/
+            sudo udevadm control --reload-rules && sudo udevadm trigger
+          EOF
+          cd dist && zip -r ../HyperX-NGENUITY-Open-Linux-portable.zip .
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share AppDir/usr/share/udev
+          cp target/release/hyperx-ngenuity-open AppDir/usr/bin/
+          cp -r lang AppDir/usr/share/ 2>/dev/null || true
+          cp 99-HyperHeadset.rules AppDir/usr/share/udev/
+          cp assets/icon.png AppDir/hyperx-ngenuity-open.png 2>/dev/null || convert -size 256x256 xc:red AppDir/hyperx-ngenuity-open.png
+          cat > AppDir/hyperx-ngenuity-open.desktop << 'EOF'
+          [Desktop Entry]
+          Name=HyperX NGENUITY Open
+          Exec=hyperx-ngenuity-open
+          Type=Application
+          Icon=hyperx-ngenuity-open
+          Categories=AudioVideo;Audio;
+          EOF
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin:${PATH}"
+          RULES_DST="/etc/udev/rules.d/99-HyperHeadset.rules"
+          if [ ! -f "$RULES_DST" ]; then
+              echo ""
+              echo "⚠️  Нужны права на USB-гарнитуру. Выполните ОДИН раз:"
+              echo "   sudo cp '${HERE}/usr/share/udev/99-HyperHeadset.rules' '$RULES_DST'"
+              echo "   sudo udevadm control --reload-rules && sudo udevadm trigger"
+              echo ""
+          fi
+          exec "${HERE}/usr/bin/hyperx-ngenuity-open" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          ./squashfs-root/AppRun AppDir HyperX-NGENUITY-Open-x86_64.AppImage
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            HyperX-NGENUITY-Open-Linux-portable.zip
+            HyperX-NGENUITY-Open-x86_64.AppImage
+          generate_release_notes: true
