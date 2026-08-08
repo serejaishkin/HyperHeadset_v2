@@ -278,10 +278,16 @@ fn main() -> anyhow::Result<()> {
     });
 
 
+    let mut viewport_builder = egui::ViewportBuilder::default()
+        .with_inner_size(if config.start_in_compact_mode { egui::vec2(220.0, 200.0) } else { egui::vec2(980.0, 600.0) })
+        .with_min_inner_size(if config.start_in_compact_mode { egui::vec2(200.0, 180.0) } else { egui::vec2(600.0, 400.0) });
+
+    if let Ok(icon_data) = eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png")) {
+        viewport_builder = viewport_builder.with_icon(std::sync::Arc::new(icon_data));
+    }
+
     let options = NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size(if config.start_in_compact_mode { egui::vec2(220.0, 200.0) } else { egui::vec2(980.0, 600.0) })
-            .with_min_inner_size(if config.start_in_compact_mode { egui::vec2(200.0, 180.0) } else { egui::vec2(600.0, 400.0) }),
+        viewport: viewport_builder,
         ..Default::default()
     };
 
