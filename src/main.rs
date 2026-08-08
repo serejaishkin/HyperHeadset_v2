@@ -1,9 +1,5 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-#[cfg(not(target_os = "linux"))]
-mod tray_manager;
-#[cfg(not(target_os = "linux"))]
-mod tray_battery_icon_state;
 
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     let mut builder = env_logger::Builder::from_default_env();
@@ -127,12 +123,9 @@ fn main() -> anyhow::Result<()> {
     let tray = PlatformTray::new(tray_tx.clone());
 
     #[cfg(not(target_os = "linux"))]
-    {
-        let tray_state = Arc::new(Mutex::new(None::<DeviceState>));
-        let tray_state_clone = Arc::clone(&tray_state);
-        let device_cmd_tx_clone = device_cmd_tx.clone();
-        tray_manager::spawn_tray_battery_thread(tray_state_clone, config.tray.clone(), device_cmd_tx_clone);
-    }
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    #[cfg(not(target_os = "linux"))]
+    let tray = PlatformTray::new(tray_tx.clone());
 
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
@@ -287,10 +280,13 @@ fn main() -> anyhow::Result<()> {
         });
     });
 
+    let icon = eframe::IconData::try_from_png_bytes(include_bytes!("../assets/icon.png")).ok();
+
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(if config.start_in_compact_mode { egui::vec2(220.0, 200.0) } else { egui::vec2(980.0, 600.0) })
-            .with_min_inner_size(if config.start_in_compact_mode { egui::vec2(200.0, 180.0) } else { egui::vec2(600.0, 400.0) }),
+            .with_min_inner_size(if config.start_in_compact_mode { egui::vec2(200.0, 180.0) } else { egui::vec2(600.0, 400.0) })
+            .with_icon(icon),
         ..Default::default()
     };
 
@@ -308,8 +304,11 @@ fn main() -> anyhow::Result<()> {
 
     #[cfg(not(target_os = "linux"))]
     let app = HyperXApp::new(config, initial_state, apo_available, debounced_eq, i18n)
+        .with_tray(tray_tx)
+        .with_tray_backend(tray)
         .with_device_receiver(device_rx)
-        .with_device_command_sender(device_cmd_tx);
+        .with_device_command_sender(device_cmd_tx)
+        .with_tray_receiver(tray_rx);
 
     eframe::run_native(
         "HyperX NGENUITY Open",

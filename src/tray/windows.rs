@@ -37,7 +37,7 @@ impl WindowsTray {
             .with_tooltip("HyperX — подключение...")
             .with_icon(icon)
             .with_menu(Box::new(Menu::new()))
-            .with_menu_on_left_click(false)
+            
             .build();
 
         let tray: Option<TrayIcon> = match tray {
