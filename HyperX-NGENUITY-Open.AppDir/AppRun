@@ -2,25 +2,12 @@
 SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
 export PATH="${HERE}/usr/bin:${PATH}"
-
-RULES_SRC="${HERE}/usr/share/udev/99-HyperHeadset.rules"
 RULES_DST="/etc/udev/rules.d/99-HyperHeadset.rules"
-
 if [ ! -f "$RULES_DST" ]; then
     echo ""
     echo "⚠️  Нужны права на USB-гарнитуру. Выполните ОДИН раз:"
-    echo "   sudo cp '$RULES_SRC' '$RULES_DST'"
+    echo "   sudo cp '${HERE}/usr/share/udev/99-HyperHeadset.rules' '$RULES_DST'"
     echo "   sudo udevadm control --reload-rules && sudo udevadm trigger"
-    echo "   Или запустите: ./HyperX-NGENUITY-Open-x86_64.AppImage --install-udev-rules"
     echo ""
-    if [ "$1" = "--install-udev-rules" ]; then
-        if command -v pkexec >/dev/null 2>&1; then
-            pkexec cp "$RULES_SRC" "$RULES_DST" && pkexec udevadm control --reload-rules && pkexec udevadm trigger && echo "✅ Rules установлены!" && exit 0
-        elif command -v sudo >/dev/null 2>&1; then
-            sudo cp "$RULES_SRC" "$RULES_DST" && sudo udevadm control --reload-rules && sudo udevadm trigger && echo "✅ Rules установлены!" && exit 0
-        else
-            echo "❌ Нет pkexec/sudo" && exit 1
-        fi
-    fi
 fi
 exec "${HERE}/usr/bin/hyperx-ngenuity-open" "$@"
