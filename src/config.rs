@@ -35,6 +35,8 @@ pub struct DeviceConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
  #[derive(Default)]
 
+#[derive(Default)]
+#[derive(Default)]
 pub struct VoiceConfig {
     pub enabled: bool,
     pub on_battery_low: bool,

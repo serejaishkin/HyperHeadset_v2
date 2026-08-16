@@ -1,0 +1,48 @@
+[package]
+version = "0.2.10"
+edition = "2021"
+authors = ["serejaishkin"]
+license = "MIT"
+repository = "https://github.com/serejaishkin/HyperHeadset_v2"
+
+[dependencies]
+hidapi = "2.6"
+enigo = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+log = "0.4"
+env_logger = "0.11"
+anyhow = "1.0"
+image = { version = "0.25", default-features = false, features = ["png"] }
+rodio = { version = "0.19", default-features = false, features = ["wav"] }
+reqwest = { version = "0.12", features = ["json"] }
+tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
+futures-util = "0.3"
+discord-rich-presence = "0.2"
+serde_json = "1.0"
+parking_lot = "0.12"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.56"
+windows = { version = "0.58", features = [
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Com",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libpulse-binding = "2.28"
+
+
+
+[[bin]]
+name = "hyperx-ngenuity-open"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+embedded-voice = []
