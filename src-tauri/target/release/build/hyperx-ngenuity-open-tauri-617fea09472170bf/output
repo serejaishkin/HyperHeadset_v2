@@ -3,8 +3,8 @@ cargo:rustc-check-cfg=cfg(desktop)
 cargo:rustc-cfg=desktop
 cargo:rustc-check-cfg=cfg(mobile)
 cargo:rerun-if-changed=C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\tauri.conf.json
-cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME=app
-cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX=com_hyperx_1ngenuity_1open
+cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME=hyperheadsetv2
+cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX=com
 cargo:rustc-check-cfg=cfg(dev)
 cargo:PERMISSION_FILES_PATH=C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\build\hyperx-ngenuity-open-tauri-617fea09472170bf\out\app-manifest\__app__-permission-files
 cargo:rerun-if-changed=capabilities

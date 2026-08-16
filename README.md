@@ -1,33 +1,26 @@
-# HyperHeadsetv2 — Tauri Integration
+# Фикс duplicate [lib]
 
-## Структура
-- `src/` — ваш текущий Rust код (библиотека + egui бинарник)
-- `src-tauri/` — Tauri backend
-- `ui/` — HTML/CSS/JS фронтенд
+## Проблема
+В корневом Cargo.toml несколько раз добавлены секции [lib] и [[bin]] через `cat >>`.
 
-## Что изменилось
-1. Добавлен `src/lib.rs` — экспорт модулей для Tauri
-2. `Cargo.toml` — добавлены `[lib]` и `[[bin]]`
-3. `src-tauri/` — новый Tauri проект, использует `hyperheadsetv2` как lib
+## Решение
 
-## Сборка
+### Вариант А: заменить Cargo.toml целиком (рекомендуется)
+
+1. Скопируйте `Cargo.toml` из этого архива в корень проекта (с заменой)
+2. Скопируйте `src-tauri/Cargo.toml` из этого архива в `src-tauri/` (с заменой)
+3. Проверьте, что в `src/config.rs` есть `#[derive(Default)]` перед `pub struct VoiceConfig`
+4. Соберите:
+
 ```bash
-# Tauri версия
-cd src-tauri
-cargo tauri build --release
-
-# Старый egui (всё ещё работает)
-cargo run --bin hyperheadsetv2-egui
+cd ~/Documents/GitHub/HyperHeadset_v2/src-tauri
+cargo tauri build
 ```
 
-## Tray Icon с батареей
-Ваш `tray/icon.rs` работает без изменений.
-В `src-tauri/src/main.rs` добавлено:
-```rust
-let (rgba, w, h) = generate_battery_icon_rgba(...);
-let img = image::RgbaImage::from_raw(w, h, rgba).unwrap();
-let mut png = Vec::new();
-img.write_to(..., image::ImageFormat::Png).unwrap();
-let tauri_img = tauri::image::Image::from_bytes(&png).unwrap();
-tray.set_icon(Some(tauri_img));
-```
+### Вариант Б: почистить вручную
+
+Откройте `HyperHeadset_v2/Cargo.toml` и удалите ВСЕ блоки `[lib]` и `[[bin]]`, оставив только один `[lib]` и один `[[bin]]` в самом конце файла.
+
+### Важно
+- В `[lib]` НЕ должно быть строки `name = "..."` — только `path = "src/lib.rs"`
+- В `src-tauri/Cargo.toml` обязательно должна быть секция `[workspace]`

@@ -3,22 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HyperX NGENUITY Open</title>
+  <title>HyperHeadsetv2</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <nav class="tabs">
       <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="tab-btn" data-tab="equalizer">Equalizer</button>
       <button class="tab-btn" data-tab="settings">Настройки</button>
     </nav>
     <main id="dashboard" class="tab-content active">
       <div class="battery-ring">
         <svg viewBox="0 0 100 100">
           <circle class="bg" cx="50" cy="50" r="45"/>
-          <circle class="progress" cx="50" cy="50" r="45" id="ring-progress"
-                  stroke-dasharray="283" stroke-dashoffset="283"/>
+          <circle class="progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283" id="ring-progress"/>
         </svg>
         <div class="battery-text">
           <span id="battery-percent">--</span>
@@ -30,66 +28,20 @@
         <button id="btn-check">🔋 Проверить</button>
       </div>
     </main>
-    <main id="equalizer" class="tab-content">
-      <div class="eq-presets">
-        <button data-preset="Flat">Flat</button>
-        <button data-preset="Bass Boost">Bass Boost</button>
-        <button data-preset="Bass Cut">Bass Cut</button>
-        <button data-preset="Treble Boost">Treble Boost</button>
-        <button data-preset="Voice Chat">Voice Chat</button>
-        <button data-preset="Gaming">Gaming</button>
-      </div>
-      <div class="eq-sliders" id="eq-sliders"></div>
-    </main>
     <main id="settings" class="tab-content">
-      <div class="settings-tabs">
-        <button class="sub-tab-btn active" data-subtab="headset">Headset</button>
-        <button class="sub-tab-btn" data-subtab="voice">Voice</button>
-        <button class="sub-tab-btn" data-subtab="tray">Tray Icon</button>
-        <button class="sub-tab-btn" data-subtab="discord">Discord</button>
+      <div class="setting-row">
+        <label>Keybind Discord</label>
+        <select id="keybind">
+          <option>F13</option><option>F14</option><option>F15</option><option>F16</option>
+          <option>F17</option><option>F18</option><option>F19</option><option selected>F20</option>
+        </select>
       </div>
-      <div id="headset" class="sub-tab-content active">
-        <div class="setting-row"><label>Sidetone</label><input type="checkbox" id="sidetone"></div>
-        <div class="setting-row"><label>Voice Prompts</label><input type="checkbox" id="voice-prompts"></div>
-        <div class="setting-row"><label>Auto-shutdown (min)</label><input type="range" id="auto-shutdown" min="0" max="60" value="30"></div>
-        <div class="setting-row"><label>Mute Button Mode</label>
-          <select id="mute-mode">
-            <option value="Standard">Standard</option>
-            <option value="MediaPlayPause">Play/Pause</option>
-            <option value="SmartDouble" selected>Smart Double</option>
-            <option value="SmartHold">Smart Hold</option>
-            <option value="HoldPlayPause">Hold Play/Pause</option>
-          </select>
-        </div>
+      <div class="setting-row">
+        <label>Double-tap, мс</label>
+        <input type="range" id="double-tap" min="200" max="1000" value="500">
+        <span id="double-tap-val">500</span>
       </div>
-      <div id="voice" class="sub-tab-content">
-        <div class="setting-row"><label>Enable Voice</label><input type="checkbox" id="voice-enabled"></div>
-        <div class="setting-row"><label>Battery Low</label><input type="checkbox" id="voice-battery-low"></div>
-        <div class="setting-row"><label>Charging</label><input type="checkbox" id="voice-charging"></div>
-        <div class="setting-row"><label>Full Charge</label><input type="checkbox" id="voice-full"></div>
-        <div class="setting-row"><label>Connected</label><input type="checkbox" id="voice-connected"></div>
-        <div class="setting-row"><label>Disconnected</label><input type="checkbox" id="voice-disconnected"></div>
-        <div class="setting-row"><label>Exact Percent</label><input type="checkbox" id="voice-exact"></div>
-      </div>
-      <div id="tray" class="sub-tab-content">
-        <div class="setting-row"><label>Icon Size</label><input type="range" id="tray-size" min="16" max="512" value="256"></div>
-        <div class="setting-row"><label>Font Scale</label><input type="range" id="tray-font" min="1" max="20" value="8"></div>
-        <div class="setting-row"><label>Outline</label><input type="range" id="tray-outline" min="0" max="10" value="2"></div>
-        <div class="setting-row"><label>Border</label><input type="range" id="tray-border" min="0" max="20" value="0"></div>
-        <div class="setting-row"><label>Gap</label><input type="range" id="tray-gap" min="0" max="50" value="4"></div>
-        <button id="btn-save-tray" class="primary">Save Tray Config</button>
-      </div>
-      <div id="discord" class="sub-tab-content">
-        <div class="setting-row"><label>App ID</label><input type="text" id="discord-appid"></div>
-        <div class="setting-row"><label>Keybind</label>
-          <select id="discord-keybind">
-            <option>F13</option><option>F14</option><option>F15</option><option>F16</option>
-            <option>F17</option><option>F18</option><option>F19</option><option selected>F20</option>
-          </select>
-        </div>
-        <div class="setting-row"><label>Rich Presence</label><input type="checkbox" id="discord-rpc"></div>
-      </div>
-      <button id="btn-save-settings" class="primary">Сохранить все настройки</button>
+      <button id="btn-save" class="primary">Сохранить</button>
     </main>
   </div>
   <script src="app.js"></script>
