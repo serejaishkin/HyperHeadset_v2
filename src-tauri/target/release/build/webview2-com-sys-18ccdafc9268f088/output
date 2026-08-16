@@ -1,0 +1,2 @@
+cargo:rustc-link-search=native=C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\build\webview2-com-sys-18ccdafc9268f088\out\x64
+cargo:rustc-link-lib=advapi32

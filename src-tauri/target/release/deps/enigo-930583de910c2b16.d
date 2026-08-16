@@ -1,0 +1,11 @@
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\enigo-930583de910c2b16.d: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\agent.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\mod.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\win_impl.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\keycodes.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libenigo-930583de910c2b16.rlib: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\agent.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\mod.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\win_impl.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\keycodes.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libenigo-930583de910c2b16.rmeta: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\agent.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\mod.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\win_impl.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\keycodes.rs
+
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\lib.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\agent.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\mod.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\win\win_impl.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\enigo-0.6.1\src\keycodes.rs:

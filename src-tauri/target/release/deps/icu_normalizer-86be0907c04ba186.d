@@ -1,0 +1,10 @@
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\icu_normalizer-86be0907c04ba186.d: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\properties.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\provider.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\uts46.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libicu_normalizer-86be0907c04ba186.rlib: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\properties.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\provider.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\uts46.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libicu_normalizer-86be0907c04ba186.rmeta: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\properties.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\provider.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\uts46.rs
+
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\lib.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\properties.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\provider.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.3.0\src\uts46.rs:

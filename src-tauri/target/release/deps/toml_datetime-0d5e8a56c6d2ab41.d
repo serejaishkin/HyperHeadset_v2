@@ -1,0 +1,10 @@
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\toml_datetime-0d5e8a56c6d2ab41.d: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\datetime.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\de.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\ser.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libtoml_datetime-0d5e8a56c6d2ab41.rlib: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\datetime.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\de.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\ser.rs
+
+C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\libtoml_datetime-0d5e8a56c6d2ab41.rmeta: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\datetime.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\de.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\ser.rs
+
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\lib.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\datetime.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\de.rs:
+C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-1.1.1+spec-1.1.0\src\ser.rs:
