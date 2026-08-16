@@ -18,11 +18,3 @@ anyhow = "1.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_System_Com"] }
-
-[lib]
-name = "hyperheadsetv2"
-path = "src/lib.rs"
-
-[[bin]]
-name = "hyperheadsetv2-egui"
-path = "src/main.rs"
