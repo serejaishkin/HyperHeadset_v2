@@ -11,7 +11,6 @@ pub fn update_config(cfg: crate::config::VoiceConfig) {
     *get_cfg().lock().unwrap() = cfg;
 }
 
-
 pub fn vlog(msg: &str) {
     let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
@@ -51,49 +50,26 @@ pub enum VoiceEvent {
 pub fn play(event: VoiceEvent) {
     let cfg = get_cfg().lock().unwrap().clone();
     if !cfg.enabled { return; }
-
     vlog(&format!("play() called: {:?}", event));
     let bytes: Option<&'static [u8]> = match event {
         VoiceEvent::Battery(p) => Some(nearest_battery(p)),
-        VoiceEvent::Charging => {
-            if !cfg.on_charging { return; }
-            Some(embedded::CHARGING)
-        }
-        VoiceEvent::FullCharge => {
-            if !cfg.on_full_charge { return; }
-            Some(embedded::FULL_CHARGE)
-        }
-        VoiceEvent::LowBattery => {
-            if !cfg.on_battery_low { return; }
-            Some(embedded::LOW_BATTERY)
-        }
-        VoiceEvent::Connected | VoiceEvent::Disconnected => {
-            if !cfg.on_disconnected { return; }
-            None
-        }
+        VoiceEvent::Charging => { if !cfg.on_charging { return; } Some(embedded::CHARGING) }
+        VoiceEvent::FullCharge => { if !cfg.on_full_charge { return; } Some(embedded::FULL_CHARGE) }
+        VoiceEvent::LowBattery => { if !cfg.on_battery_low { return; } Some(embedded::LOW_BATTERY) }
+        VoiceEvent::Connected | VoiceEvent::Disconnected => { if !cfg.on_disconnected { return; } None }
     };
     if let Some(bytes) = bytes {
-        if bytes.len() < 44 {
-            log::warn!("[Voice] Audio file empty ({} bytes), skipping", bytes.len());
-            return;
-        }
+        if bytes.len() < 44 { log::warn!("[Voice] Audio file empty ({} bytes), skipping", bytes.len()); return; }
         vlog(&format!("playback start, len={}", bytes.len()));
         std::thread::spawn(move || {
-            if let Err(e) = play_blocking(bytes) {
-                vlog(&format!("playback ERROR: {}", e));
-            } else {
-                vlog("playback OK");
-            }
+            if let Err(e) = play_blocking(bytes) { vlog(&format!("playback ERROR: {}", e)); }
+            else { vlog("playback OK"); }
         });
-    } else {
-        vlog("no audio for event");
-    }
+    } else { vlog("no audio for event"); }
 }
 
 #[cfg(not(feature = "embedded-voice"))]
-pub fn play(_event: VoiceEvent) {
-    vlog("play() called but feature DISABLED");
-}
+pub fn play(_event: VoiceEvent) { vlog("play() called but feature DISABLED"); }
 
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {

@@ -1,112 +1,63 @@
-use windows::{
-    core::GUID,
-    Win32::{
-        Media::Audio::{
-            eConsole, eRender, eCapture,
-            Endpoints::IAudioEndpointVolume,
-            IMMDeviceEnumerator, MMDeviceEnumerator,
-        },
-        System::Com::{
-            CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
-        },
-    },
+#[cfg(target_os = "windows")]
+use windows::Win32::Media::Audio::{
+    eConsole, eRender, Endpoints::IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator,
 };
 
-pub struct WindowsVolume;
+pub struct WindowsVolume {
+    #[cfg(target_os = "windows")]
+    endpoint_volume: Option<IAudioEndpointVolume>,
+}
 
 impl WindowsVolume {
+    #[cfg(target_os = "windows")]
     pub fn new() -> Self {
         unsafe {
-            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+            let enumerator: IMMDeviceEnumerator = match CoCreateInstance(
+                &MMDeviceEnumerator, None, CLSCTX_ALL,
+            ) {
+                Ok(e) => e,
+                Err(_) => return Self { endpoint_volume: None },
+            };
+            let device = match enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
+                Ok(d) => d,
+                Err(_) => return Self { endpoint_volume: None },
+            };
+            let endpoint_volume = match device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None) {
+                Ok(v) => Some(v),
+                Err(_) => None,
+            };
+            Self { endpoint_volume }
         }
-        Self
     }
 
-    // ========== MASTER (render) ==========
+    #[cfg(not(target_os = "windows"))]
+    pub fn new() -> Self { Self {} }
+
+    #[cfg(target_os = "windows")]
     pub fn get_master_volume(&self) -> Option<f32> {
         unsafe {
-            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
-            let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).ok()?;
-            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).ok()?;
-            let level = endpoint.GetMasterVolumeLevelScalar().ok()?;
-            Some(level * 100.0)
+            let vol = self.endpoint_volume.as_ref()?;
+            let mut level = 0.0f32;
+            vol.GetMasterVolumeLevelScalar(&mut level).ok()?;
+            Some(level)
         }
     }
 
-    pub fn set_master_volume(&self, percent: f32) -> bool {
+    #[cfg(not(target_os = "windows"))]
+    pub fn get_master_volume(&self) -> Option<f32> { None }
+
+    #[cfg(target_os = "windows")]
+    pub fn set_master_volume(&self, level: f32) {
         unsafe {
-            let enumerator: Result<IMMDeviceEnumerator, _> = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
-            let Ok(enumerator) = enumerator else { return false; };
-            let Ok(device) = enumerator.GetDefaultAudioEndpoint(eRender, eConsole) else { return false; };
-            let endpoint: Result<IAudioEndpointVolume, _> = device.Activate(CLSCTX_ALL, None);
-            let Ok(endpoint) = endpoint else { return false; };
-            let scalar = (percent / 100.0).clamp(0.0, 1.0);
-            endpoint.SetMasterVolumeLevelScalar(scalar, &GUID::zeroed()).is_ok()
+            if let Some(vol) = self.endpoint_volume.as_ref() {
+                let _ = vol.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), &std::ptr::null());
+            }
         }
     }
 
-    pub fn get_mute(&self) -> Option<bool> {
-        unsafe {
-            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
-            let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).ok()?;
-            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).ok()?;
-            let muted = endpoint.GetMute().ok()?;
-            Some(muted.as_bool())
-        }
-    }
-
-    pub fn set_mute(&self, muted: bool) -> bool {
-        unsafe {
-            let enumerator: Result<IMMDeviceEnumerator, _> = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
-            let Ok(enumerator) = enumerator else { return false; };
-            let Ok(device) = enumerator.GetDefaultAudioEndpoint(eRender, eConsole) else { return false; };
-            let endpoint: Result<IAudioEndpointVolume, _> = device.Activate(CLSCTX_ALL, None);
-            let Ok(endpoint) = endpoint else { return false; };
-            endpoint.SetMute(muted, &GUID::zeroed()).is_ok()
-        }
-    }
-
-    // ========== MICROPHONE (capture) ==========
-    pub fn get_microphone_volume(&self) -> Option<f32> {
-        unsafe {
-            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
-            let device = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole).ok()?;
-            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).ok()?;
-            let level = endpoint.GetMasterVolumeLevelScalar().ok()?;
-            Some(level * 100.0)
-        }
-    }
-
-    pub fn set_microphone_volume(&self, percent: f32) -> bool {
-        unsafe {
-            let enumerator: Result<IMMDeviceEnumerator, _> = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
-            let Ok(enumerator) = enumerator else { return false; };
-            let Ok(device) = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole) else { return false; };
-            let endpoint: Result<IAudioEndpointVolume, _> = device.Activate(CLSCTX_ALL, None);
-            let Ok(endpoint) = endpoint else { return false; };
-            let scalar = (percent / 100.0).clamp(0.0, 1.0);
-            endpoint.SetMasterVolumeLevelScalar(scalar, &GUID::zeroed()).is_ok()
-        }
-    }
-
-    pub fn get_microphone_mute(&self) -> Option<bool> {
-        unsafe {
-            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
-            let device = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole).ok()?;
-            let endpoint: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).ok()?;
-            let muted = endpoint.GetMute().ok()?;
-            Some(muted.as_bool())
-        }
-    }
-
-    pub fn set_microphone_mute(&self, muted: bool) -> bool {
-        unsafe {
-            let enumerator: Result<IMMDeviceEnumerator, _> = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL);
-            let Ok(enumerator) = enumerator else { return false; };
-            let Ok(device) = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole) else { return false; };
-            let endpoint: Result<IAudioEndpointVolume, _> = device.Activate(CLSCTX_ALL, None);
-            let Ok(endpoint) = endpoint else { return false; };
-            endpoint.SetMute(muted, &GUID::zeroed()).is_ok()
-        }
-    }
+    #[cfg(not(target_os = "windows"))]
+    pub fn set_master_volume(&self, _level: f32) {}
 }
+
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};

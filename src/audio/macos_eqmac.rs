@@ -1,4 +1,3 @@
-pub async fn save_preset(_name: &str, _bands: &[f32; 10]) -> anyhow::Result<()> {
-    log::warn!("[MacOSEQ] save_preset not yet implemented");
-    Ok(())
+pub fn apply_eq(_bands: &[f32; 10]) -> anyhow::Result<()> {
+    Err(anyhow::anyhow!("macOS EQ not yet implemented"))
 }

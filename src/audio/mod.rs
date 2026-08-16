@@ -1,6 +1,9 @@
 pub mod debounce;
-pub use debounce::DebouncedEQ;
-pub mod windows;
-pub mod linux;
-pub mod macos_eqmac;
 pub mod voice;
+
+#[cfg(target_os = "linux")]
+pub mod linux;
+#[cfg(target_os = "macos")]
+pub mod macos_eqmac;
+#[cfg(target_os = "windows")]
+pub mod windows;

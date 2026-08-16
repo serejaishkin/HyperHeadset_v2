@@ -1,11 +1,10 @@
 //! HID device abstraction for HyperX Cloud II Wireless DTS
-use crate::audio::voice;
-
+use serde::{Serialize, Deserialize};
 use hidapi::HidApi;
 use std::thread;
 use std::time::Duration;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DeviceState {
     pub connected: bool,
     pub battery_percent: u8,
@@ -14,6 +13,21 @@ pub struct DeviceState {
     pub sidetone: bool,
     pub voice_prompts: bool,
     pub signal_dbm: i8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DeviceEvent {
+    StateChanged(DeviceState),
+    Connected,
+    Disconnected,
+    BatteryLow(u8),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DeviceCommand {
+    ToggleMute,
+    SetSidetone(bool),
+    SetVoicePrompts(bool),
 }
 
 pub struct HyperXDevice {
@@ -34,7 +48,6 @@ const GET_BATTERY_CMD_ID: u8 = 2;
 const GET_MUTE_CMD_ID: u8 = 5;
 const SET_MUTE_CMD_ID: u8 = 32;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
-const GET_SIDE_TONE_CMD_ID: u8 = 6;
 const GET_CHARGING_CMD_ID: u8 = 3;
 
 const RESPONSE_DELAY: Duration = Duration::from_millis(50);
@@ -104,10 +117,8 @@ impl HyperXDevice {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-
         Self::flush_input_buffer(device);
 
-        // Battery (cmd 2, level at byte 7)
         self.prepare_write();
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
         if write_hid_report(device, &packet).is_ok() {
@@ -120,32 +131,17 @@ impl HyperXDevice {
             }
         }
 
-        // Mute (cmd 5, status at byte 4)
         self.prepare_write();
         if let Ok(status) = send_and_read(device, GET_MUTE_CMD_ID, &[]) {
             self.state.muted = status == 1;
         }
 
-        // Charging (cmd 3, status at byte 4)
         self.prepare_write();
         log::debug!("[Device] Reading charging status...");
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
-            Ok((status, raw)) => {
-                voice::vlog(&format!(
-                    "[Device] Charging raw: status={} raw[0..8]={:02X?}",
-                    status,
-                    &raw[0..8.min(raw.len())]
-                ));
-                self.state.charging = status == 1;
-            }
-            Err(e) => {
-                voice::vlog(&format!(
-                    "[Device] Charging read FAILED: {}",
-                    e
-                ));
-            }
+            Ok((status, _raw)) => { self.state.charging = status == 1; }
+            Err(e) => { log::debug!("[Device] Charging read FAILED: {}", e); }
         }
-
         Ok(())
     }
 
@@ -155,20 +151,12 @@ impl HyperXDevice {
         };
         let new_mute = !self.state.muted;
         log::debug!("[Device] toggle_mute: current={}, target={}", self.state.muted, new_mute);
-        
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
         log::debug!("[Device] Mute packet: {:02X?}", packet);
-        
         match write_hid_report(device, &packet) {
-            Ok(_) => {
-                self.state.muted = new_mute;
-                Ok(())
-            }
-            Err(e) => {
-                log::debug!("[Device] Mute command failed: {}", e);
-                Err(e)
-            }
+            Ok(_) => { self.state.muted = new_mute; Ok(()) }
+            Err(e) => { log::debug!("[Device] Mute command failed: {}", e); Err(e) }
         }
     }
 
@@ -177,18 +165,11 @@ impl HyperXDevice {
             return Err(anyhow::anyhow!("Device not connected"));
         };
         log::debug!("[Device] set_sidetone: {}", enabled);
-        
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
         match write_hid_report(device, &packet) {
-            Ok(_) => {
-                self.state.sidetone = enabled;
-                Ok(())
-            }
-            Err(e) => {
-                log::debug!("[Device] Sidetone command failed: {}", e);
-                Err(e)
-            }
+            Ok(_) => { self.state.sidetone = enabled; Ok(()) }
+            Err(e) => { log::debug!("[Device] Sidetone command failed: {}", e); Err(e) }
         }
     }
 
@@ -201,9 +182,7 @@ fn build_packet(cmd_id: u8, data: &[u8]) -> Vec<u8> {
     let mut packet = BASE_PACKET.to_vec();
     packet[3] = cmd_id;
     for (i, b) in data.iter().enumerate() {
-        if 4 + i < packet.len() {
-            packet[4 + i] = *b;
-        }
+        if 4 + i < packet.len() { packet[4 + i] = *b; }
     }
     packet
 }
@@ -214,9 +193,7 @@ fn is_valid_response(buf: &[u8], len: usize, expected_cmd: u8) -> bool {
 
 fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<u8, ()> {
     let packet = build_packet(cmd_id, data);
-    if write_hid_report(device, &packet).is_err() {
-        return Err(());
-    }
+    if write_hid_report(device, &packet).is_err() { return Err(()); }
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
     match device.read_timeout(&mut buf, 1000) {
@@ -227,9 +204,7 @@ fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<
 
 fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<(u8, Vec<u8>), String> {
     let packet = build_packet(cmd_id, data);
-    if let Err(e) = write_hid_report(device, &packet) {
-        return Err(format!("write failed: {}", e));
-    }
+    if let Err(e) = write_hid_report(device, &packet) { return Err(format!("write failed: {}", e)); }
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
     match device.read_timeout(&mut buf, 1000) {
@@ -253,9 +228,7 @@ fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result
             {
                 if let hidapi::HidError::HidApiError { message } = &write_err {
                     if message.contains("Incorrect function") || message.contains("(0x00000001)") {
-                        if device.send_feature_report(packet).is_err() {
-                            return Err(write_err.into());
-                        }
+                        if device.send_feature_report(packet).is_err() { return Err(write_err.into()); }
                         return Ok(());
                     }
                 }

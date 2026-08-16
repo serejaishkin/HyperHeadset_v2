@@ -15,9 +15,9 @@ pub struct TrayIconConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrayIconColors {
     pub charging: IconColors,
-    pub high: IconColors,    // >50%
-    pub medium: IconColors,  // 20–50%
-    pub low: IconColors,     // <20%
+    pub high: IconColors,
+    pub medium: IconColors,
+    pub low: IconColors,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +67,6 @@ impl Default for TrayIconConfig {
 }
 
 impl TrayIconConfig {
-
     pub fn sanitize(&mut self) {
         self.size = self.size.clamp(16, 512);
         self.font_scale = self.font_scale.clamp(1, 20);
@@ -104,7 +103,7 @@ impl TrayIconConfig {
         }
         match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
-                Ok(cfg) => { let mut cfg: TrayIconConfig = cfg; cfg.sanitize(); cfg },
+                Ok(cfg) => { let mut cfg: TrayIconConfig = cfg; cfg.sanitize(); cfg }
                 Err(e) => {
                     log::warn!("[TrayIcon] Bad config file, recreating default: {}", e);
                     let cfg = Self::default();
@@ -151,9 +150,7 @@ pub fn generate_battery_icon_rgba(
     let outline = Rgba(scheme.outline);
     let border = Rgba(scheme.border);
 
-    for pixel in img.pixels_mut() {
-        *pixel = bg;
-    }
+    for pixel in img.pixels_mut() { *pixel = bg; }
 
     let bw = config.border_width;
     if bw > 0 {
@@ -204,11 +201,8 @@ pub fn generate_battery_icon_rgba(
                                 let xi = off_x as i32 + col as i32 * scale as i32 + dx;
                                 let yi = start_y as i32 + row as i32 * scale as i32 + dy;
                                 if xi >= 0 && yi >= 0 {
-                                    let x = xi as u32;
-                                    let y = yi as u32;
-                                    if x < size && y < size {
-                                        img.put_pixel(x, y, outline);
-                                    }
+                                    let x = xi as u32; let y = yi as u32;
+                                    if x < size && y < size { img.put_pixel(x, y, outline); }
                                 }
                             }
                         }
@@ -229,9 +223,7 @@ pub fn generate_battery_icon_rgba(
                         for dx in 0..scale {
                             let x = off_x + col * scale + dx;
                             let y = start_y + row * scale + dy;
-                            if x < size && y < size {
-                                img.put_pixel(x, y, fg);
-                            }
+                            if x < size && y < size { img.put_pixel(x, y, fg); }
                         }
                     }
                 }
@@ -243,8 +235,16 @@ pub fn generate_battery_icon_rgba(
     (rgba, size, size)
 }
 
-pub fn rgba_to_argb32(rgba: &[u8]) -> Vec<u8> {
-    rgba.chunks_exact(4)
-        .flat_map(|p| [p[3], p[0], p[1], p[2]])
-        .collect()
+/// PNG export for Tauri tray
+pub fn generate_battery_icon_png(
+    config: &TrayIconConfig,
+    percent: u8,
+    charging: bool,
+) -> anyhow::Result<Vec<u8>> {
+    let (rgba, w, h) = generate_battery_icon_rgba(config, percent, charging);
+    let img = image::RgbaImage::from_raw(w, h, rgba)
+        .ok_or_else(|| anyhow::anyhow!("Invalid image buffer"))?;
+    let mut buf = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)?;
+    Ok(buf)
 }

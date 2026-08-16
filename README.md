@@ -1,42 +1,33 @@
-# HyperX NGENUITY Open
+# HyperHeadsetv2 — Tauri Integration
 
-Кроссплатформенная open-source альтернатива HyperX NGENUITY для Cloud II Wireless.
+## Структура
+- `src/` — ваш текущий Rust код (библиотека + egui бинарник)
+- `src-tauri/` — Tauri backend
+- `ui/` — HTML/CSS/JS фронтенд
 
-## Возможности
+## Что изменилось
+1. Добавлен `src/lib.rs` — экспорт модулей для Tauri
+2. `Cargo.toml` — добавлены `[lib]` и `[[bin]]`
+3. `src-tauri/` — новый Tauri проект, использует `hyperheadsetv2` как lib
 
-- 🔋 Уровень заряда в реальном времени
-- 🎚️ Системный 10-полосный эквалайзер
-- 🔊 Discord интеграция (keybind или Rich Presence)
-- ⚙️ Настройки гарнитуры (sidetone, auto-shutdown, voice prompts)
-- 🖥️ Системный трей
-
-## Поддерживаемые платформы
-
-| Платформа | Статус |
-|-----------|--------|
-| Windows   | ✅ Полная поддержка (Equalizer APO) |
-| Linux     | ✅ Поддержка (EasyEffects / PipeWire) |
-| macOS     | ⚠️ Базовая (eqMac) |
-
-## Установка
-
+## Сборка
 ```bash
-git clone https://github.com/serezaiskin-cell/HyperHeadsetv2
-cd HyperHeadsetv2
-cargo build --release
+# Tauri версия
+cd src-tauri
+cargo tauri build --release
+
+# Старый egui (всё ещё работает)
+cargo run --bin hyperheadsetv2-egui
 ```
 
-## Использование
-
-```bash
-./target/release/hyperx-ngenuity-open
+## Tray Icon с батареей
+Ваш `tray/icon.rs` работает без изменений.
+В `src-tauri/src/main.rs` добавлено:
+```rust
+let (rgba, w, h) = generate_battery_icon_rgba(...);
+let img = image::RgbaImage::from_raw(w, h, rgba).unwrap();
+let mut png = Vec::new();
+img.write_to(..., image::ImageFormat::Png).unwrap();
+let tauri_img = tauri::image::Image::from_bytes(&png).unwrap();
+tray.set_icon(Some(tauri_img));
 ```
-
-## Архитектура
-
-Проект основан на [HyperHeadset](https://github.com/LennardKittner/HyperHeadset) (MIT) с добавлением GUI, системного EQ и Discord интеграции.
-
-## Лицензия
-
-MIT
-
