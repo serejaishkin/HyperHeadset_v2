@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub keybind: String,
     pub enabled: bool,
@@ -20,23 +21,20 @@ pub struct Config {
     pub input: InputConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioConfig {
     pub eq_bands: [f32; 10],
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceConfig {
     pub sidetone: bool,
     pub voice_prompts: bool,
     pub auto_shutdown_minutes: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
- #[derive(Default)]
 
-#[derive(Default)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VoiceConfig {
     pub enabled: bool,
     pub on_battery_low: bool,
@@ -48,18 +46,15 @@ pub struct VoiceConfig {
     pub exact_percent: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
     pub keybind: Option<String>,
     pub direct: DirectDiscordConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectDiscordConfig {
     pub app_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputConfig {
     pub mute_button_mode: crate::input::MuteButtonMode,
 }
