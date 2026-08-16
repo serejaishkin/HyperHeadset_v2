@@ -32,7 +32,7 @@ fn main() {
 
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
-    let (device_cmd_tx, device_cmd_rx) = mpsc::channel::<DeviceCommand>();
+    let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
 
     tauri::Builder::default()
         .manage(AppState {
@@ -52,9 +52,13 @@ fn main() {
             menu.append(&PredefinedMenuItem::separator(&app_handle)?)?;
             menu.append(&quit_i)?;
 
-            let _tray = tauri::tray::TrayIconBuilder::new()
-                .id("main")
-                .icon(app_handle.default_window_icon().cloned().unwrap_or_default())
+            // Tauri 2.11 API: TrayIconBuilder::with_id() + Image::new(rgba, w, h)
+            let tray_icon = app_handle.default_window_icon().cloned().unwrap_or_else(|| {
+                tauri::image::Image::new(&[0, 0, 0, 0], 1, 1)
+            });
+
+            let _tray = tauri::tray::TrayIconBuilder::with_id("main")
+                .icon(tray_icon)
                 .menu(&menu)
                 .tooltip("HyperHeadsetv2 — подключение...")
                 .on_menu_event({
@@ -140,13 +144,11 @@ fn main() {
                     if let Some(tray) = app_handle_device.tray_by_id("main") {
                         let icon_config = TrayIconConfig::load_or_create();
                         if device.state.connected {
-                            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, device.state.battery_percent, device.state.charging);
-                            let img = image::RgbaImage::from_raw(w, h, rgba).unwrap();
-                            let mut png = Vec::new();
-                            img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-                            if let Ok(tauri_img) = tauri::image::Image::from_bytes(&png) {
-                                let _ = tray.set_icon(Some(tauri_img));
-                            }
+                            let (rgba, w, h) = generate_battery_icon_rgba(
+                                &icon_config, device.state.battery_percent, device.state.charging
+                            );
+                            let tauri_img = tauri::image::Image::new(&rgba, w, h);
+                            let _ = tray.set_icon(Some(tauri_img));
                         }
                         let tooltip = if !device.state.connected {
                             "HyperHeadsetv2 — нет подключения".to_string()
