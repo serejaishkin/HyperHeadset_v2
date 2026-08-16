@@ -32,7 +32,7 @@ fn main() {
 
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
-    let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
+    let (device_cmd_tx, _device_cmd_rx) = mpsc::channel();
 
     tauri::Builder::default()
         .manage(AppState {
@@ -40,20 +40,19 @@ fn main() {
             device_cmd_tx: device_cmd_tx.clone(),
         })
         .setup(move |app| {
-            let app_handle = app.handle().clone();
-            let device_state_inner = device_state.clone();
+            let _app_handle = app.handle().clone();
+            let _device_state_inner = device_state.clone();
 
-            let menu = Menu::new(&app_handle)?;
-            let open_i = MenuItem::new(&app_handle, "Открыть", true, None::<&str>)?;
-            let toggle_i = MenuItem::new(&app_handle, "Мьют", true, None::<&str>)?;
-            let quit_i = MenuItem::new(&app_handle, "Выход", true, None::<&str>)?;
+            let menu = Menu::new(&_app_handle)?;
+            let open_i = MenuItem::new(&_app_handle, "Открыть", true, None::<&str>)?;
+            let toggle_i = MenuItem::new(&_app_handle, "Мьют", true, None::<&str>)?;
+            let quit_i = MenuItem::new(&_app_handle, "Выход", true, None::<&str>)?;
             menu.append(&open_i)?;
             menu.append(&toggle_i)?;
-            menu.append(&PredefinedMenuItem::separator(&app_handle)?)?;
+            menu.append(&PredefinedMenuItem::separator(&_app_handle)?)?;
             menu.append(&quit_i)?;
 
-            // Tauri 2.11 API: TrayIconBuilder::with_id() + Image::new(rgba, w, h)
-            let tray_icon = app_handle.default_window_icon().cloned().unwrap_or_else(|| {
+            let tray_icon = _app_handle.default_window_icon().cloned().unwrap_or_else(|| {
                 tauri::image::Image::new(&[0, 0, 0, 0], 1, 1)
             });
 
@@ -62,7 +61,7 @@ fn main() {
                 .menu(&menu)
                 .tooltip("HyperHeadsetv2 — подключение...")
                 .on_menu_event({
-                    let app_handle = app_handle.clone();
+                    let _app_handle = _app_handle.clone();
                     let device_cmd_tx = device_cmd_tx.clone();
                     move |app, event| {
                         if event.id == open_i.id() {
@@ -86,9 +85,9 @@ fn main() {
                         }
                     }
                 })
-                .build(&app_handle)?;
+                .build(&_app_handle)?;
 
-            let app_handle_device = app_handle.clone();
+            let _app_handle_device = _app_handle.clone();
             thread::spawn(move || {
                 let mut device = HyperXDevice::new();
                 let mut was_connected = false;
@@ -97,15 +96,15 @@ fn main() {
                 loop {
                     if !device.state.connected {
                         if was_connected {
-                            let _ = app_handle_device.emit("device-disconnected", ());
-                            let mut st = device_state_inner.lock().unwrap();
+                            let _ = _app_handle_device.emit("device-disconnected", ());
+                            let mut st = _device_state_inner.lock().unwrap();
                             st.connected = false;
                             was_connected = false;
                         }
                         match device.connect() {
                             Ok(_) => {
-                                let _ = app_handle_device.emit("device-connected", ());
-                                let mut st = device_state_inner.lock().unwrap();
+                                let _ = _app_handle_device.emit("device-connected", ());
+                                let mut st = _device_state_inner.lock().unwrap();
                                 *st = device.state.clone();
                                 was_connected = true;
                                 error_count = 0;
@@ -115,21 +114,23 @@ fn main() {
                         }
                     }
 
-                    while let Ok(cmd) = device_cmd_rx.try_recv() {
+                    while let Ok(cmd) = _device_cmd_rx.try_recv() {
                         match cmd {
                             DeviceCommand::ToggleMute => {
                                 let _ = device.toggle_mute();
-                                let _ = app_handle_device.emit("device-state", device.state.clone());
+                                let _ = _app_handle_device.emit("device-state", device.state.clone());
                             }
+                            DeviceCommand::SetSidetone(_) => {}
+                            DeviceCommand::SetVoicePrompts(_) => {}
                         }
                     }
 
                     if let Err(_) = device.refresh_state() {
                         error_count += 1;
                         if error_count >= 3 {
-                            let _ = app_handle_device.emit("device-disconnected", ());
+                            let _ = _app_handle_device.emit("device-disconnected", ());
                             device.disconnect();
-                            let mut st = device_state_inner.lock().unwrap();
+                            let mut st = _device_state_inner.lock().unwrap();
                             st.connected = false;
                             error_count = 0;
                         }
@@ -138,10 +139,10 @@ fn main() {
                     }
                     error_count = 0;
 
-                    { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); }
-                    let _ = app_handle_device.emit("device-state", device.state.clone());
+                    { let mut st = _device_state_inner.lock().unwrap(); *st = device.state.clone(); }
+                    let _ = _app_handle_device.emit("device-state", device.state.clone());
 
-                    if let Some(tray) = app_handle_device.tray_by_id("main") {
+                    if let Some(tray) = _app_handle_device.tray_by_id("main") {
                         let icon_config = TrayIconConfig::load_or_create();
                         if device.state.connected {
                             let (rgba, w, h) = generate_battery_icon_rgba(
