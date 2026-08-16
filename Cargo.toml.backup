@@ -1,5 +1,4 @@
 [package]
-name = "hyperx-ngenuity-open"
 version = "0.2.10"
 edition = "2021"
 authors = ["serejaishkin"]
@@ -38,15 +37,12 @@ libpulse-binding = "2.28"
 
 
 
-
-
-[features]
-embedded-voice = []
-
 [[bin]]
-name = "hyperx_ngenuity_open"
+name = "hyperx-ngenuity-open"
 path = "src/main.rs"
 
 [lib]
-name = "hyperx_ngenuity_open"
 path = "src/lib.rs"
+
+[features]
+embedded-voice = []
