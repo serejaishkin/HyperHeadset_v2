@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0-rc",
+  "productName": "HyperHeadsetv2",
+  "version": "0.2.10",
+  "identifier": "com.hyperheadsetv2.app",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "HyperHeadsetv2",
+        "width": 980,
+        "height": 600,
+        "minWidth": 400,
+        "minHeight": 300,
+        "center": true
+      }
+    ],
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../assets/icon.png"
+    ]
+  }
+}

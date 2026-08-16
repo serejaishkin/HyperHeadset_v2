@@ -70,7 +70,7 @@ impl MuteHandler {
         log::info!("[MuteHandler] MediaPlayPause");
     }
 
-    fn do_mute(&self) {
+    pub fn do_mute(&self) {
         let mut last = self.last_hotkey.lock();
         if let Some(t) = *last {
             if t.elapsed() < Duration::from_millis(150) {
@@ -126,19 +126,14 @@ impl MuteHandler {
             MuteButtonMode::Standard => self.do_mute(),
             MuteButtonMode::MediaPlayPause => self.do_media_play_pause(),
             MuteButtonMode::SmartDouble => self.handle_smart_double(),
-            MuteButtonMode::SmartHold => {
-                self.do_mute();
-            }
-            MuteButtonMode::HoldPlayPause => {
-                // Handled by on_button_down/up
-            }
+            MuteButtonMode::SmartHold => { self.do_mute(); }
+            MuteButtonMode::HoldPlayPause => {}
         }
     }
 
     fn handle_smart_double(&self) {
         let now = Instant::now();
         let mut last = self.last_toggle.lock();
-
         if let Some(t) = *last {
             if now.duration_since(t) < Duration::from_millis(DOUBLE_CLICK_MS) {
                 self.do_media_play_pause();
@@ -146,7 +141,6 @@ impl MuteHandler {
                 return;
             }
         }
-
         self.do_mute();
         *last = Some(now);
     }
@@ -162,11 +156,9 @@ impl MuteHandler {
         if mode != MuteButtonMode::SmartHold && mode != MuteButtonMode::HoldPlayPause {
             return;
         }
-
         let mut press = self.press_start.lock();
         if let Some(start) = *press {
             let held = start.elapsed();
-
             if mode == MuteButtonMode::SmartHold {
                 if held < Duration::from_millis(LONG_PRESS_MS) {
                     self.do_media_play_pause();

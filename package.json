@@ -1,0 +1,12 @@
+{
+  "name": "hyperheadsetv2",
+  "private": true,
+  "version": "0.2.10",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0-rc"
+  }
+}

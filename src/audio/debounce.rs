@@ -3,7 +3,6 @@ use std::time::{Duration, Instant};
 use parking_lot::Mutex;
 use std::thread;
 
-/// Debounced EQ applier — applies only after delay_ms of inactivity
 #[derive(Clone)]
 pub struct DebouncedEQ {
     last_change: Arc<Mutex<Instant>>,
@@ -20,25 +19,19 @@ impl DebouncedEQ {
         }
     }
 
-    /// Call this every time slider moves
     pub fn schedule(&self, bands: [f32; 10]) {
         *self.pending_bands.lock() = Some(bands);
         *self.last_change.lock() = Instant::now();
     }
 
-    /// Spawn background thread that applies EQ when idle
     pub fn spawn_worker<F>(self, apply_fn: F)
-    where
-        F: Fn([f32; 10]) + Send + 'static,
-    {
+    where F: Fn([f32; 10]) + Send + 'static {
         let last_change = self.last_change.clone();
         let pending = self.pending_bands.clone();
         let delay = Duration::from_millis(self.delay_ms);
-
         thread::spawn(move || {
             loop {
                 thread::sleep(Duration::from_millis(50));
-
                 let elapsed = last_change.lock().elapsed();
                 if elapsed >= delay {
                     if let Some(bands) = pending.lock().take() {

@@ -1,264 +1,122 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DiscordMode {
-    None,
-    Keybind,
-    Direct,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub keybind: String,
+    pub enabled: bool,
+    pub double_tap_ms: u64,
+    pub start_with_os: bool,
+    pub compact_mode: bool,
+    pub language: String,
+    pub debug_logging: bool,
+    pub log_to_console: bool,
+    pub log_to_file: bool,
+    pub start_in_compact_mode: bool,
+    pub audio: AudioConfig,
+    pub device: DeviceConfig,
+    pub voice: VoiceConfig,
+    pub discord: DiscordConfig,
+    pub input: InputConfig,
 }
 
-impl Default for DiscordMode {
-    fn default() -> Self { DiscordMode::Keybind }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioConfig {
+    pub eq_bands: [f32; 10],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceConfig {
+    pub sidetone: bool,
+    pub voice_prompts: bool,
+    pub auto_shutdown_minutes: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoiceConfig {
+    pub enabled: bool,
+    pub on_battery_low: bool,
+    pub on_charging: bool,
+    pub on_full_charge: bool,
+    pub on_connected: bool,
+    pub on_disconnected: bool,
+    pub on_button_check: bool,
+    pub exact_percent: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscordConfig {
+    pub keybind: Option<String>,
+    pub direct: DirectDiscordConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectDiscordConfig {
     pub app_id: String,
-    #[serde(default = "default_true")]
-    pub show_battery: bool,
-    #[serde(default = "default_true")]
-    pub show_mute_status: bool,
-}
-
-impl Default for DirectDiscordConfig {
-    fn default() -> Self {
-        Self {
-            app_id: "1234567890123456789".to_string(),
-            show_battery: true,
-            show_mute_status: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiscordConfig {
-    #[serde(default)]
-    pub mode: DiscordMode,
-    pub keybind: Option<String>,
-    #[serde(default)]
-    pub direct: DirectDiscordConfig,
-}
-
-impl Default for DiscordConfig {
-    fn default() -> Self {
-        Self {
-            mode: DiscordMode::Keybind,
-            keybind: Some("F20".to_string()),
-            direct: DirectDiscordConfig::default(),
-        }
-    }
-}
-
-// ===== Mute button action modes =====
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VoiceConfig {
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-    #[serde(default)]
-    pub exact_percent: bool,
-    #[serde(default = "default_true")]
-    pub on_battery_low: bool,
-    #[serde(default = "default_true")]
-    pub on_charging: bool,
-    #[serde(default = "default_true")]
-    pub on_full_charge: bool,
-    #[serde(default)]
-    pub on_connected: bool,
-    #[serde(default)]
-    pub on_disconnected: bool,
-    #[serde(default = "default_true")]
-    pub on_button_check: bool,
-}
-
-impl Default for VoiceConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            exact_percent: false,
-            on_battery_low: true,
-            on_charging: true,
-            on_full_charge: true,
-            on_connected: false,
-            on_disconnected: false,
-            on_button_check: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MuteButtonMode {
-    Standard,
-    MediaPlayPause,
-    SmartDouble,
-    SmartHold,
-    HoldPlayPause,
-}
-
-impl Default for MuteButtonMode {
-    fn default() -> Self { MuteButtonMode::SmartDouble }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputConfig {
-    #[serde(default)]
-    pub mute_button_mode: MuteButtonMode,
+    pub mute_button_mode: crate::input::MuteButtonMode,
 }
 
-impl Default for InputConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
-            mute_button_mode: MuteButtonMode::SmartDouble,
+            keybind: "F20".to_string(),
+            enabled: true,
+            double_tap_ms: 500,
+            start_with_os: false,
+            compact_mode: false,
+            language: "ru".to_string(),
+            debug_logging: false,
+            log_to_console: true,
+            log_to_file: false,
+            start_in_compact_mode: false,
+            audio: AudioConfig { eq_bands: [0.0; 10] },
+            device: DeviceConfig {
+                sidetone: false,
+                voice_prompts: true,
+                auto_shutdown_minutes: 30,
+            },
+            voice: VoiceConfig {
+                enabled: true,
+                on_battery_low: true,
+                on_charging: true,
+                on_full_charge: true,
+                on_connected: true,
+                on_disconnected: true,
+                on_button_check: true,
+                exact_percent: false,
+            },
+            discord: DiscordConfig {
+                keybind: Some("F20".to_string()),
+                direct: DirectDiscordConfig {
+                    app_id: "1234567890123456789".to_string(),
+                },
+            },
+            input: InputConfig {
+                mute_button_mode: crate::input::MuteButtonMode::SmartDouble,
+            },
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AudioConfig {
-    #[serde(default = "default_true")]
-    pub system_eq_enabled: bool,
-    pub eq_preset: String,
-    pub eq_bands: [f32; 10],
-}
-
-impl Default for AudioConfig {
-    fn default() -> Self {
-        Self {
-            system_eq_enabled: true,
-            eq_preset: "flat".to_string(),
-            eq_bands: [0.0; 10],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceConfig {
-    #[serde(default = "default_true")]
-    pub sidetone: bool,
-    pub auto_shutdown_minutes: u8,
-    #[serde(default = "default_true")]
-    pub voice_prompts: bool,
-}
-
-impl Default for DeviceConfig {
-    fn default() -> Self {
-        Self {
-            sidetone: true,
-            auto_shutdown_minutes: 30,
-            voice_prompts: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Config {
-    #[serde(default)]
-    pub discord: DiscordConfig,
-    #[serde(default)]
-    pub debug_logging: bool,
-    #[serde(default)]
-    pub compact_mode: bool,
-    #[serde(default)]
-    pub start_in_compact_mode: bool,
-    #[serde(default)]
-    pub language: String,
-    #[serde(default = "default_true")]
-    pub log_to_console: bool,
-    #[serde(default)]
-    pub log_to_file: bool,
-    #[serde(default)]
-    pub voice: VoiceConfig,
-    #[serde(default)]
-    pub input: InputConfig,
-    #[serde(default)]
-    pub audio: AudioConfig,
-    #[serde(default)]
-    pub device: DeviceConfig,
-    #[serde(default)]
-    pub tray: TrayConfig,
 }
 
 impl Config {
+    pub fn path() -> PathBuf {
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.join("config.toml")))
+            .unwrap_or_else(|| PathBuf::from("config.toml"))
+    }
+
     pub fn load() -> anyhow::Result<Self> {
-        let path = Self::path()?;
-        if path.exists() {
-            let content = std::fs::read_to_string(&path)?;
-            let config: Config = toml::from_str(&content)?;
-            Ok(config)
-        } else {
-            let config = Config::default();
-            config.save()?;
-            Ok(config)
-        }
+        let content = std::fs::read_to_string(Self::path())?;
+        Ok(toml::from_str(&content)?)
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
-        let path = Self::path()?;
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let content = toml::to_string_pretty(self)?;
-        std::fs::write(&path, content)?;
+        std::fs::write(Self::path(), toml::to_string_pretty(self)?)?;
         Ok(())
     }
-
-    pub fn path() -> anyhow::Result<PathBuf> {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                let portable = dir.join("config.toml");
-                if portable.exists() {
-                    return Ok(portable);
-                }
-                let test = dir.join(".write_test_tmp");
-                if std::fs::File::create(&test).is_ok() {
-                    let _ = std::fs::remove_file(&test);
-                    return Ok(portable);
-                }
-            }
-        }
-        let mut path = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("No config dir"))?;
-        path.push("hyperx-ngenuity-open");
-        path.push("config.toml");
-        Ok(path)
-    }
 }
-
-fn default_true() -> bool { true }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrayConfig {
-    #[serde(default = "default_true")]
-    pub show_battery_percentage: bool,
-    #[serde(default = "default_three")]
-    pub refresh_interval_secs: u64,
-    #[serde(default = "color_high")]
-    pub color_high: [u8; 3],
-    #[serde(default = "color_medium")]
-    pub color_medium: [u8; 3],
-    #[serde(default = "color_low")]
-    pub color_low: [u8; 3],
-    #[serde(default = "color_charging")]
-    pub color_charging: [u8; 3],
-}
-
-impl Default for TrayConfig {
-    fn default() -> Self {
-        Self {
-            show_battery_percentage: true,
-            refresh_interval_secs: 3,
-            color_high: [96, 196, 106],
-            color_medium: [245, 166, 35],
-            color_low: [220, 90, 90],
-            color_charging: [245, 216, 64],
-        }
-    }
-}
-
-fn default_three() -> u64 { 3 }
-fn color_high() -> [u8; 3] { [96, 196, 106] }
-fn color_medium() -> [u8; 3] { [245, 166, 35] }
-fn color_low() -> [u8; 3] { [220, 90, 90] }
-fn color_charging() -> [u8; 3] { [245, 216, 64] }

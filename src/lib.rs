@@ -1,20 +1,11 @@
-pub mod config;
-pub mod gui;
-pub mod discord;
-pub mod audio;
-pub mod notifications;
-#[cfg(target_os = "linux")]
-pub mod bluetooth;
-#[cfg(target_os = "linux")]
-mod airoha_race;
 pub mod device;
-pub mod devices;
 pub mod input;
 pub mod tray;
-pub mod i18n;
-pub mod hotkey;
-pub mod dialog;
+pub mod config;
+pub mod audio;
+pub mod discord;
 pub mod platform;
+pub mod i18n;
 
 #[macro_export]
 macro_rules! debug_println {
@@ -25,30 +16,5 @@ macro_rules! debug_println {
     };
 }
 
-#[derive(Debug, Clone)]
-pub enum DeviceEvent {
-    StateChanged(crate::device::DeviceState),
-    Connected,
-    Disconnected,
-    BatteryLow(u8),
-}
-
-#[derive(Debug, Clone)]
-pub enum DeviceCommand {
-    ToggleMute,
-    SetSidetone(bool),
-    SetVoicePrompts(bool),
-}
-
 use std::sync::OnceLock;
-
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
-
-#[macro_export]
-macro_rules! debug_print {
-    ($($args:tt)*) => {
-        if *$crate::VERBOSE.get().unwrap_or(&false) {
-            println!($($args)*);
-        }
-    };
-}
