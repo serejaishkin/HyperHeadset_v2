@@ -2802,22 +2802,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperheadsetv2-tauri"
-version = "0.2.10"
-dependencies = [
- "anyhow",
- "env_logger",
- "hyperx-ngenuity-open",
- "image",
- "log",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "windows 0.58.0",
-]
-
-[[package]]
 name = "hyperx-ngenuity-open"
 version = "0.1.0"
 dependencies = [
@@ -2851,6 +2835,22 @@ dependencies = [
  "windows 0.58.0",
  "winit",
  "winreg 0.56.0",
+]
+
+[[package]]
+name = "hyperx_ngenuity_open"
+version = "0.2.10"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "hyperx-ngenuity-open",
+ "image",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "windows 0.58.0",
 ]
 
 [[package]]
