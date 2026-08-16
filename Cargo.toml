@@ -55,3 +55,11 @@ windows = { version = "0.58", features = [
 ksni = "0.2"
 dbus = "0.9"
 libc = "0.2"
+
+[lib]
+name = "hyperheadsetv2"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hyperheadsetv2-egui"
+path = "src/main.rs"

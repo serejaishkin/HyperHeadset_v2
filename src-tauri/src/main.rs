@@ -6,9 +6,9 @@ use std::time::Duration;
 use tauri::{Manager, State, Emitter};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 
-use hyperheadsetv2::device::{DeviceState, HyperXDevice, DeviceCommand};
-use hyperheadsetv2::input::GLOBAL_MUTE_HANDLER;
-use hyperheadsetv2::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
+use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, DeviceCommand};
+use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
+use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 #[derive(Clone)]
 pub struct AppState {
