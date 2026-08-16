@@ -1,175 +1,34 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0f0f0f;
-  color: #e5e5e5;
-  min-height: 100vh;
-}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f0f0f; color: #e5e5e5; min-height: 100vh; }
 #app { max-width: 980px; margin: 0 auto; padding: 20px; }
-
-.tabs, .settings-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #333;
-  padding-bottom: 12px;
-}
-.tab-btn, .sub-tab-btn {
-  background: transparent;
-  border: none;
-  color: #888;
-  padding: 8px 20px;
-  cursor: pointer;
-  font-size: 14px;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
+.tabs, .settings-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #333; padding-bottom: 12px; }
+.tab-btn, .sub-tab-btn { background: transparent; border: none; color: #888; padding: 8px 20px; cursor: pointer; font-size: 14px; border-radius: 6px; transition: all 0.2s; }
 .tab-btn:hover, .sub-tab-btn:hover { color: #fff; }
 .tab-btn.active, .sub-tab-btn.active { background: #C81E1E; color: #fff; }
-
 .tab-content, .sub-tab-content { display: none; }
 .tab-content.active, .sub-tab-content.active { display: block; }
-
-.battery-ring {
-  position: relative;
-  width: 280px;
-  height: 280px;
-  margin: 40px auto;
-}
-.battery-ring svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-.battery-ring circle {
-  fill: none;
-  stroke-width: 8;
-}
+.battery-ring { position: relative; width: 280px; height: 280px; margin: 40px auto; }
+.battery-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.battery-ring circle { fill: none; stroke-width: 8; }
 .battery-ring .bg { stroke: #333; }
-.battery-ring .progress {
-  stroke: #4ade80;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s ease, stroke 0.3s;
-}
-.battery-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-#battery-percent {
-  display: block;
-  font-size: 56px;
-  font-weight: 700;
-  color: #fff;
-}
-#battery-status {
-  display: block;
-  font-size: 14px;
-  color: #888;
-  margin-top: 8px;
-}
-
-.actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 32px;
-}
-.actions button {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #fff;
-  padding: 12px 28px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-.actions button:hover {
-  background: #C81E1E;
-  border-color: #C81E1E;
-}
-
-.eq-presets {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-.eq-presets button {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #ccc;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-}
+.battery-ring .progress { stroke: #4ade80; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease, stroke 0.3s; }
+.battery-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+#battery-percent { display: block; font-size: 56px; font-weight: 700; color: #fff; }
+#battery-status { display: block; font-size: 14px; color: #888; margin-top: 8px; }
+.actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; }
+.actions button { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px 28px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.actions button:hover { background: #C81E1E; border-color: #C81E1E; }
+.eq-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.eq-presets button { background: #1a1a1a; border: 1px solid #333; color: #ccc; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
 .eq-presets button:hover { border-color: #C81E1E; color: #fff; }
-.eq-sliders {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-}
-.eq-band {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.eq-band label {
-  font-size: 11px;
-  color: #888;
-}
-.eq-band input[type="range"] {
-  writing-mode: bt-lr;
-  -webkit-appearance: slider-vertical;
-  width: 24px;
-  height: 120px;
-}
-.eq-val {
-  font-size: 12px;
-  color: #ccc;
-  min-width: 40px;
-  text-align: center;
-}
-
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 0;
-  border-bottom: 1px solid #222;
-}
+.eq-sliders { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.eq-band { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.eq-band label { font-size: 11px; color: #888; }
+.eq-band input[type="range"] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 24px; height: 120px; }
+.eq-val { font-size: 12px; color: #ccc; min-width: 40px; text-align: center; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #222; }
 .setting-row label { color: #ccc; font-size: 14px; }
-.setting-row input[type="checkbox"] {
-  width: 20px; height: 20px; accent-color: #C81E1E;
-}
-.setting-row input[type="range"] {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-.setting-row select, .setting-row input[type="text"] {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  min-width: 120px;
-}
-
-.primary {
-  background: #C81E1E !important;
-  border-color: #C81E1E !important;
-  width: 100%;
-  margin-top: 24px;
-  padding: 14px !important;
-  font-size: 16px;
-  color: #fff;
-  border-radius: 8px;
-  cursor: pointer;
-}
+.setting-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: #C81E1E; }
+.setting-row input[type="range"] { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 4px 8px; border-radius: 6px; }
+.setting-row select, .setting-row input[type="text"] { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 6px 12px; border-radius: 6px; min-width: 120px; }
+.primary { background: #C81E1E !important; border-color: #C81E1E !important; width: 100%; margin-top: 24px; padding: 14px !important; font-size: 16px; color: #fff; border-radius: 8px; cursor: pointer; }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0-rc",
-  "productName": "HyperHeadsetv2",
+  "productName": "HyperX NGENUITY Open",
   "version": "0.2.10",
-  "identifier": "com.hyperheadsetv2.app",
+  "identifier": "com.hyperx-ngenuity-open.app",
   "build": {
     "frontendDist": "../ui"
   },
@@ -10,7 +10,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "HyperHeadsetv2",
+        "title": "HyperX NGENUITY Open",
         "width": 980,
         "height": 600,
         "minWidth": 400,

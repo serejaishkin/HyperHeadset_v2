@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HyperHeadsetv2</title>
+  <title>HyperX NGENUITY Open</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,7 +13,6 @@
       <button class="tab-btn" data-tab="equalizer">Equalizer</button>
       <button class="tab-btn" data-tab="settings">Настройки</button>
     </nav>
-
     <main id="dashboard" class="tab-content active">
       <div class="battery-ring">
         <svg viewBox="0 0 100 100">
@@ -31,7 +30,6 @@
         <button id="btn-check">🔋 Проверить</button>
       </div>
     </main>
-
     <main id="equalizer" class="tab-content">
       <div class="eq-presets">
         <button data-preset="Flat">Flat</button>
@@ -43,7 +41,6 @@
       </div>
       <div class="eq-sliders" id="eq-sliders"></div>
     </main>
-
     <main id="settings" class="tab-content">
       <div class="settings-tabs">
         <button class="sub-tab-btn active" data-subtab="headset">Headset</button>
@@ -51,7 +48,6 @@
         <button class="sub-tab-btn" data-subtab="tray">Tray Icon</button>
         <button class="sub-tab-btn" data-subtab="discord">Discord</button>
       </div>
-
       <div id="headset" class="sub-tab-content active">
         <div class="setting-row"><label>Sidetone</label><input type="checkbox" id="sidetone"></div>
         <div class="setting-row"><label>Voice Prompts</label><input type="checkbox" id="voice-prompts"></div>
@@ -66,7 +62,6 @@
           </select>
         </div>
       </div>
-
       <div id="voice" class="sub-tab-content">
         <div class="setting-row"><label>Enable Voice</label><input type="checkbox" id="voice-enabled"></div>
         <div class="setting-row"><label>Battery Low</label><input type="checkbox" id="voice-battery-low"></div>
@@ -76,7 +71,6 @@
         <div class="setting-row"><label>Disconnected</label><input type="checkbox" id="voice-disconnected"></div>
         <div class="setting-row"><label>Exact Percent</label><input type="checkbox" id="voice-exact"></div>
       </div>
-
       <div id="tray" class="sub-tab-content">
         <div class="setting-row"><label>Icon Size</label><input type="range" id="tray-size" min="16" max="512" value="256"></div>
         <div class="setting-row"><label>Font Scale</label><input type="range" id="tray-font" min="1" max="20" value="8"></div>
@@ -85,7 +79,6 @@
         <div class="setting-row"><label>Gap</label><input type="range" id="tray-gap" min="0" max="50" value="4"></div>
         <button id="btn-save-tray" class="primary">Save Tray Config</button>
       </div>
-
       <div id="discord" class="sub-tab-content">
         <div class="setting-row"><label>App ID</label><input type="text" id="discord-appid"></div>
         <div class="setting-row"><label>Keybind</label>
@@ -96,7 +89,6 @@
         </div>
         <div class="setting-row"><label>Rich Presence</label><input type="checkbox" id="discord-rpc"></div>
       </div>
-
       <button id="btn-save-settings" class="primary">Сохранить все настройки</button>
     </main>
   </div>

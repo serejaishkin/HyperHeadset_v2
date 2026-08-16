@@ -57,9 +57,10 @@ dbus = "0.9"
 libc = "0.2"
 
 [lib]
-name = "hyperheadsetv2"
+name = "hyperx_ngenuity_open"
 path = "src/lib.rs"
 
 [[bin]]
-name = "hyperheadsetv2-egui"
+name = "hyperx-ngenuity-open"
 path = "src/main.rs"
+

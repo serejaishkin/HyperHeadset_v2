@@ -68,7 +68,7 @@ fn main() {
                 .id("main")
                 .icon(app_handle.default_window_icon().cloned().unwrap_or_default())
                 .menu(&menu)
-                .tooltip("HyperHeadsetv2 — подключение...")
+                .tooltip("HyperX — подключение...")
                 .on_menu_event({
                     let app_handle = app_handle.clone();
                     let device_cmd_tx = device_cmd_tx_for_tray.clone();
@@ -184,11 +184,11 @@ fn main() {
                             }
                         }
                         let tooltip = if !device.state.connected {
-                            "HyperHeadsetv2 — нет подключения".to_string()
+                            "HyperX — нет подключения".to_string()
                         } else if device.state.charging {
-                            format!("HyperHeadsetv2\n⚡ {}%", device.state.battery_percent)
+                            format!("HyperX\n⚡ {}%", device.state.battery_percent)
                         } else {
-                            format!("HyperHeadsetv2\n🔋 {}%", device.state.battery_percent)
+                            format!("HyperX\n🔋 {}%", device.state.battery_percent)
                         };
                         let _ = tray.set_tooltip(Some(&tooltip));
                     }

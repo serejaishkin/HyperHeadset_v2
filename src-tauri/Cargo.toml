@@ -1,5 +1,5 @@
 [package]
-name = "hyperheadsetv2-tauri"
+name = "hyperx_ngenuity_open"
 version = "0.2.10"
 edition = "2021"
 
@@ -18,3 +18,10 @@ anyhow = "1.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_System_Com"] }
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hyperx-ngenuity-open"
+path = "src/main.rs"
