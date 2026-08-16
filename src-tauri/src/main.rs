@@ -26,16 +26,6 @@ fn toggle_mute(state: State<AppState>) {
     let _ = state.device_cmd_tx.send(DeviceCommand::ToggleMute);
 }
 
-#[tauri::command]
-fn set_sidetone(enabled: bool, state: State<AppState>) {
-    let _ = state.device_cmd_tx.send(DeviceCommand::SetSidetone(enabled));
-}
-
-#[tauri::command]
-fn set_voice_prompts(enabled: bool, state: State<AppState>) {
-    let _ = state.device_cmd_tx.send(DeviceCommand::SetVoicePrompts(enabled));
-}
-
 fn main() {
     env_logger::init();
     GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
@@ -52,9 +42,7 @@ fn main() {
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let device_state_inner = device_state.clone();
-            let device_cmd_tx_for_tray = device_cmd_tx.clone();
 
-            // === Tray ===
             let menu = Menu::new(&app_handle)?;
             let open_i = MenuItem::new(&app_handle, "Открыть", true, None::<&str>)?;
             let toggle_i = MenuItem::new(&app_handle, "Мьют", true, None::<&str>)?;
@@ -68,15 +56,14 @@ fn main() {
                 .id("main")
                 .icon(app_handle.default_window_icon().cloned().unwrap_or_default())
                 .menu(&menu)
-                .tooltip("HyperX — подключение...")
+                .tooltip("HyperHeadsetv2 — подключение...")
                 .on_menu_event({
                     let app_handle = app_handle.clone();
-                    let device_cmd_tx = device_cmd_tx_for_tray.clone();
+                    let device_cmd_tx = device_cmd_tx.clone();
                     move |app, event| {
                         if event.id == open_i.id() {
                             if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
+                                let _ = window.show(); let _ = window.set_focus();
                             }
                         } else if event.id == toggle_i.id() {
                             let _ = device_cmd_tx.send(DeviceCommand::ToggleMute);
@@ -88,18 +75,15 @@ fn main() {
                 .on_tray_icon_event(|tray, event| {
                     if let tauri::tray::TrayIconEvent::Click {
                         button: tauri::tray::MouseButton::Left,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
+                        button_state: tauri::tray::MouseButtonState::Up, ..
                     } = event {
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                            let _ = window.show(); let _ = window.set_focus();
                         }
                     }
                 })
                 .build(&app_handle)?;
 
-            // === Device thread ===
             let app_handle_device = app_handle.clone();
             thread::spawn(move || {
                 let mut device = HyperXDevice::new();
@@ -123,10 +107,7 @@ fn main() {
                                 error_count = 0;
                                 let _ = device.refresh_state();
                             }
-                            Err(_) => {
-                                thread::sleep(Duration::from_secs(3));
-                                continue;
-                            }
+                            Err(_) => { thread::sleep(Duration::from_secs(3)); continue; }
                         }
                     }
 
@@ -134,14 +115,6 @@ fn main() {
                         match cmd {
                             DeviceCommand::ToggleMute => {
                                 let _ = device.toggle_mute();
-                                let _ = app_handle_device.emit("device-state", device.state.clone());
-                            }
-                            DeviceCommand::SetSidetone(v) => {
-                                let _ = device.set_sidetone(v);
-                                let _ = app_handle_device.emit("device-state", device.state.clone());
-                            }
-                            DeviceCommand::SetVoicePrompts(v) => {
-                                let _ = device.set_voice_prompts(v);
                                 let _ = app_handle_device.emit("device-state", device.state.clone());
                             }
                         }
@@ -161,21 +134,13 @@ fn main() {
                     }
                     error_count = 0;
 
-                    {
-                        let mut st = device_state_inner.lock().unwrap();
-                        *st = device.state.clone();
-                    }
+                    { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); }
                     let _ = app_handle_device.emit("device-state", device.state.clone());
 
-                    // === Tray icon with battery PNG ===
                     if let Some(tray) = app_handle_device.tray_by_id("main") {
                         let icon_config = TrayIconConfig::load_or_create();
                         if device.state.connected {
-                            let (rgba, w, h) = generate_battery_icon_rgba(
-                                &icon_config,
-                                device.state.battery_percent,
-                                device.state.charging,
-                            );
+                            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, device.state.battery_percent, device.state.charging);
                             let img = image::RgbaImage::from_raw(w, h, rgba).unwrap();
                             let mut png = Vec::new();
                             img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
@@ -184,11 +149,11 @@ fn main() {
                             }
                         }
                         let tooltip = if !device.state.connected {
-                            "HyperX — нет подключения".to_string()
+                            "HyperHeadsetv2 — нет подключения".to_string()
                         } else if device.state.charging {
-                            format!("HyperX\n⚡ {}%", device.state.battery_percent)
+                            format!("HyperHeadsetv2\n⚡ {}%", device.state.battery_percent)
                         } else {
-                            format!("HyperX\n🔋 {}%", device.state.battery_percent)
+                            format!("HyperHeadsetv2\n🔋 {}%", device.state.battery_percent)
                         };
                         let _ = tray.set_tooltip(Some(&tooltip));
                     }
@@ -199,12 +164,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            get_device_state,
-            toggle_mute,
-            set_sidetone,
-            set_voice_prompts,
-        ])
+        .invoke_handler(tauri::generate_handler![get_device_state, toggle_mute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

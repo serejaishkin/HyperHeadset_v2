@@ -12,10 +12,10 @@ BLOCK "StringFileInfo"
 {
 BLOCK "000004b0"
 {
-VALUE "CompanyName", "hyperx-ngenuity-open"
-VALUE "FileDescription", "HyperX NGENUITY Open"
+VALUE "CompanyName", "hyperheadsetv2"
+VALUE "FileDescription", "HyperHeadsetv2"
 VALUE "FileVersion", "0.2.10"
-VALUE "ProductName", "HyperX NGENUITY Open"
+VALUE "ProductName", "HyperHeadsetv2"
 VALUE "ProductVersion", "0.2.10"
 }
 }

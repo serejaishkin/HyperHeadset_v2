@@ -2,6 +2,8 @@
 use windows::Win32::Media::Audio::{
     eConsole, eRender, Endpoints::IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator,
 };
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 
 pub struct WindowsVolume {
     #[cfg(target_os = "windows")]
@@ -37,9 +39,7 @@ impl WindowsVolume {
     pub fn get_master_volume(&self) -> Option<f32> {
         unsafe {
             let vol = self.endpoint_volume.as_ref()?;
-            let mut level = 0.0f32;
-            vol.GetMasterVolumeLevelScalar(&mut level).ok()?;
-            Some(level)
+            vol.GetMasterVolumeLevelScalar().ok()
         }
     }
 
@@ -50,7 +50,7 @@ impl WindowsVolume {
     pub fn set_master_volume(&self, level: f32) {
         unsafe {
             if let Some(vol) = self.endpoint_volume.as_ref() {
-                let _ = vol.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), &std::ptr::null());
+                let _ = vol.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), std::ptr::null());
             }
         }
     }
@@ -58,6 +58,3 @@ impl WindowsVolume {
     #[cfg(not(target_os = "windows"))]
     pub fn set_master_volume(&self, _level: f32) {}
 }
-
-#[cfg(target_os = "windows")]
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};

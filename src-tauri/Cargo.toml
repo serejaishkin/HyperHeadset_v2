@@ -1,7 +1,9 @@
 [package]
-name = "hyperx_ngenuity_open"
+name = "hyperx-ngenuity-open-tauri"
 version = "0.2.10"
 edition = "2021"
+
+[workspace]
 
 [build-dependencies]
 tauri-build = { version = "2.0.0-rc", features = [] }
@@ -18,10 +20,3 @@ anyhow = "1.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_System_Com"] }
-
-[lib]
-path = "src/lib.rs"
-
-[[bin]]
-name = "hyperx-ngenuity-open"
-path = "src/main.rs"
