@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub use crate::input::MuteButtonMode;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub keybind: String,
@@ -44,8 +46,16 @@ pub struct VoiceConfig {
     pub exact_percent: bool,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum DiscordMode {
+    None,
+    Keybind,
+    Direct,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
+    pub mode: DiscordMode,
     pub keybind: Option<String>,
     pub direct: DirectDiscordConfig,
 }
@@ -53,11 +63,13 @@ pub struct DiscordConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectDiscordConfig {
     pub app_id: String,
+    pub show_battery: bool,
+    pub show_mute_status: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputConfig {
-    pub mute_button_mode: crate::input::MuteButtonMode,
+    pub mute_button_mode: MuteButtonMode,
 }
 
 impl Default for Config {
@@ -90,13 +102,16 @@ impl Default for Config {
                 exact_percent: false,
             },
             discord: DiscordConfig {
+                mode: DiscordMode::Keybind,
                 keybind: Some("F20".to_string()),
                 direct: DirectDiscordConfig {
                     app_id: "1234567890123456789".to_string(),
+                    show_battery: false,
+                    show_mute_status: false,
                 },
             },
             input: InputConfig {
-                mute_button_mode: crate::input::MuteButtonMode::SmartDouble,
+                mute_button_mode: MuteButtonMode::SmartDouble,
             },
         }
     }

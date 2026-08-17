@@ -26,13 +26,40 @@ fn toggle_mute(state: State<AppState>) {
     let _ = state.device_cmd_tx.send(DeviceCommand::ToggleMute);
 }
 
+#[tauri::command]
+fn set_sidetone(enabled: bool, state: State<AppState>) {
+    let _ = state.device_cmd_tx.send(DeviceCommand::SetSidetone(enabled));
+}
+
+#[tauri::command]
+fn set_voice_prompts(enabled: bool, state: State<AppState>) {
+    let _ = state.device_cmd_tx.send(DeviceCommand::SetVoicePrompts(enabled));
+}
+
+#[tauri::command]
+fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
+    if app.get_webview_window("compact").is_some() {
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(&app, "compact", tauri::WebviewUrl::App("compact.html".into()))
+        .title("HyperHeadsetv2 Compact")
+        .inner_size(220.0, 200.0)
+        .min_inner_size(200.0, 180.0)
+        .max_inner_size(300.0, 280.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn main() {
     env_logger::init();
     GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
 
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
-    let (device_cmd_tx, _device_cmd_rx) = mpsc::channel();
+    let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
 
     tauri::Builder::default()
         .manage(AppState {
@@ -40,19 +67,19 @@ fn main() {
             device_cmd_tx: device_cmd_tx.clone(),
         })
         .setup(move |app| {
-            let _app_handle = app.handle().clone();
-            let _device_state_inner = device_state.clone();
+            let app_handle = app.handle().clone();
+            let device_state_inner = device_state.clone();
 
-            let menu = Menu::new(&_app_handle)?;
-            let open_i = MenuItem::new(&_app_handle, "Открыть", true, None::<&str>)?;
-            let toggle_i = MenuItem::new(&_app_handle, "Мьют", true, None::<&str>)?;
-            let quit_i = MenuItem::new(&_app_handle, "Выход", true, None::<&str>)?;
+            let menu = Menu::new(&app_handle)?;
+            let open_i = MenuItem::new(&app_handle, "Открыть", true, None::<&str>)?;
+            let toggle_i = MenuItem::new(&app_handle, "Мьют", true, None::<&str>)?;
+            let quit_i = MenuItem::new(&app_handle, "Выход", true, None::<&str>)?;
             menu.append(&open_i)?;
             menu.append(&toggle_i)?;
-            menu.append(&PredefinedMenuItem::separator(&_app_handle)?)?;
+            menu.append(&PredefinedMenuItem::separator(&app_handle)?)?;
             menu.append(&quit_i)?;
 
-            let tray_icon = _app_handle.default_window_icon().cloned().unwrap_or_else(|| {
+            let tray_icon = app_handle.default_window_icon().cloned().unwrap_or_else(|| {
                 tauri::image::Image::new(&[0, 0, 0, 0], 1, 1)
             });
 
@@ -61,7 +88,7 @@ fn main() {
                 .menu(&menu)
                 .tooltip("HyperHeadsetv2 — подключение...")
                 .on_menu_event({
-                    let _app_handle = _app_handle.clone();
+                    let app_handle = app_handle.clone();
                     let device_cmd_tx = device_cmd_tx.clone();
                     move |app, event| {
                         if event.id == open_i.id() {
@@ -85,9 +112,9 @@ fn main() {
                         }
                     }
                 })
-                .build(&_app_handle)?;
+                .build(&app_handle)?;
 
-            let _app_handle_device = _app_handle.clone();
+            let app_handle_device = app_handle.clone();
             thread::spawn(move || {
                 let mut device = HyperXDevice::new();
                 let mut was_connected = false;
@@ -96,41 +123,62 @@ fn main() {
                 loop {
                     if !device.state.connected {
                         if was_connected {
-                            let _ = _app_handle_device.emit("device-disconnected", ());
-                            let mut st = _device_state_inner.lock().unwrap();
+                            log::warn!("[Device] Headset disconnected");
+                            let _ = app_handle_device.emit("device-disconnected", ());
+                            let mut st = device_state_inner.lock().unwrap();
                             st.connected = false;
                             was_connected = false;
                         }
                         match device.connect() {
                             Ok(_) => {
-                                let _ = _app_handle_device.emit("device-connected", ());
-                                let mut st = _device_state_inner.lock().unwrap();
+                                log::info!("[Device] Headset connected");
+                                let _ = app_handle_device.emit("device-connected", ());
+                                let mut st = device_state_inner.lock().unwrap();
                                 *st = device.state.clone();
                                 was_connected = true;
                                 error_count = 0;
                                 let _ = device.refresh_state();
                             }
-                            Err(_) => { thread::sleep(Duration::from_secs(3)); continue; }
+                            Err(e) => {
+                                log::debug!("[Device] Connection failed: {}", e);
+                                thread::sleep(Duration::from_secs(3));
+                                continue;
+                            }
                         }
                     }
 
-                    while let Ok(cmd) = _device_cmd_rx.try_recv() {
+                    while let Ok(cmd) = device_cmd_rx.try_recv() {
                         match cmd {
                             DeviceCommand::ToggleMute => {
-                                let _ = device.toggle_mute();
-                                let _ = _app_handle_device.emit("device-state", device.state.clone());
+                                if let Err(e) = device.toggle_mute() {
+                                    log::warn!("[Device] Toggle mute failed: {}", e);
+                                } else {
+                                    let _ = app_handle_device.emit("device-state", device.state.clone());
+                                }
                             }
-                            DeviceCommand::SetSidetone(_) => {}
-                            DeviceCommand::SetVoicePrompts(_) => {}
+                            DeviceCommand::SetSidetone(enabled) => {
+                                if let Err(e) = device.set_sidetone(enabled) {
+                                    log::warn!("[Device] Set sidetone failed: {}", e);
+                                }
+                                let _ = app_handle_device.emit("device-state", device.state.clone());
+                            }
+                            DeviceCommand::SetVoicePrompts(enabled) => {
+                                if let Err(e) = device.set_voice_prompts(enabled) {
+                                    log::warn!("[Device] Set voice prompts failed: {}", e);
+                                }
+                                let _ = app_handle_device.emit("device-state", device.state.clone());
+                            }
                         }
                     }
 
-                    if let Err(_) = device.refresh_state() {
+                    if let Err(e) = device.refresh_state() {
                         error_count += 1;
+                        log::warn!("[Device] Refresh failed ({}/3): {}", error_count, e);
                         if error_count >= 3 {
-                            let _ = _app_handle_device.emit("device-disconnected", ());
+                            log::warn!("[Device] Too many errors, disconnecting");
+                            let _ = app_handle_device.emit("device-disconnected", ());
                             device.disconnect();
-                            let mut st = _device_state_inner.lock().unwrap();
+                            let mut st = device_state_inner.lock().unwrap();
                             st.connected = false;
                             error_count = 0;
                         }
@@ -139,10 +187,10 @@ fn main() {
                     }
                     error_count = 0;
 
-                    { let mut st = _device_state_inner.lock().unwrap(); *st = device.state.clone(); }
-                    let _ = _app_handle_device.emit("device-state", device.state.clone());
+                    { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); }
+                    let _ = app_handle_device.emit("device-state", device.state.clone());
 
-                    if let Some(tray) = _app_handle_device.tray_by_id("main") {
+                    if let Some(tray) = app_handle_device.tray_by_id("main") {
                         let icon_config = TrayIconConfig::load_or_create();
                         if device.state.connected {
                             let (rgba, w, h) = generate_battery_icon_rgba(
@@ -167,7 +215,9 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, toggle_mute])
+        .invoke_handler(tauri::generate_handler![
+            get_device_state, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

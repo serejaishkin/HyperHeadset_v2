@@ -57,4 +57,10 @@ impl WindowsVolume {
 
     #[cfg(not(target_os = "windows"))]
     pub fn set_master_volume(&self, _level: f32) {}
+
+    // Mic stubs
+    pub fn get_microphone_volume(&self) -> Option<f32> { None }
+    pub fn set_microphone_volume(&self, _level: f32) {}
+    pub fn get_microphone_mute(&self) -> Option<bool> { None }
+    pub fn set_microphone_mute(&self, _muted: bool) {}
 }

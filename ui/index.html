@@ -1,49 +1,59 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HyperHeadsetv2</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">
-    <nav class="tabs">
-      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="tab-btn" data-tab="settings">Настройки</button>
-    </nav>
-    <main id="dashboard" class="tab-content active">
-      <div class="battery-ring">
-        <svg viewBox="0 0 100 100">
-          <circle class="bg" cx="50" cy="50" r="45"/>
-          <circle class="progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283" id="ring-progress"/>
-        </svg>
-        <div class="battery-text">
-          <span id="battery-percent">--</span>
-          <span id="battery-status">Нет подключения</span>
-        </div>
-      </div>
-      <div class="actions">
-        <button id="btn-mute">🎙️ Мьют</button>
-        <button id="btn-check">🔋 Проверить</button>
-      </div>
-    </main>
-    <main id="settings" class="tab-content">
-      <div class="setting-row">
-        <label>Keybind Discord</label>
-        <select id="keybind">
-          <option>F13</option><option>F14</option><option>F15</option><option>F16</option>
-          <option>F17</option><option>F18</option><option>F19</option><option selected>F20</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <label>Double-tap, мс</label>
-        <input type="range" id="double-tap" min="200" max="1000" value="500">
-        <span id="double-tap-val">500</span>
-      </div>
-      <button id="btn-save" class="primary">Сохранить</button>
-    </main>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
+    <button class="tab-btn" id="btn-compact">⛶ Compact</button>
   </div>
+
+  <div class="tab-content active" id="dashboard">
+    <div class="battery-ring">
+      <svg width="200" height="200" viewBox="0 0 100 100">
+        <circle class="bg" cx="50" cy="50" r="45"/>
+        <circle class="progress" id="ring-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283"/>
+      </svg>
+      <div class="battery-text">
+        <span id="battery-percent">--</span>
+        <span id="battery-status">Нет подключения</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-mute">🎙️ Мьют</button>
+      <button id="btn-check">🔋 Проверить</button>
+    </div>
+  </div>
+
+  <div class="tab-content" id="settings">
+    <h3>Headset</h3>
+    <div class="setting-row">
+      <label>Sidetone (слышать себя)</label>
+      <input type="checkbox" id="sidetone">
+    </div>
+    <div class="setting-row">
+      <label>Voice prompts</label>
+      <input type="checkbox" id="voice-prompts">
+    </div>
+    <h3>Voice Notifications</h3>
+    <div class="setting-row">
+      <label>Enabled</label>
+      <input type="checkbox" id="voice-enabled" checked>
+    </div>
+    <div class="setting-row">
+      <label>Battery low</label>
+      <input type="checkbox" id="voice-battery-low" checked>
+    </div>
+    <div class="setting-row">
+      <label>Charging</label>
+      <input type="checkbox" id="voice-charging" checked>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

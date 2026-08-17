@@ -1,6 +1,5 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-
 fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     let mut builder = env_logger::Builder::from_default_env();
     builder.filter_level(if config.debug_logging { log::LevelFilter::Debug } else { log::LevelFilter::Info });
@@ -46,9 +45,6 @@ use hyperx_ngenuity_open::{
 };
 
 use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
-
-#[cfg(target_os = "windows")]
-#[cfg(target_os = "windows")]
 
 #[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
@@ -110,17 +106,16 @@ fn main() -> anyhow::Result<()> {
     let device_state = Arc::new(Mutex::new(DeviceState::default()));
     let device_state_clone = device_state.clone();
 
-    let (device_tx, device_rx) = std::sync::mpsc::channel::<DeviceEvent>();
-    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel::<hyperx_ngenuity_open::DeviceCommand>();
+    let (device_tx, device_rx) = std::sync::mpsc::channel();
+    let (device_cmd_tx, device_cmd_rx) = std::sync::mpsc::channel();
 
-    // Linux: PlatformTray (ksni) — Windows/macOS: TrayBatteryManager (tray-icon)
     #[cfg(target_os = "linux")]
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel();
     #[cfg(target_os = "linux")]
     let tray = PlatformTray::new(tray_tx.clone());
 
     #[cfg(not(target_os = "linux"))]
-    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<TrayCommand>();
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel();
     #[cfg(not(target_os = "linux"))]
     let tray = PlatformTray::new(tray_tx.clone());
 
@@ -276,7 +271,6 @@ fn main() -> anyhow::Result<()> {
             }
         });
     });
-
 
     let mut viewport_builder = egui::ViewportBuilder::default()
         .with_inner_size(if config.start_in_compact_mode { egui::vec2(220.0, 200.0) } else { egui::vec2(980.0, 600.0) })
