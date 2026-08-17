@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>HyperHeadsetv2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; color: #fff; font-family: Inter, system-ui, sans-serif; width: 220px; height: 200px; overflow: hidden; }
+    .compact { padding: 12px; text-align: center; }
+    .battery { font-size: 32px; font-weight: 700; margin: 8px 0; }
+    .status { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .progress { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+    .progress-bar { height: 100%; background: #C81E1E; transition: width 0.3s; }
+    .mic { font-size: 14px; margin: 4px 0; }
+    .vol-label { font-size: 11px; color: #888; margin-top: 4px; }
+    input[type=range] { width: 100%; margin: 4px 0; }
+    button { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 4px; }
+    button:hover { border-color: #C81E1E; }
+  </style>
+</head>
+<body>
+  <div class="compact">
+    <div class="battery" id="battery-pct">--%</div>
+    <div class="status" id="battery-st">Нет подключения</div>
+    <div class="progress"><div class="progress-bar" id="progress-bar" style="width: 0%"></div></div>
+    <div class="mic" id="mic-status">🎙️ MIC ON</div>
+    <div class="vol-label">Master Volume</div>
+    <input type="range" id="vol-master" min="0" max="100" value="50">
+    <div class="vol-label">Mic Volume</div>
+    <input type="range" id="vol-mic" min="0" max="100" value="50">
+    <button id="btn-mute-c">Мьют</button>
+  </div>
+  <script src="compact.js"></script>
+</body>
+</html>

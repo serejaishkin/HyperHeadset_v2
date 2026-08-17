@@ -6,6 +6,12 @@ pub mod audio;
 pub mod discord;
 pub mod platform;
 pub mod i18n;
+pub mod gui;
+pub mod notifications;
+pub mod dialog;
+pub mod hotkey;
+
+pub use device::{DeviceCommand, DeviceEvent};
 
 #[macro_export]
 macro_rules! debug_println {
