@@ -57,10 +57,6 @@ impl HyperXDevice {
         Self { device: None, state: DeviceState::default() }
     }
 
-    /// Returns true when Windows still enumerates a HyperX HID interface.
-    /// This is deliberately separate from the open handle: an enumerated
-    /// device with a broken handle points to an application/HID transport
-    /// problem rather than a physical USB removal.
     pub fn is_enumerated() -> bool {
         match HidApi::new() {
             Ok(api) => api.device_list().any(|info| {
@@ -85,9 +81,7 @@ impl HyperXDevice {
         for _ in 0..3 {
             match device.read_timeout(&mut buf, 5) {
                 Ok(0) | Err(_) => break,
-                Ok(len) => {
-                    log::debug!("[HID] Flushed {} bytes cmd={:02X}", len, buf.get(3).unwrap_or(&0));
-                }
+                Ok(len) => log::debug!("[HID] Flushed {} bytes cmd={:02X}", len, buf.get(3).unwrap_or(&0)),
             }
         }
     }
@@ -122,16 +116,10 @@ impl HyperXDevice {
                                     self.device = Some(device);
                                     self.state.connected = true;
                                     self.state.battery_percent = buf[7].min(100);
-                                    log::info!(
-                                        "[HID] Connected: battery={}%, raw={:02X?}",
-                                        self.state.battery_percent,
-                                        &buf[0..16.min(len)]
-                                    );
+                                    log::info!("[HID] Connected: battery={}%, raw={:02X?}", self.state.battery_percent, &buf[0..16.min(len)]);
                                     return Ok(());
                                 }
-                                Ok(len) => {
-                                    log::debug!("[HID] Battery probe invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
-                                }
+                                Ok(len) => log::debug!("[HID] Battery probe invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]),
                                 Err(e) => log::debug!("[HID] Battery probe read failed: {}", e),
                             }
                         }
@@ -150,9 +138,6 @@ impl HyperXDevice {
         self.state = DeviceState::default();
     }
 
-    /// Refreshes the device state. Battery is the transport heartbeat.
-    /// Optional telemetry (mute/charging) must not turn a healthy device
-    /// into a disconnect merely because one command is unsupported or times out.
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
@@ -161,28 +146,20 @@ impl HyperXDevice {
         Self::flush_input_buffer(device);
         self.prepare_write();
 
-        // Battery is the authoritative heartbeat. A write/read/invalid
-        // response is returned to the caller so the connection supervisor
-        // can distinguish transport failure from optional telemetry failure.
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
         write_hid_report(device, &packet)
             .map_err(|e| anyhow::anyhow!("battery write failed: {}", e))?;
         thread::sleep(RESPONSE_DELAY);
 
         let mut buf = [0u8; 256];
-        let len = device
-            .read_timeout(&mut buf, 1000)
+        let len = device.read_timeout(&mut buf, 1000)
             .map_err(|e| anyhow::anyhow!("battery read failed: {}", e))?;
         if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
-            return Err(anyhow::anyhow!(
-                "invalid battery response: len={} raw={:02X?}",
-                len,
-                &buf[0..16.min(len)]
-            ));
+            return Err(anyhow::anyhow!("invalid battery response: len={} raw={:02X?}", len, &buf[0..16.min(len)]));
         }
         self.state.battery_percent = buf[7].min(100);
 
-        // These are best-effort. They do NOT decide connection state.
+        // Optional telemetry must never turn a healthy HID link into a disconnect.
         self.prepare_write();
         match send_and_read(device, GET_MUTE_CMD_ID, &[]) {
             Ok(status) => self.state.muted = status == 1,
@@ -199,26 +176,20 @@ impl HyperXDevice {
     }
 
     pub fn toggle_mute(&mut self) -> anyhow::Result<()> {
-        let Some(device) = self.device.as_ref() else {
-            return Err(anyhow::anyhow!("Device not connected"));
-        };
+        let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         let new_mute = !self.state.muted;
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
-        write_hid_report(device, &packet)
-            .map_err(|e| anyhow::anyhow!("mute command failed: {}", e))?;
+        write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("mute command failed: {}", e))?;
         self.state.muted = new_mute;
         Ok(())
     }
 
     pub fn set_sidetone(&mut self, enabled: bool) -> anyhow::Result<()> {
-        let Some(device) = self.device.as_ref() else {
-            return Err(anyhow::anyhow!("Device not connected"));
-        };
+        let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
-        write_hid_report(device, &packet)
-            .map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
+        write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
         self.state.sidetone = enabled;
         Ok(())
     }
@@ -274,7 +245,9 @@ fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result
             {
                 if let hidapi::HidError::HidApiError { message } = &write_err {
                     if message.contains("Incorrect function") || message.contains("(0x00000001)") {
-                        device.send_feature_report(packet).map_err(|_| write_err.clone())?;
+                        if device.send_feature_report(packet).is_err() {
+                            return Err(write_err.into());
+                        }
                         return Ok(());
                     }
                 }
