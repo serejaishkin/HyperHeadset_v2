@@ -77,9 +77,9 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     let _ = app.emit("device-state", DeviceState::default());
 
     if let Some(tray) = app.tray_by_id("main") {
-        let config = TrayIconConfig::load_or_create();
-        let (rgba, w, h) = config.default_icon_rgba();
-        let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+        if let Some(icon) = app.default_window_icon().cloned() {
+            let _ = tray.set_icon(Some(icon));
+        }
         let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
     }
 }
@@ -139,13 +139,13 @@ fn main() {
                         button: tauri::tray::MouseButton::Left,
                         button_state: tauri::tray::MouseButtonState::Up,
                         ..
-                    } = event {
+                    } = event
+                    {
                         show_main_window(&tray.app_handle());
                     }
                 })
                 .build(&app_handle)?;
 
-            // X hides the main window; the process stays alive in the tray.
             if let Some(main_window) = app.get_webview_window("main") {
                 main_window.on_window_event(|event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
@@ -235,9 +235,6 @@ fn main() {
                                 enumerated
                             );
 
-                            // Do not call this a USB removal immediately. We first
-                            // allow transient HID timeouts. Five consecutive battery
-                            // heartbeat failures force a clean handle reset.
                             if heartbeat_failures >= 5 {
                                 log::warn!(
                                     "[HID] Resetting handle after 5 failures; enumeration={}",
