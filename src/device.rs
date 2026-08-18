@@ -57,6 +57,22 @@ impl HyperXDevice {
         Self { device: None, state: DeviceState::default() }
     }
 
+    /// Returns true when Windows still enumerates a HyperX HID interface.
+    /// This is deliberately separate from the open handle: an enumerated
+    /// device with a broken handle points to an application/HID transport
+    /// problem rather than a physical USB removal.
+    pub fn is_enumerated() -> bool {
+        match HidApi::new() {
+            Ok(api) => api.device_list().any(|info| {
+                info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
+            }),
+            Err(e) => {
+                log::warn!("[HID] Cannot enumerate HID devices: {}", e);
+                false
+            }
+        }
+    }
+
     fn prepare_write(&self) {
         let Some(device) = self.device.as_ref() else { return };
         let mut buf = [0u8; 64];
@@ -70,7 +86,7 @@ impl HyperXDevice {
             match device.read_timeout(&mut buf, 5) {
                 Ok(0) | Err(_) => break,
                 Ok(len) => {
-                    log::debug!("[Device] Flushed {} bytes cmd={:02X}", len, buf.get(3).unwrap_or(&0));
+                    log::debug!("[HID] Flushed {} bytes cmd={:02X}", len, buf.get(3).unwrap_or(&0));
                 }
             }
         }
@@ -81,67 +97,104 @@ impl HyperXDevice {
         let mut candidates = Vec::new();
         for info in api.device_list() {
             if info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id()) {
+                log::info!(
+                    "[HID] Candidate VID={:04X} PID={:04X} interface={} usage_page={:04X} usage={:04X} path={:?}",
+                    info.vendor_id(), info.product_id(), info.interface_number(),
+                    info.usage_page(), info.usage(), info.path()
+                );
                 candidates.push(info);
             }
         }
+
+        if candidates.is_empty() {
+            return Err(anyhow::anyhow!("No HyperX HID device enumerated"));
+        }
+
         for info in &candidates {
-            if let Ok(device) = api.open_path(info.path()) {
-                let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
-                if write_hid_report(&device, &packet).is_ok() {
-                    let mut buf = [0u8; 256];
-                    if let Ok(len) = device.read_timeout(&mut buf, 1000) {
-                        if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
-                            self.device = Some(device);
-                            self.state.connected = true;
-                            self.state.battery_percent = buf[7];
-                            log::info!(
-                                "[Device] connect() battery={}% raw[0..16]={:02X?}",
-                                buf[7],
-                                &buf[0..16.min(len)]
-                            );
-                            return Ok(());
+            match api.open_path(info.path()) {
+                Ok(device) => {
+                    let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
+                    match write_hid_report(&device, &packet) {
+                        Ok(_) => {
+                            let mut buf = [0u8; 256];
+                            match device.read_timeout(&mut buf, 1000) {
+                                Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
+                                    self.device = Some(device);
+                                    self.state.connected = true;
+                                    self.state.battery_percent = buf[7].min(100);
+                                    log::info!(
+                                        "[HID] Connected: battery={}%, raw={:02X?}",
+                                        self.state.battery_percent,
+                                        &buf[0..16.min(len)]
+                                    );
+                                    return Ok(());
+                                }
+                                Ok(len) => {
+                                    log::debug!("[HID] Battery probe invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
+                                }
+                                Err(e) => log::debug!("[HID] Battery probe read failed: {}", e),
+                            }
                         }
+                        Err(e) => log::debug!("[HID] Battery probe write failed: {}", e),
                     }
                 }
+                Err(e) => log::debug!("[HID] open_path failed: {}", e),
             }
         }
-        Err(anyhow::anyhow!("No HyperX device found"))
+
+        Err(anyhow::anyhow!("HyperX HID enumerated, but no compatible HID interface answered"))
     }
 
     pub fn disconnect(&mut self) {
         self.device = None;
-        self.state.connected = false;
+        self.state = DeviceState::default();
     }
 
+    /// Refreshes the device state. Battery is the transport heartbeat.
+    /// Optional telemetry (mute/charging) must not turn a healthy device
+    /// into a disconnect merely because one command is unsupported or times out.
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
-            return Err(anyhow::anyhow!("Device not connected"));
+            return Err(anyhow::anyhow!("Device handle is not connected"));
         };
+
         Self::flush_input_buffer(device);
-
         self.prepare_write();
+
+        // Battery is the authoritative heartbeat. A write/read/invalid
+        // response is returned to the caller so the connection supervisor
+        // can distinguish transport failure from optional telemetry failure.
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
-        if write_hid_report(device, &packet).is_ok() {
-            thread::sleep(RESPONSE_DELAY);
-            let mut buf = [0u8; 256];
-            if let Ok(len) = device.read_timeout(&mut buf, 1000) {
-                if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
-                    self.state.battery_percent = buf[7];
-                }
-            }
+        write_hid_report(device, &packet)
+            .map_err(|e| anyhow::anyhow!("battery write failed: {}", e))?;
+        thread::sleep(RESPONSE_DELAY);
+
+        let mut buf = [0u8; 256];
+        let len = device
+            .read_timeout(&mut buf, 1000)
+            .map_err(|e| anyhow::anyhow!("battery read failed: {}", e))?;
+        if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
+            return Err(anyhow::anyhow!(
+                "invalid battery response: len={} raw={:02X?}",
+                len,
+                &buf[0..16.min(len)]
+            ));
+        }
+        self.state.battery_percent = buf[7].min(100);
+
+        // These are best-effort. They do NOT decide connection state.
+        self.prepare_write();
+        match send_and_read(device, GET_MUTE_CMD_ID, &[]) {
+            Ok(status) => self.state.muted = status == 1,
+            Err(e) => log::debug!("[HID] Mute telemetry unavailable: {}", e),
         }
 
         self.prepare_write();
-        if let Ok(status) = send_and_read(device, GET_MUTE_CMD_ID, &[]) {
-            self.state.muted = status == 1;
-        }
-
-        self.prepare_write();
-        log::debug!("[Device] Reading charging status...");
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
-            Ok((status, _raw)) => { self.state.charging = status == 1; }
-            Err(e) => { log::debug!("[Device] Charging read FAILED: {}", e); }
+            Ok((status, _)) => self.state.charging = status == 1,
+            Err(e) => log::debug!("[HID] Charging telemetry unavailable: {}", e),
         }
+
         Ok(())
     }
 
@@ -150,31 +203,28 @@ impl HyperXDevice {
             return Err(anyhow::anyhow!("Device not connected"));
         };
         let new_mute = !self.state.muted;
-        log::debug!("[Device] toggle_mute: current={}, target={}", self.state.muted, new_mute);
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
-        log::debug!("[Device] Mute packet: {:02X?}", packet);
-        match write_hid_report(device, &packet) {
-            Ok(_) => { self.state.muted = new_mute; Ok(()) }
-            Err(e) => { log::debug!("[Device] Mute command failed: {}", e); Err(e) }
-        }
+        write_hid_report(device, &packet)
+            .map_err(|e| anyhow::anyhow!("mute command failed: {}", e))?;
+        self.state.muted = new_mute;
+        Ok(())
     }
 
     pub fn set_sidetone(&mut self, enabled: bool) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device not connected"));
         };
-        log::debug!("[Device] set_sidetone: {}", enabled);
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
-        match write_hid_report(device, &packet) {
-            Ok(_) => { self.state.sidetone = enabled; Ok(()) }
-            Err(e) => { log::debug!("[Device] Sidetone command failed: {}", e); Err(e) }
-        }
+        write_hid_report(device, &packet)
+            .map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
+        self.state.sidetone = enabled;
+        Ok(())
     }
 
     pub fn set_voice_prompts(&mut self, _enabled: bool) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Voice prompts not supported on this model"))
+        Err(anyhow::anyhow!("Voice prompts are not supported by the current HID protocol"))
     }
 }
 
@@ -191,31 +241,27 @@ fn is_valid_response(buf: &[u8], len: usize, expected_cmd: u8) -> bool {
     len >= 5 && buf[0] == 0x06 && buf[1] == 0xFF && buf[2] == 0xBB && buf[3] == expected_cmd
 }
 
-fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<u8, ()> {
+fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<u8, String> {
     let packet = build_packet(cmd_id, data);
-    if write_hid_report(device, &packet).is_err() { return Err(()); }
+    write_hid_report(device, &packet).map_err(|e| e.to_string())?;
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
     match device.read_timeout(&mut buf, 1000) {
         Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok(buf[4]),
-        _ => Err(()),
+        Ok(len) => Err(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)])),
+        Err(e) => Err(format!("read failed: {}", e)),
     }
 }
 
 fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<(u8, Vec<u8>), String> {
     let packet = build_packet(cmd_id, data);
-    if let Err(e) = write_hid_report(device, &packet) { return Err(format!("write failed: {}", e)); }
+    write_hid_report(device, &packet).map_err(|e| format!("write failed: {}", e))?;
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
     match device.read_timeout(&mut buf, 1000) {
         Ok(0) => Err("read timeout/empty".into()),
-        Ok(len) => {
-            if len >= 5 && is_valid_response(&buf, len, cmd_id) {
-                Ok((buf[4], buf[..len].to_vec()))
-            } else {
-                Err(format!("invalid response: len={} buf[0..8]={:02X?}", len, &buf[0..8.min(len)]))
-            }
-        }
+        Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok((buf[4], buf[..len].to_vec())),
+        Ok(len) => Err(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)])),
         Err(e) => Err(format!("read error: {}", e)),
     }
 }
@@ -228,7 +274,7 @@ fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result
             {
                 if let hidapi::HidError::HidApiError { message } = &write_err {
                     if message.contains("Incorrect function") || message.contains("(0x00000001)") {
-                        if device.send_feature_report(packet).is_err() { return Err(write_err.into()); }
+                        device.send_feature_report(packet).map_err(|_| write_err.clone())?;
                         return Ok(());
                     }
                 }
