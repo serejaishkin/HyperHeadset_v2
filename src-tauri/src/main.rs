@@ -133,13 +133,14 @@ fn main() {
                 })
                 .build(&app_handle)?;
 
-            // Closing the main window must hide it, not terminate the process.
-            // This makes the tray icon the persistent application entry point.
+            // Closing the main window hides it instead of terminating the process.
+            // The tray remains alive, so clicking "Открыть" or the tray icon restores it.
             if let Some(main_window) = app.get_webview_window("main") {
-                main_window.on_window_event(|event| {
+                let window_for_close = main_window.clone();
+                main_window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = event.window().hide();
+                        let _ = window_for_close.hide();
                     }
                 });
             }
@@ -244,7 +245,7 @@ fn main() {
 
                             // Three consecutive failed heartbeat reads mean the headset
                             // has disappeared or powered off. Clear the cached battery
-                            // immediately instead of leaving a frozen percentage visible.
+                            // instead of leaving a frozen percentage visible.
                             if error_count >= 3 {
                                 log::warn!("[Device] Too many heartbeat errors, disconnecting");
                                 device.disconnect();
