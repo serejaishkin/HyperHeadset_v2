@@ -5,6 +5,7 @@
   "identifier": "com.hyperheadsetv2",
   "build": { "frontendDist": "../ui" },
   "app": {
+    "withGlobalTauri": true,
     "windows": [{
       "label": "main", "title": "HyperHeadsetv2",
       "width": 980, "height": 600,
