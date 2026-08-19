@@ -147,10 +147,10 @@ fn main() {
                 .build(&app_handle)?;
 
             if let Some(main_window) = app.get_webview_window("main") {
-                main_window.on_window_event(|event| {
+                main_window.on_window_event(|window, event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = event.window().hide();
+                        let _ = window.hide();
                     }
                 });
             }
