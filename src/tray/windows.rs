@@ -6,6 +6,23 @@ use tray_icon::{
 };
 use super::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
+#[cfg(target_os = "windows")]
+fn restore_main_window() {
+    unsafe {
+        use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SetForegroundWindow, SW_RESTORE};
+        for name in &["HyperX NGENUITY Open\0", "HyperHeadsetv2\0"] {
+            let title: Vec<u16> = name.encode_utf16().collect();
+            if let Ok(hwnd) = FindWindowW(None, windows::core::PCWSTR(title.as_ptr())) {
+                if !hwnd.0.is_null() {
+                    let _ = ShowWindow(hwnd, SW_RESTORE);
+                    let _ = SetForegroundWindow(hwnd);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 fn create_default_tray_icon() -> Icon {
     let bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/headphone.png"));
     let img = image::load_from_memory(bytes).unwrap().into_rgba8();
@@ -99,7 +116,11 @@ impl WindowsTray {
         let open_i = MenuItem::new("Открыть", true, None);
         let _ = menu.append(&open_i);
         let tx_open = self.tx.clone();
-        new_callbacks.insert(open_i.id().clone(), Box::new(move || { let _ = tx_open.send(super::TrayCommand::ShowWindow); }));
+        new_callbacks.insert(open_i.id().clone(), Box::new(move || { 
+            #[cfg(target_os = "windows")]
+            restore_main_window();
+            let _ = tx_open.send(super::TrayCommand::ShowWindow); 
+        }));
 
         let toggle_i = MenuItem::new("Переключить мьют", true, None);
         let _ = menu.append(&toggle_i);
@@ -152,6 +173,8 @@ impl WindowsTray {
         }
         while let Ok(event) = TrayIconEvent::receiver().try_recv() {
             if let TrayIconEvent::Click { button: tray_icon::MouseButton::Left, .. } = event {
+                #[cfg(target_os = "windows")]
+                restore_main_window();
                 let _ = self.tx.send(super::TrayCommand::ShowWindow);
             }
         }
