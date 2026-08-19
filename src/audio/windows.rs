@@ -1,7 +1,6 @@
 //! Windows Equalizer APO integration
 use std::path::PathBuf;
 use std::fs;
-use std::process::Command;
 
 const APO_CONFIG_PATH: &str = r"C:\Program Files\EqualizerAPO\config\config.txt";
 const APO_PRESETS_DIR: &str = r"C:\Program Files\EqualizerAPO\config\presets";
