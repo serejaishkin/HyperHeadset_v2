@@ -2,6 +2,8 @@ const { invoke, listen } = window.__TAURI__.core;
 
 const $ = (id) => document.getElementById(id);
 let toastTimer = null;
+let config = null;
+let dirty = false;
 
 function toast(message) {
   let node = $('toast');
@@ -14,7 +16,21 @@ function toast(message) {
   node.textContent = message;
   node.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.classList.remove('show'), 2500);
+  toastTimer = setTimeout(() => node.classList.remove('show'), 3000);
+}
+
+function markDirty() {
+  dirty = true;
+  $('settings-dirty').textContent = 'Unsaved changes';
+  $('settings-dirty').classList.add('dirty');
+  $('save-message').textContent = 'There are unsaved changes';
+}
+
+function markSaved() {
+  dirty = false;
+  $('settings-dirty').textContent = 'Saved';
+  $('settings-dirty').classList.remove('dirty');
+  $('save-message').textContent = 'Changes are saved to config.toml';
 }
 
 function setConnection(mode, battery = null) {
@@ -22,7 +38,7 @@ function setConnection(mode, battery = null) {
   state.className = `connection-state ${mode}`;
   state.textContent = mode === 'connected' ? 'ON' : mode === 'searching' ? 'SEARCHING' : 'OFF';
   $('header-battery').textContent = battery == null ? '[BAT] --%' : `[BAT] ${battery}%`;
-  $('settings-connection').textContent = mode === 'connected' ? 'Connected' : mode === 'searching' ? 'Searching...' : 'Disconnected';
+  $('settings-connection')?.replaceChildren(document.createTextNode(mode === 'connected' ? 'Connected' : mode === 'searching' ? 'Searching...' : 'Disconnected'));
 }
 
 function updateBattery(device) {
@@ -40,9 +56,6 @@ function updateBattery(device) {
     fill.style.width = '0%';
     fill.className = '';
     setConnection('disconnected');
-    $('settings-battery').textContent = '--%';
-    $('settings-charging').textContent = 'Unknown';
-    $('settings-mic').textContent = 'Unknown';
     $('device-message').className = 'device-message';
     $('device-message-title').textContent = 'Headset disconnected';
     $('device-message-text').textContent = 'Waiting for the device...';
@@ -61,9 +74,6 @@ function updateBattery(device) {
   $('mic-toggle').textContent = device.muted ? 'MIC OFF' : 'MIC ON';
   $('mic-toggle').classList.toggle('active', !!device.muted);
   setConnection('connected', pct);
-  $('settings-battery').textContent = `${pct}%`;
-  $('settings-charging').textContent = charging ? 'Charging' : 'Not charging';
-  $('settings-mic').textContent = device.muted ? 'Muted' : 'Active';
   $('device-message').className = 'device-message connected';
   $('device-message-title').textContent = 'Headset connected';
   $('device-message-text').textContent = charging ? 'Charging' : 'Device is ready';
@@ -86,18 +96,135 @@ async function command(name, args = {}) {
   }
 }
 
+async function checkBatteryVoice() {
+  try {
+    await invoke('check_battery_voice');
+    toast('Battery voice notification played');
+  } catch (error) {
+    console.error('check_battery_voice failed', error);
+    toast(`Voice check failed: ${error}`);
+  }
+}
+
+function configToUi(c) {
+  config = structuredClone(c);
+  $('cfg-enabled').checked = !!c.enabled;
+  $('cfg-sidetone').checked = !!c.device?.sidetone;
+  $('cfg-voice-prompts').checked = !!c.device?.voice_prompts;
+  $('cfg-auto-shutdown').value = c.device?.auto_shutdown_minutes ?? 30;
+  $('cfg-mute-mode').value = c.input?.mute_button_mode ?? 'SmartDouble';
+  $('cfg-keybind').value = c.keybind ?? 'F20';
+  $('cfg-double-tap').value = c.double_tap_ms ?? 500;
+
+  $('voice-enabled').checked = !!c.voice?.enabled;
+  $('voice-battery-low').checked = !!c.voice?.on_battery_low;
+  $('voice-charging').checked = !!c.voice?.on_charging;
+  $('voice-full-charge').checked = !!c.voice?.on_full_charge;
+  $('voice-connected').checked = !!c.voice?.on_connected;
+  $('voice-disconnected').checked = !!c.voice?.on_disconnected;
+  $('voice-button-check').checked = c.voice?.on_button_check !== false;
+  $('voice-exact-percent').checked = !!c.voice?.exact_percent;
+
+  $('discord-mode').value = c.discord?.mode ?? 'Keybind';
+  $('discord-keybind').value = c.discord?.keybind ?? 'F20';
+  $('discord-app-id').value = c.discord?.direct?.app_id ?? '';
+  $('discord-battery').checked = !!c.discord?.direct?.show_battery;
+  $('discord-mute').checked = !!c.discord?.direct?.show_mute_status;
+
+  $('cfg-debug').checked = !!c.debug_logging;
+  $('cfg-console').checked = !!c.log_to_console;
+  $('cfg-file').checked = !!c.log_to_file;
+  $('cfg-start-os').checked = !!c.start_with_os;
+  $('cfg-start-compact').checked = !!c.start_in_compact_mode;
+  $('cfg-compact').checked = !!c.compact_mode;
+  $('cfg-language').value = c.language ?? 'ru';
+
+  const bands = c.audio?.eq_bands ?? Array(10).fill(0);
+  document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = Number(bands[i] ?? 0));
+  $('sidetone').checked = !!c.device?.sidetone;
+  markSaved();
+}
+
+function uiToConfig() {
+  const c = structuredClone(config);
+  c.enabled = $('cfg-enabled').checked;
+  c.keybind = $('cfg-keybind').value.trim() || 'F20';
+  c.double_tap_ms = Number($('cfg-double-tap').value) || 500;
+  c.compact_mode = $('cfg-compact').checked;
+  c.start_with_os = $('cfg-start-os').checked;
+  c.start_in_compact_mode = $('cfg-start-compact').checked;
+  c.language = $('cfg-language').value;
+  c.device.sidetone = $('cfg-sidetone').checked;
+  c.device.voice_prompts = $('cfg-voice-prompts').checked;
+  c.device.auto_shutdown_minutes = Number($('cfg-auto-shutdown').value) || 0;
+  c.input.mute_button_mode = $('cfg-mute-mode').value;
+
+  c.voice.enabled = $('voice-enabled').checked;
+  c.voice.on_battery_low = $('voice-battery-low').checked;
+  c.voice.on_charging = $('voice-charging').checked;
+  c.voice.on_full_charge = $('voice-full-charge').checked;
+  c.voice.on_connected = $('voice-connected').checked;
+  c.voice.on_disconnected = $('voice-disconnected').checked;
+  c.voice.on_button_check = $('voice-button-check').checked;
+  c.voice.exact_percent = $('voice-exact-percent').checked;
+
+  c.discord.mode = $('discord-mode').value;
+  c.discord.keybind = $('discord-keybind').value.trim() || null;
+  c.discord.direct.app_id = $('discord-app-id').value.trim();
+  c.discord.direct.show_battery = $('discord-battery').checked;
+  c.discord.direct.show_mute_status = $('discord-mute').checked;
+
+  c.debug_logging = $('cfg-debug').checked;
+  c.log_to_console = $('cfg-console').checked;
+  c.log_to_file = $('cfg-file').checked;
+
+  c.audio.eq_bands = Array.from(document.querySelectorAll('.eq-band input')).map((input) => Number(input.value));
+  return c;
+}
+
+async function loadConfig() {
+  try {
+    configToUi(await invoke('get_config'));
+  } catch (error) {
+    console.error('get_config failed', error);
+    toast(`Settings load failed: ${error}`);
+  }
+}
+
+async function saveSettings() {
+  try {
+    config = uiToConfig();
+    await invoke('save_config', { config });
+    await command('set_sidetone', { enabled: config.device.sidetone });
+    markSaved();
+    toast('Settings saved');
+  } catch (error) {
+    console.error('save_config failed', error);
+    toast(`Save failed: ${error}`);
+  }
+}
+
 $('btn-mute').addEventListener('click', () => command('toggle_mute'));
 $('btn-check').addEventListener('click', refresh);
 $('btn-reconnect').addEventListener('click', refresh);
-$('btn-compact').addEventListener('click', async () => {
-  await command('open_compact_window');
+$('btn-voice-check').addEventListener('click', checkBatteryVoice);
+$('btn-test-voice').addEventListener('click', checkBatteryVoice);
+$('btn-save-settings').addEventListener('click', saveSettings);
+$('btn-reset-settings').addEventListener('click', loadConfig);
+$('btn-compact').addEventListener('click', () => command('open_compact_window'));
+$('sidetone').addEventListener('change', (e) => {
+  command('set_sidetone', { enabled: e.target.checked });
+  if (config) { config.device.sidetone = e.target.checked; $('cfg-sidetone').checked = e.target.checked; markDirty(); }
 });
-$('sidetone').addEventListener('change', (e) => command('set_sidetone', { enabled: e.target.checked }));
-$('voice-prompts').addEventListener('change', (e) => command('set_voice_prompts', { enabled: e.target.checked }));
 $('volume').addEventListener('input', (e) => $('volume-value').textContent = `${e.target.value}%`);
 $('mic-volume').addEventListener('input', (e) => $('mic-value').textContent = `${e.target.value}%`);
 $('mic-toggle').addEventListener('click', () => command('toggle_mute'));
-$('play-button').addEventListener('click', () => toast('PLAY command is not connected to the Rust audio backend yet'));
+$('play-button').addEventListener('click', () => toast('PLAY is handled by the Rust input backend and will be connected to a Tauri command next.'));
+
+document.querySelectorAll('#settings input, #settings select').forEach((el) => {
+  el.addEventListener('change', () => markDirty());
+  el.addEventListener('input', () => markDirty());
+});
 
 for (const button of document.querySelectorAll('.tab-btn')) {
   button.addEventListener('click', () => {
@@ -117,14 +244,24 @@ for (const button of document.querySelectorAll('.settings-tab')) {
   });
 }
 
-for (const band of document.querySelectorAll('.eq-band input')) {
-  band.addEventListener('input', () => {});
-}
-$('eq-reset').addEventListener('click', () => document.querySelectorAll('.eq-band input').forEach((input) => input.value = 0));
+const presets = {
+  Flat: [0,0,0,0,0,0,0,0,0,0],
+  'Bass Boost': [6,4,2,0,0,0,0,0,0,0],
+  'Bass Cut': [-6,-4,-2,0,0,0,0,0,0,0],
+  'Treble Boost': [0,0,0,0,0,0,2,4,6,8],
+  'Voice Chat': [-2,0,2,4,6,6,4,2,0,-2],
+  Gaming: [4,3,2,1,0,0,1,2,3,4]
+};
+
+for (const band of document.querySelectorAll('.eq-band input')) band.addEventListener('input', markDirty);
+$('eq-reset').addEventListener('click', () => {
+  document.querySelectorAll('.eq-band input').forEach((input) => input.value = 0);
+  markDirty();
+});
 $('eq-preset').addEventListener('change', () => {
-  const preset = $('eq-preset').value;
-  const values = { Flat: [0,0,0,0,0,0,0], FPS: [2,1,-1,2,4,3,1], Music: [4,3,1,0,2,3,4], Movie: [3,2,0,1,2,3,2] };
-  document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[preset][i]);
+  const values = presets[$('eq-preset').value] || presets.Flat;
+  document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[i]);
+  markDirty();
 });
 
 listen('device-state', (event) => updateBattery(event.payload));
@@ -135,5 +272,6 @@ listen('device-command-ok', (event) => {
   if (event.payload === 'mute') toast('Mute state changed');
 });
 
+loadConfig();
 refresh();
 setTimeout(refresh, 300);
