@@ -35,15 +35,67 @@ fn save_config(config: Config) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_tray_config() -> Result<TrayIconConfig, String> { Ok(TrayIconConfig::load_or_create()) }
+
+#[tauri::command]
+fn save_tray_config(mut config: TrayIconConfig) -> Result<(), String> {
+    config.sanitize();
+    config.save(TrayIconConfig::default_path()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn check_battery_voice(state: State<AppState>) -> Result<(), String> {
     let device = state.device_state.lock().unwrap().clone();
     if !device.connected { return Err("Headset is not connected".into()); }
     let config = Config::load().unwrap_or_default();
     if !config.voice.enabled || !config.voice.on_button_check { return Err("Battery voice notification is disabled in Settings → Voice".into()); }
-    let event = if device.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.battery_percent) };
     hyperx_ngenuity_open::audio::voice::update_config(config.voice);
+    let event = if device.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.battery_percent) };
     hyperx_ngenuity_open::audio::voice::play(event);
     Ok(())
+}
+
+#[tauri::command]
+fn test_voice() -> Result<(), String> {
+    hyperx_ngenuity_open::audio::voice::play_test();
+    Ok(())
+}
+
+#[tauri::command]
+fn get_audio_levels() -> Result<hyperx_ngenuity_open::system_audio::AudioLevels, String> {
+    hyperx_ngenuity_open::system_audio::get_levels().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_volume(percent: u8) -> Result<(), String> {
+    hyperx_ngenuity_open::system_audio::set_output(percent).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_mic_volume(percent: u8) -> Result<(), String> {
+    hyperx_ngenuity_open::system_audio::set_input(percent).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn toggle_system_mic_mute() -> Result<(), String> {
+    hyperx_ngenuity_open::system_audio::toggle_mic_mute().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn play_pause() -> Result<(), String> {
+    hyperx_ngenuity_open::system_audio::play_pause().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn apply_eq(bands: [f32; 10]) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    { return hyperx_ngenuity_open::audio::windows::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
+    #[cfg(target_os = "linux")]
+    { let _ = bands; return Err("Linux EQ backend is not implemented yet".into()); }
+    #[cfg(target_os = "macos")]
+    { let _ = bands; return Err("macOS EQMac backend is not implemented yet".into()); }
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    { let _ = bands; Err("EQ backend is not implemented for this platform".into()) }
 }
 
 #[tauri::command]
@@ -88,7 +140,9 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
 }
 
 fn main() {
-    env_logger::init(); GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
+    env_logger::init();
+    GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
+    hyperx_ngenuity_open::audio::voice::update_config(Config::load().unwrap_or_default().voice);
     let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
     let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
 
@@ -132,10 +186,9 @@ fn main() {
                                 log::info!("[Device] Headset connected");
                                 { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); }
                                 let _ = app_handle_device.emit("device-connected", ()); let _ = app_handle_device.emit("device-state", device.state.clone());
-                                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Connected);
                             }
                             Err(e) => {
-                                if was_connected { log::warn!("[Device] Lost connection: {}", e); was_connected = false; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Disconnected); publish_disconnected(&app_handle_device, &device_state_inner); }
+                                if was_connected { log::warn!("[Device] Lost connection: {}", e); was_connected = false; publish_disconnected(&app_handle_device, &device_state_inner); }
                                 thread::sleep(Duration::from_secs(2)); continue;
                             }
                         }
@@ -163,7 +216,7 @@ fn main() {
                             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
                             if device.state.battery_percent > 20 { last_battery_low = false; }
                             if device.state.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
-                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
+                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                             if !device.state.charging { last_full_charge = false; }
                             last_charging = device.state.charging;
                             if let Some(tray) = app_handle_device.tray_by_id("main") {
@@ -176,8 +229,8 @@ fn main() {
                         }
                         Err(e) => {
                             heartbeat_failures += 1; let enumerated = HyperXDevice::is_enumerated();
-                            log::warn!("[HID] Heartbeat failed {}/5: {}; Windows enumeration={}", heartbeat_failures, e, enumerated);
-                            if heartbeat_failures >= 5 { log::warn!("[HID] Resetting handle after 5 failures; enumeration={}", enumerated); device.disconnect(); heartbeat_failures = 0; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Disconnected); publish_disconnected(&app_handle_device, &device_state_inner); }
+                            log::warn!("[HID] Heartbeat failed {}/5: {}; enumeration={}", heartbeat_failures, e, enumerated);
+                            if heartbeat_failures >= 5 { log::warn!("[HID] Resetting handle after 5 failures; enumeration={}", enumerated); device.disconnect(); heartbeat_failures = 0; publish_disconnected(&app_handle_device, &device_state_inner); }
                         }
                     }
                     thread::sleep(Duration::from_millis(500));
@@ -185,7 +238,12 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_config, save_config, check_battery_voice, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
+        .invoke_handler(tauri::generate_handler![
+            get_device_state, get_config, save_config, get_tray_config, save_tray_config,
+            check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume,
+            toggle_system_mic_mute, play_pause, apply_eq, toggle_mute, set_sidetone,
+            set_voice_prompts, open_compact_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
