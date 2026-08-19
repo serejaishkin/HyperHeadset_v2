@@ -38,6 +38,9 @@ fn set_voice_prompts(enabled: bool, state: State<AppState>) -> Result<(), String
 
 #[tauri::command]
 fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.hide();
+    }
     if let Some(window) = app.get_webview_window("compact") {
         let _ = window.show();
         let _ = window.set_focus();
@@ -62,6 +65,9 @@ fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
 
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        if let Some(compact) = app.get_webview_window("compact") {
+            let _ = compact.hide();
+        }
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
@@ -156,6 +162,20 @@ fn main() {
                 });
             }
 
+            if let Some(compact_window) = app.get_webview_window("compact") {
+                let app_for_close = app_handle.clone();
+                compact_window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = event;
+                        if let Some(compact) = app_for_close.get_webview_window("compact") {
+                            let _ = compact.hide();
+                        }
+                        show_main_window(&app_for_close);
+                    }
+                });
+            }
+
             let app_handle_device = app_handle.clone();
             thread::spawn(move || {
                 let mut device = HyperXDevice::new();
@@ -190,13 +210,40 @@ fn main() {
 
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
                         let result = match cmd {
-                            DeviceCommand::ToggleMute => device.toggle_mute(),
-                            DeviceCommand::SetSidetone(enabled) => device.set_sidetone(enabled),
-                            DeviceCommand::SetVoicePrompts(enabled) => device.set_voice_prompts(enabled),
+                            DeviceCommand::ToggleMute => {
+                                let result = device.toggle_mute();
+                                match &result {
+                                    Ok(_) => {
+                                        let _ = app_handle_device.emit("device-command-ok", "mute");
+                                    }
+                                    Err(e) => {
+                                        let _ = app_handle_device.emit("device-command-error", e.to_string());
+                                    }
+                                }
+                                result
+                            }
+                            DeviceCommand::SetSidetone(enabled) => {
+                                let result = device.set_sidetone(enabled);
+                                if let Err(e) = &result {
+                                    let _ = app_handle_device.emit("device-command-error", e.to_string());
+                                }
+                                result
+                            }
+                            DeviceCommand::SetVoicePrompts(enabled) => {
+                                let result = device.set_voice_prompts(enabled);
+                                if let Err(e) = &result {
+                                    let _ = app_handle_device.emit("device-command-error", e.to_string());
+                                }
+                                result
+                            }
                         };
 
                         if let Err(e) = result {
                             log::warn!("[Device] Command failed: {}", e);
+                        }
+                        {
+                            let mut st = device_state_inner.lock().unwrap();
+                            *st = device.state.clone();
                         }
                         let _ = app_handle_device.emit("device-state", device.state.clone());
                     }
