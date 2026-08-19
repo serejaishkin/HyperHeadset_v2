@@ -18,7 +18,9 @@ pub struct AppState { pub device_state: Arc<Mutex<DeviceState>>, pub device_cmd_
 fn get_device_state(state: State<AppState>) -> DeviceState { state.device_state.lock().unwrap().clone() }
 
 #[tauri::command]
-fn get_config() -> Result<Config, String> { Config::load().or_else(|_| Ok(Config::default())).map_err(|e| e.to_string()) }
+fn get_config() -> Result<Config, String> {
+    Ok(Config::load().unwrap_or_default())
+}
 
 #[tauri::command]
 fn save_config(config: Config) -> Result<(), String> {
