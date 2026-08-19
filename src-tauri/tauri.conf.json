@@ -6,11 +6,20 @@
   "build": { "frontendDist": "../ui" },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{
-      "label": "main", "title": "HyperHeadsetv2",
-      "width": 980, "height": 600,
-      "minWidth": 400, "minHeight": 300, "center": true
-    }]
+    "windows": [
+      {
+        "label": "main", "title": "HyperHeadsetv2",
+        "width": 980, "height": 600,
+        "minWidth": 400, "minHeight": 300, "center": true
+      },
+      {
+        "label": "compact", "url": "compact.html", "title": "HyperHeadsetv2 Compact",
+        "width": 280, "height": 300,
+        "minWidth": 240, "minHeight": 240,
+        "maxWidth": 420, "maxHeight": 480,
+        "center": true, "visible": false, "resizable": true
+      }
+    ]
   },
   "bundle": {
     "active": true, "targets": "all",
