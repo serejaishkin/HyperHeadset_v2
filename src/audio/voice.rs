@@ -15,10 +15,7 @@ pub fn vlog(msg: &str) {
     let log_path = std::env::temp_dir().join("hyper_voice_debug.log");
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
         use std::io::Write;
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
         let _ = writeln!(f, "[{}] {}", now, msg);
         let _ = f.flush();
     }
@@ -42,8 +39,6 @@ pub enum VoiceEvent {
     Charging,
     FullCharge,
     LowBattery,
-    Connected,
-    Disconnected,
 }
 
 #[cfg(feature = "embedded-voice")]
@@ -51,25 +46,38 @@ pub fn play(event: VoiceEvent) {
     let cfg = get_cfg().lock().unwrap().clone();
     if !cfg.enabled { return; }
     vlog(&format!("play() called: {:?}", event));
-    let bytes: Option<&'static [u8]> = match event {
-        VoiceEvent::Battery(p) => Some(nearest_battery(p)),
-        VoiceEvent::Charging => { if !cfg.on_charging { return; } Some(embedded::CHARGING) }
-        VoiceEvent::FullCharge => { if !cfg.on_full_charge { return; } Some(embedded::FULL_CHARGE) }
-        VoiceEvent::LowBattery => { if !cfg.on_battery_low { return; } Some(embedded::LOW_BATTERY) }
-        VoiceEvent::Connected | VoiceEvent::Disconnected => { if !cfg.on_disconnected { return; } None }
+    let bytes: &'static [u8] = match event {
+        VoiceEvent::Battery(p) => nearest_battery(p),
+        VoiceEvent::Charging => { if !cfg.on_charging { return; } embedded::CHARGING }
+        VoiceEvent::FullCharge => { if !cfg.on_full_charge { return; } embedded::FULL_CHARGE }
+        VoiceEvent::LowBattery => { if !cfg.on_battery_low { return; } embedded::LOW_BATTERY }
     };
-    if let Some(bytes) = bytes {
-        if bytes.len() < 44 { log::warn!("[Voice] Audio file empty ({} bytes), skipping", bytes.len()); return; }
-        vlog(&format!("playback start, len={}", bytes.len()));
-        std::thread::spawn(move || {
-            if let Err(e) = play_blocking(bytes) { vlog(&format!("playback ERROR: {}", e)); }
-            else { vlog("playback OK"); }
-        });
-    } else { vlog("no audio for event"); }
+    play_bytes(bytes);
+}
+
+/// Plays one of the bundled WAV files without requiring a connected headset.
+/// This makes Settings -> Voice -> Test voice useful even when HID is unavailable.
+#[cfg(feature = "embedded-voice")]
+pub fn play_test() {
+    vlog("play_test() called");
+    play_bytes(embedded::BAT_050);
 }
 
 #[cfg(not(feature = "embedded-voice"))]
 pub fn play(_event: VoiceEvent) { vlog("play() called but feature DISABLED"); }
+
+#[cfg(not(feature = "embedded-voice"))]
+pub fn play_test() { vlog("play_test() called but feature DISABLED"); }
+
+#[cfg(feature = "embedded-voice")]
+fn play_bytes(bytes: &'static [u8]) {
+    if bytes.len() < 44 { log::warn!("[Voice] WAV is too small ({} bytes)", bytes.len()); return; }
+    vlog(&format!("playback start, len={}", bytes.len()));
+    std::thread::spawn(move || {
+        if let Err(e) = play_blocking(bytes) { vlog(&format!("playback ERROR: {}", e)); }
+        else { vlog("playback OK"); }
+    });
+}
 
 #[cfg(feature = "embedded-voice")]
 fn nearest_battery(percent: u8) -> &'static [u8] {
@@ -87,8 +95,7 @@ fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error>>
     use rodio::{Decoder, OutputStream, Sink};
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
-    let cursor = Cursor::new(bytes);
-    let source = Decoder::new(cursor)?;
+    let source = Decoder::new(Cursor::new(bytes))?;
     sink.append(source);
     sink.sleep_until_end();
     Ok(())
