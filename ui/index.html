@@ -13,13 +13,11 @@
       <input id="volume" class="vertical-range" type="range" min="0" max="100" value="92">
       <div class="side-value" id="volume-value">92%</div>
     </div>
-
     <div class="side-control">
       <div class="side-title">MIC</div>
       <input id="mic-volume" class="vertical-range" type="range" min="0" max="100" value="100">
       <div class="side-value" id="mic-value">100%</div>
     </div>
-
     <button class="side-button" id="mic-toggle">MIC ON</button>
     <label class="side-check"><input type="checkbox" id="sidetone"><span>Sidetone</span></label>
     <button class="side-button play-button" id="play-button">PLAY</button>
@@ -60,6 +58,7 @@
       <div class="quick-actions">
         <button id="btn-mute">Mute Mic</button>
         <button id="btn-check">Refresh</button>
+        <button id="btn-voice-check">Check Battery (Voice)</button>
       </div>
 
       <div id="device-message" class="device-message">
@@ -73,56 +72,103 @@
       <h1>Equalizer</h1>
       <div class="eq-layout">
         <div class="eq-toolbar">
-          <label>Preset <select id="eq-preset"><option>Flat</option><option>FPS</option><option>Music</option><option>Movie</option></select></label>
+          <label>Preset <select id="eq-preset"><option>Flat</option><option>Bass Boost</option><option>Bass Cut</option><option>Treble Boost</option><option>Voice Chat</option><option>Gaming</option></select></label>
           <button id="eq-reset">Reset</button>
         </div>
         <div class="eq-bands" id="eq-bands">
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>60</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>150</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>400</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>1k</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>2.4k</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>6k</span></div>
-          <div class="eq-band"><input type="range" min="-12" max="12" value="0"><span>12k</span></div>
+          <div class="eq-band"><input data-band="0" type="range" min="-12" max="12" value="0"><span>60</span></div>
+          <div class="eq-band"><input data-band="1" type="range" min="-12" max="12" value="0"><span>150</span></div>
+          <div class="eq-band"><input data-band="2" type="range" min="-12" max="12" value="0"><span>400</span></div>
+          <div class="eq-band"><input data-band="3" type="range" min="-12" max="12" value="0"><span>1k</span></div>
+          <div class="eq-band"><input data-band="4" type="range" min="-12" max="12" value="0"><span>2.4k</span></div>
+          <div class="eq-band"><input data-band="5" type="range" min="-12" max="12" value="0"><span>4k</span></div>
+          <div class="eq-band"><input data-band="6" type="range" min="-12" max="12" value="0"><span>6k</span></div>
+          <div class="eq-band"><input data-band="7" type="range" min="-12" max="12" value="0"><span>8k</span></div>
+          <div class="eq-band"><input data-band="8" type="range" min="-12" max="12" value="0"><span>10k</span></div>
+          <div class="eq-band"><input data-band="9" type="range" min="-12" max="12" value="0"><span>12k</span></div>
         </div>
-        <div class="feature-note">Equalizer controls are ready in the Tauri UI. The existing Rust audio backend remains unchanged until its platform command is wired.</div>
+        <div class="feature-note">EQ values are stored in the same configuration as the original eframe application. The existing audio backend remains the source of truth for actual platform EQ processing.</div>
       </div>
     </section>
 
     <section class="tab-content" id="settings">
-      <h1>Settings</h1>
+      <div class="settings-header">
+        <div><h1>Settings</h1><p>All major settings from the original eframe application are available here.</p></div>
+        <span id="settings-dirty" class="dirty-indicator">Saved</span>
+      </div>
+
       <div class="settings-tabs">
-        <button class="settings-tab active" data-settings-tab="voice-settings">Voice</button>
-        <button class="settings-tab" data-settings-tab="device-settings">Device</button>
+        <button class="settings-tab active" data-settings-tab="headset-settings">Headset</button>
+        <button class="settings-tab" data-settings-tab="voice-settings">Voice</button>
+        <button class="settings-tab" data-settings-tab="tray-settings">Tray Icon</button>
+        <button class="settings-tab" data-settings-tab="discord-settings">Discord</button>
+        <button class="settings-tab" data-settings-tab="debug-settings">Debug</button>
         <button class="settings-tab" data-settings-tab="interface-settings">Interface</button>
-        <button class="settings-tab" data-settings-tab="about-settings">About</button>
       </div>
 
-      <div class="settings-pane active" id="voice-settings">
-        <div class="settings-section-title">Voice & notifications</div>
-        <div class="setting-row"><div><strong>Voice prompts</strong><small>Headset voice prompts</small></div><input type="checkbox" id="voice-prompts"></div>
-        <div class="setting-row"><div><strong>Voice notifications</strong><small>Application notifications</small></div><input type="checkbox" id="voice-enabled" checked></div>
-        <div class="setting-row"><div><strong>Battery low</strong><small>Notify when battery is low</small></div><input type="checkbox" id="voice-battery-low" checked></div>
-        <div class="setting-row"><div><strong>Charging</strong><small>Notify when charging starts</small></div><input type="checkbox" id="voice-charging" checked></div>
+      <div class="settings-scroll">
+        <div class="settings-pane active" id="headset-settings">
+          <div class="settings-section-title">Headset</div>
+          <div class="setting-row"><div><strong>Application enabled</strong><small>Enable HyperHeadset controls</small></div><input type="checkbox" id="cfg-enabled"></div>
+          <div class="setting-row"><div><strong>Sidetone</strong><small>Hear your microphone in the headset</small></div><input type="checkbox" id="cfg-sidetone"></div>
+          <div class="setting-row"><div><strong>Voice prompts</strong><small>Remember the headset voice prompt preference</small></div><input type="checkbox" id="cfg-voice-prompts"></div>
+          <div class="setting-row"><div><strong>Auto-shutdown</strong><small>0 disables the timer</small></div><div class="number-setting"><input type="number" id="cfg-auto-shutdown" min="0" max="60"><span>min</span></div></div>
+          <div class="settings-section-title">Mute button</div>
+          <div class="setting-row"><div><strong>Mode</strong><small>How the headset button behaves</small></div><select id="cfg-mute-mode"><option value="Standard">Standard (MicMute)</option><option value="MediaPlayPause">Play/Pause</option><option value="SmartDouble">Smart: single mute / double Play-Pause</option><option value="SmartHold">Smart: short Play-Pause / hold mute</option><option value="HoldPlayPause">Smart: short mute / hold Play-Pause</option></select></div>
+          <div class="setting-row"><div><strong>Keybind</strong><small>Global mute/Discord key</small></div><input type="text" id="cfg-keybind"></div>
+          <div class="setting-row"><div><strong>Double-tap delay</strong><small>Smart double-click interval</small></div><div class="number-setting"><input type="number" id="cfg-double-tap" min="100" max="2000"><span>ms</span></div></div>
+        </div>
+
+        <div class="settings-pane" id="voice-settings">
+          <div class="settings-section-title">Voice notifications</div>
+          <div class="setting-row"><div><strong>Enable voice</strong><small>Enable spoken battery/status notifications</small></div><input type="checkbox" id="voice-enabled"></div>
+          <div class="setting-row"><div><strong>Battery low</strong><small>Announce low battery</small></div><input type="checkbox" id="voice-battery-low"></div>
+          <div class="setting-row"><div><strong>Charging</strong><small>Announce charging</small></div><input type="checkbox" id="voice-charging"></div>
+          <div class="setting-row"><div><strong>Full charge</strong><small>Announce 100% while charging</small></div><input type="checkbox" id="voice-full-charge"></div>
+          <div class="setting-row"><div><strong>Connected</strong><small>Announce device connection</small></div><input type="checkbox" id="voice-connected"></div>
+          <div class="setting-row"><div><strong>Disconnected</strong><small>Announce device disconnection</small></div><input type="checkbox" id="voice-disconnected"></div>
+          <div class="setting-row"><div><strong>Button check</strong><small>Allow “Check Battery (Voice)”</small></div><input type="checkbox" id="voice-button-check"></div>
+          <div class="setting-row"><div><strong>Exact percent</strong><small>Reserved for exact percentage voice assets</small></div><input type="checkbox" id="voice-exact-percent"></div>
+          <div class="settings-actions"><button id="btn-test-voice">Test voice</button></div>
+        </div>
+
+        <div class="settings-pane" id="tray-settings">
+          <div class="settings-section-title">Tray</div>
+          <div class="setting-row info-row"><span>Tray integration</span><strong>Enabled</strong></div>
+          <div class="setting-row info-row"><span>Left click</span><strong>Open main window</strong></div>
+          <div class="setting-row info-row"><span>Menu</span><strong>Open / Mute / Compact / Exit</strong></div>
+          <div class="feature-note">The tray battery icon is generated by the Rust backend. Detailed tray icon color/size editing remains in the original tray configuration and will be exposed here in a later UI pass.</div>
+        </div>
+
+        <div class="settings-pane" id="discord-settings">
+          <div class="settings-section-title">Discord</div>
+          <div class="setting-row"><div><strong>Mode</strong><small>Discord integration mode</small></div><select id="discord-mode"><option value="None">None</option><option value="Keybind">Keybind</option><option value="Direct">Direct</option></select></div>
+          <div class="setting-row"><div><strong>Keybind</strong><small>Discord mute key</small></div><input type="text" id="discord-keybind"></div>
+          <div class="setting-row"><div><strong>Application ID</strong><small>Discord Rich Presence application ID</small></div><input type="text" id="discord-app-id"></div>
+          <div class="setting-row"><div><strong>Show battery</strong></div><input type="checkbox" id="discord-battery"></div>
+          <div class="setting-row"><div><strong>Show mute status</strong></div><input type="checkbox" id="discord-mute"></div>
+        </div>
+
+        <div class="settings-pane" id="debug-settings">
+          <div class="settings-section-title">Debug & logging</div>
+          <div class="setting-row"><div><strong>Debug logging</strong><small>Verbose Rust logs</small></div><input type="checkbox" id="cfg-debug"></div>
+          <div class="setting-row"><div><strong>Log to console</strong></div><input type="checkbox" id="cfg-console"></div>
+          <div class="setting-row"><div><strong>Log to file</strong><small>Write hyperx-ngenuity-open.log</small></div><input type="checkbox" id="cfg-file"></div>
+        </div>
+
+        <div class="settings-pane" id="interface-settings">
+          <div class="settings-section-title">Interface & startup</div>
+          <div class="setting-row"><div><strong>Start with OS</strong><small>Start automatically with the operating system</small></div><input type="checkbox" id="cfg-start-os"></div>
+          <div class="setting-row"><div><strong>Start in compact mode</strong><small>Use the separate compact window</small></div><input type="checkbox" id="cfg-start-compact"></div>
+          <div class="setting-row"><div><strong>Compact mode</strong><small>Remember compact mode state</small></div><input type="checkbox" id="cfg-compact"></div>
+          <div class="setting-row"><div><strong>Language</strong></div><select id="cfg-language"><option value="ru">Русский</option><option value="en">English</option></select></div>
+        </div>
       </div>
 
-      <div class="settings-pane" id="device-settings">
-        <div class="settings-section-title">Device</div>
-        <div class="info-row"><span>Connection</span><strong id="settings-connection">Searching...</strong></div>
-        <div class="info-row"><span>Battery</span><strong id="settings-battery">--%</strong></div>
-        <div class="info-row"><span>Charging</span><strong id="settings-charging">Unknown</strong></div>
-        <div class="info-row"><span>Microphone</span><strong id="settings-mic">Unknown</strong></div>
-      </div>
-
-      <div class="settings-pane" id="interface-settings">
-        <div class="settings-section-title">Interface</div>
-        <div class="setting-row"><div><strong>Start in compact mode</strong><small>Use the separate compact window</small></div><input type="checkbox" id="start-compact"></div>
-        <div class="setting-row"><div><strong>Remember last tab</strong><small>Keep the selected page</small></div><input type="checkbox" id="remember-tab" checked></div>
-      </div>
-
-      <div class="settings-pane" id="about-settings">
-        <div class="settings-section-title">HyperHeadsetv2</div>
-        <p class="about-text">Open HyperX headset control application. Tauri provides the interface; the existing Rust core remains responsible for HID and platform integration.</p>
+      <div class="save-bar">
+        <span id="save-message">Changes are saved to config.toml</span>
+        <button id="btn-reset-settings">Reload</button>
+        <button id="btn-save-settings" class="primary">Save Settings</button>
       </div>
     </section>
   </main>
