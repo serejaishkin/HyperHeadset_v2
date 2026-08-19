@@ -151,7 +151,7 @@ impl WindowsTray {
             }
         }
         while let Ok(event) = TrayIconEvent::receiver().try_recv() {
-            if let TrayIconEvent::Click { button: tray_icon::MouseButton::Left, button_state: tray_icon::MouseButtonState::Up, .. } = event {
+            if let TrayIconEvent::Click { button: tray_icon::MouseButton::Left, .. } = event {
                 let _ = self.tx.send(super::TrayCommand::ShowWindow);
             }
         }
