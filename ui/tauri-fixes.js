@@ -4,9 +4,7 @@
   const $ = (id) => document.getElementById(id);
   let savedConfigSnapshot = null;
   let savedTraySnapshot = null;
-
   const clone = (v) => v == null ? v : structuredClone(v);
-  const stable = (v) => JSON.stringify(v, Object.keys(v || {}).sort());
   const snapshot = (v) => JSON.stringify(v);
 
   function setSavedState() {
@@ -66,7 +64,9 @@
     if (label) label.textContent = `Battery 72% · ${size}px · scale ${scale} · gap ${gap}`;
   }
 
-  async function syncSettings() {
+  async function syncSettings(force = false) {
+    // Never overwrite fields while the user has unsaved edits.
+    if (!force && $('settings-dirty')?.classList.contains('dirty')) return;
     try {
       const c = await invoke('get_config');
       const t = await invoke('get_tray_config');
@@ -78,7 +78,6 @@
       updateTrayPreview();
     } catch (e) {
       console.error('[Settings] sync failed', e);
-      // Tray defaults are still shown when the config file does not exist yet.
       updateTrayPreview();
     }
   }
@@ -114,7 +113,7 @@
   function wire() {
     ensureTrayPreview();
     replaceButton('btn-save-settings', saveAll);
-    replaceButton('btn-reset-settings', syncSettings);
+    replaceButton('btn-reset-settings', () => syncSettings(true));
     document.querySelectorAll('#tray-settings input').forEach((el) => {
       el.addEventListener('input', () => { setDirtyState(); updateTrayPreview(); });
       el.addEventListener('change', () => { setDirtyState(); updateTrayPreview(); });
@@ -123,11 +122,10 @@
       el.addEventListener('input', setDirtyState);
       el.addEventListener('change', setDirtyState);
     });
-    // Prevent the original initialization race from leaving the dirty badge behind.
-    setTimeout(syncSettings, 50);
-    setInterval(syncSettings, 5000);
+    setTimeout(() => syncSettings(true), 50);
+    setInterval(() => syncSettings(false), 5000);
     setInterval(() => {
-      if (!savedConfigSnapshot || !savedTraySnapshot) return;
+      if (!savedConfigSnapshot || !savedTraySnapshot || $('settings-dirty')?.classList.contains('dirty')) return;
       try {
         const currentC = typeof window.uiToConfig === 'function' ? window.uiToConfig() : null;
         const currentT = typeof window.uiToTray === 'function' ? window.uiToTray() : null;
