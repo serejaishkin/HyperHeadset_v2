@@ -142,7 +142,20 @@ impl WindowsTray {
 
     pub fn refresh_icon(&mut self) { self.update_icon(); }
     pub fn update_icon_config(&mut self, config: TrayIconConfig) { self.icon_config = config; self.update_icon(); }
-    pub fn poll(&self) {}
+    pub fn poll(&mut self) {
+        while let Ok(event) = MenuEvent::receiver().try_recv() {
+            if let Ok(map) = self.callbacks.lock() {
+                if let Some(f) = map.get(&event.id) {
+                    f();
+                }
+            }
+        }
+        while let Ok(event) = TrayIconEvent::receiver().try_recv() {
+            if let TrayIconEvent::Click { button: tray_icon::MouseButton::Left, button_state: tray_icon::MouseButtonState::Up, .. } = event {
+                let _ = self.tx.send(super::TrayCommand::ShowWindow);
+            }
+        }
+    }
 
     pub fn update_battery(&mut self, percent: u8, charging: bool) {
         if !self.connected { return; }
