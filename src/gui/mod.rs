@@ -182,6 +182,7 @@ impl eframe::App for HyperXApp {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                         self.window_hidden = false;
+                        ctx.request_repaint();
                     }
                     crate::tray::TrayCommand::Quit => {
                         std::process::exit(0);
