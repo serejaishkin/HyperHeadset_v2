@@ -147,10 +147,11 @@ fn main() {
                 .build(&app_handle)?;
 
             if let Some(main_window) = app.get_webview_window("main") {
-                main_window.on_window_event(|window, event| {
+                let window_for_close = main_window.clone();
+                main_window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = window.hide();
+                        let _ = window_for_close.hide();
                     }
                 });
             }
