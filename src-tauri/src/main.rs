@@ -6,6 +6,7 @@ use std::time::Duration;
 use tauri::{Manager, State, Emitter, WindowEvent};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 
+use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
@@ -19,6 +20,37 @@ pub struct AppState {
 #[tauri::command]
 fn get_device_state(state: State<AppState>) -> DeviceState {
     state.device_state.lock().unwrap().clone()
+}
+
+#[tauri::command]
+fn get_config() -> Result<Config, String> {
+    Config::load().or_else(|_| Ok(Config::default())).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_config(config: Config) -> Result<(), String> {
+    hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
+    config.save().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn check_battery_voice(state: State<AppState>) -> Result<(), String> {
+    let device = state.device_state.lock().unwrap().clone();
+    if !device.connected {
+        return Err("Headset is not connected".into());
+    }
+    let config = Config::load().unwrap_or_default();
+    if !config.voice.enabled || !config.voice.on_button_check {
+        return Err("Battery voice notification is disabled in Settings → Voice".into());
+    }
+    let event = if device.charging {
+        hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging
+    } else {
+        hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.battery_percent)
+    };
+    hyperx_ngenuity_open::audio::voice::update_config(config.voice);
+    hyperx_ngenuity_open::audio::voice::play(event);
+    Ok(())
 }
 
 #[tauri::command]
@@ -162,20 +194,6 @@ fn main() {
                 });
             }
 
-            if let Some(compact_window) = app.get_webview_window("compact") {
-                let app_for_close = app_handle.clone();
-                compact_window.on_window_event(move |event| {
-                    if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = event;
-                        if let Some(compact) = app_for_close.get_webview_window("compact") {
-                            let _ = compact.hide();
-                        }
-                        show_main_window(&app_for_close);
-                    }
-                });
-            }
-
             let app_handle_device = app_handle.clone();
             thread::spawn(move || {
                 let mut device = HyperXDevice::new();
@@ -213,34 +231,23 @@ fn main() {
                             DeviceCommand::ToggleMute => {
                                 let result = device.toggle_mute();
                                 match &result {
-                                    Ok(_) => {
-                                        let _ = app_handle_device.emit("device-command-ok", "mute");
-                                    }
-                                    Err(e) => {
-                                        let _ = app_handle_device.emit("device-command-error", e.to_string());
-                                    }
+                                    Ok(_) => { let _ = app_handle_device.emit("device-command-ok", "mute"); }
+                                    Err(e) => { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                                 }
                                 result
                             }
                             DeviceCommand::SetSidetone(enabled) => {
                                 let result = device.set_sidetone(enabled);
-                                if let Err(e) = &result {
-                                    let _ = app_handle_device.emit("device-command-error", e.to_string());
-                                }
+                                if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                                 result
                             }
                             DeviceCommand::SetVoicePrompts(enabled) => {
                                 let result = device.set_voice_prompts(enabled);
-                                if let Err(e) = &result {
-                                    let _ = app_handle_device.emit("device-command-error", e.to_string());
-                                }
+                                if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                                 result
                             }
                         };
-
-                        if let Err(e) = result {
-                            log::warn!("[Device] Command failed: {}", e);
-                        }
+                        if let Err(e) = result { log::warn!("[Device] Command failed: {}", e); }
                         {
                             let mut st = device_state_inner.lock().unwrap();
                             *st = device.state.clone();
@@ -259,11 +266,7 @@ fn main() {
 
                             if let Some(tray) = app_handle_device.tray_by_id("main") {
                                 let icon_config = TrayIconConfig::load_or_create();
-                                let (rgba, w, h) = generate_battery_icon_rgba(
-                                    &icon_config,
-                                    device.state.battery_percent,
-                                    device.state.charging,
-                                );
+                                let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, device.state.battery_percent, device.state.charging);
                                 let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
                                 let tooltip = if device.state.charging {
                                     format!("HyperHeadsetv2\n⚡ {}%", device.state.battery_percent)
@@ -276,25 +279,15 @@ fn main() {
                         Err(e) => {
                             heartbeat_failures += 1;
                             let enumerated = HyperXDevice::is_enumerated();
-                            log::warn!(
-                                "[HID] Heartbeat failed {}/5: {}; Windows enumeration={}",
-                                heartbeat_failures,
-                                e,
-                                enumerated
-                            );
-
+                            log::warn!("[HID] Heartbeat failed {}/5: {}; Windows enumeration={}", heartbeat_failures, e, enumerated);
                             if heartbeat_failures >= 5 {
-                                log::warn!(
-                                    "[HID] Resetting handle after 5 failures; enumeration={}",
-                                    enumerated
-                                );
+                                log::warn!("[HID] Resetting handle after 5 failures; enumeration={}", enumerated);
                                 device.disconnect();
                                 heartbeat_failures = 0;
                                 publish_disconnected(&app_handle_device, &device_state_inner);
                             }
                         }
                     }
-
                     thread::sleep(Duration::from_millis(500));
                 }
             });
@@ -303,6 +296,9 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_device_state,
+            get_config,
+            save_config,
+            check_battery_voice,
             toggle_mute,
             set_sidetone,
             set_voice_prompts,
