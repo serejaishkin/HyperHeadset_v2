@@ -22,27 +22,38 @@ pub fn play_pause() -> anyhow::Result<()> {
 #[cfg(target_os = "windows")]
 mod platform {
     use super::AudioLevels;
-    use windows::Win32::Media::Audio::{eCapture, eConsole, eRender, IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator};
+    use windows::Win32::Media::Audio::{eCapture, eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
 
     fn endpoint(flow: windows::Win32::Media::Audio::EDataFlow) -> anyhow::Result<IAudioEndpointVolume> {
         unsafe {
+            // This function may be called from the Tauri command thread repeatedly.
+            // S_FALSE / RPC_E_CHANGED_MODE are harmless for our use here, and the
+            // actual endpoint activation is still performed on the current thread.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
             let device = enumerator.GetDefaultAudioEndpoint(flow, eConsole)?;
             Ok(device.Activate(CLSCTX_ALL, None)?)
         }
     }
+
     fn read(flow: windows::Win32::Media::Audio::EDataFlow) -> anyhow::Result<u8> {
         unsafe { Ok((endpoint(flow)?.GetMasterVolumeLevelScalar()? * 100.0).round().clamp(0.0, 100.0) as u8) }
     }
+
     fn set(flow: windows::Win32::Media::Audio::EDataFlow, percent: u8) -> anyhow::Result<()> {
         unsafe { endpoint(flow)?.SetMasterVolumeLevelScalar(percent as f32 / 100.0, std::ptr::null())?; }
         Ok(())
     }
-    pub fn get_levels() -> anyhow::Result<AudioLevels> { Ok(AudioLevels { output: read(eRender)?, input: read(eCapture)? }) }
+
+    pub fn get_levels() -> anyhow::Result<AudioLevels> {
+        Ok(AudioLevels { output: read(eRender)?, input: read(eCapture)? })
+    }
+
     pub fn set_output(percent: u8) -> anyhow::Result<()> { set(eRender, percent) }
     pub fn set_input(percent: u8) -> anyhow::Result<()> { set(eCapture, percent) }
+
     pub fn toggle_mic_mute() -> anyhow::Result<()> {
         unsafe {
             let ep = endpoint(eCapture)?;
