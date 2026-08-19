@@ -74,26 +74,27 @@
         <div class="eq-toolbar">
           <label>Preset <select id="eq-preset"><option>Flat</option><option>Bass Boost</option><option>Bass Cut</option><option>Treble Boost</option><option>Voice Chat</option><option>Gaming</option></select></label>
           <button id="eq-reset">Reset</button>
+          <button id="eq-apply" class="primary">Apply EQ</button>
         </div>
         <div class="eq-bands" id="eq-bands">
-          <div class="eq-band"><input data-band="0" type="range" min="-12" max="12" value="0"><span>60</span></div>
-          <div class="eq-band"><input data-band="1" type="range" min="-12" max="12" value="0"><span>150</span></div>
-          <div class="eq-band"><input data-band="2" type="range" min="-12" max="12" value="0"><span>400</span></div>
-          <div class="eq-band"><input data-band="3" type="range" min="-12" max="12" value="0"><span>1k</span></div>
-          <div class="eq-band"><input data-band="4" type="range" min="-12" max="12" value="0"><span>2.4k</span></div>
-          <div class="eq-band"><input data-band="5" type="range" min="-12" max="12" value="0"><span>4k</span></div>
-          <div class="eq-band"><input data-band="6" type="range" min="-12" max="12" value="0"><span>6k</span></div>
-          <div class="eq-band"><input data-band="7" type="range" min="-12" max="12" value="0"><span>8k</span></div>
-          <div class="eq-band"><input data-band="8" type="range" min="-12" max="12" value="0"><span>10k</span></div>
-          <div class="eq-band"><input data-band="9" type="range" min="-12" max="12" value="0"><span>12k</span></div>
+          <div class="eq-band"><input data-band="0" type="range" min="-12" max="12" value="0"><span>32</span></div>
+          <div class="eq-band"><input data-band="1" type="range" min="-12" max="12" value="0"><span>64</span></div>
+          <div class="eq-band"><input data-band="2" type="range" min="-12" max="12" value="0"><span>125</span></div>
+          <div class="eq-band"><input data-band="3" type="range" min="-12" max="12" value="0"><span>250</span></div>
+          <div class="eq-band"><input data-band="4" type="range" min="12" max="12" value="0"><span>500</span></div>
+          <div class="eq-band"><input data-band="5" type="range" min="-12" max="12" value="0"><span>1k</span></div>
+          <div class="eq-band"><input data-band="6" type="range" min="-12" max="12" value="0"><span>2k</span></div>
+          <div class="eq-band"><input data-band="7" type="range" min="-12" max="12" value="0"><span>4k</span></div>
+          <div class="eq-band"><input data-band="8" type="range" min="-12" max="12" value="0"><span>8k</span></div>
+          <div class="eq-band"><input data-band="9" type="range" min="-12" max="12" value="0"><span>16k</span></div>
         </div>
-        <div class="feature-note">EQ values are stored in the same configuration as the original eframe application. The existing audio backend remains the source of truth for actual platform EQ processing.</div>
+        <div class="feature-note">On Windows the EQ is written to Equalizer APO. Linux/macOS keep the preset in config until a native EQ backend is added.</div>
       </div>
     </section>
 
     <section class="tab-content" id="settings">
       <div class="settings-header">
-        <div><h1>Settings</h1><p>All major settings from the original eframe application are available here.</p></div>
+        <div><h1>Settings</h1><p>Settings from the original eframe application, grouped by function.</p></div>
         <span id="settings-dirty" class="dirty-indicator">Saved</span>
       </div>
 
@@ -120,24 +121,33 @@
         </div>
 
         <div class="settings-pane" id="voice-settings">
-          <div class="settings-section-title">Voice notifications</div>
+          <div class="settings-section-title">Bundled WAV voice</div>
+          <div class="feature-note">The project embeds bat_000/bat_010/bat_020/bat_050/bat_100.wav plus charging, full-charge and low-battery WAV files, so battery voice does not depend on headset voice-prompt HID support.</div>
           <div class="setting-row"><div><strong>Enable voice</strong><small>Enable spoken battery/status notifications</small></div><input type="checkbox" id="voice-enabled"></div>
-          <div class="setting-row"><div><strong>Battery low</strong><small>Announce low battery</small></div><input type="checkbox" id="voice-battery-low"></div>
-          <div class="setting-row"><div><strong>Charging</strong><small>Announce charging</small></div><input type="checkbox" id="voice-charging"></div>
-          <div class="setting-row"><div><strong>Full charge</strong><small>Announce 100% while charging</small></div><input type="checkbox" id="voice-full-charge"></div>
-          <div class="setting-row"><div><strong>Connected</strong><small>Announce device connection</small></div><input type="checkbox" id="voice-connected"></div>
-          <div class="setting-row"><div><strong>Disconnected</strong><small>Announce device disconnection</small></div><input type="checkbox" id="voice-disconnected"></div>
+          <div class="setting-row"><div><strong>Battery low</strong><small>Play low_battery.wav</small></div><input type="checkbox" id="voice-battery-low"></div>
+          <div class="setting-row"><div><strong>Charging</strong><small>Play charging.wav</small></div><input type="checkbox" id="voice-charging"></div>
+          <div class="setting-row"><div><strong>Full charge</strong><small>Play full_charge.wav</small></div><input type="checkbox" id="voice-full-charge"></div>
+          <div class="setting-row"><div><strong>Connected / disconnected</strong><small>Reserved for dedicated clips; no such WAV is bundled currently</small></div><input type="checkbox" id="voice-connected"></div>
+          <div class="setting-row"><div><strong>Disconnected notification</strong><small>Reserved for a dedicated disconnected WAV</small></div><input type="checkbox" id="voice-disconnected"></div>
           <div class="setting-row"><div><strong>Button check</strong><small>Allow “Check Battery (Voice)”</small></div><input type="checkbox" id="voice-button-check"></div>
-          <div class="setting-row"><div><strong>Exact percent</strong><small>Reserved for exact percentage voice assets</small></div><input type="checkbox" id="voice-exact-percent"></div>
-          <div class="settings-actions"><button id="btn-test-voice">Test voice</button></div>
+          <div class="setting-row"><div><strong>Battery clip mode</strong><small>Uses the closest bundled clip (0/10/20/50/100%)</small></div><input type="checkbox" id="voice-exact-percent"></div>
+          <div class="settings-actions"><button id="btn-test-voice" class="primary">Test bundled WAV</button></div>
         </div>
 
         <div class="settings-pane" id="tray-settings">
-          <div class="settings-section-title">Tray</div>
-          <div class="setting-row info-row"><span>Tray integration</span><strong>Enabled</strong></div>
-          <div class="setting-row info-row"><span>Left click</span><strong>Open main window</strong></div>
-          <div class="setting-row info-row"><span>Menu</span><strong>Open / Mute / Compact / Exit</strong></div>
-          <div class="feature-note">The tray battery icon is generated by the Rust backend. Detailed tray icon color/size editing remains in the original tray configuration and will be exposed here in a later UI pass.</div>
+          <div class="settings-section-title">Tray icon</div>
+          <div class="setting-row"><div><strong>Icon size</strong><small>Generated battery icon resolution</small></div><div class="number-setting"><input type="number" id="tray-size" min="16" max="512"><span>px</span></div></div>
+          <div class="setting-row"><div><strong>Font scale</strong></div><input type="number" id="tray-font-scale" min="1" max="20"></div>
+          <div class="setting-row"><div><strong>Outline width</strong></div><input type="number" id="tray-outline" min="0" max="10"></div>
+          <div class="setting-row"><div><strong>Border width</strong></div><input type="number" id="tray-border" min="0" max="20"></div>
+          <div class="setting-row"><div><strong>Digit gap</strong></div><input type="number" id="tray-gap" min="0" max="50"></div>
+          <div class="settings-section-title">Colors</div>
+          <div class="tray-color-grid">
+            <label>Charging <input type="color" id="tray-charging-bg"><input type="color" id="tray-charging-fg"><input type="color" id="tray-charging-outline"><input type="color" id="tray-charging-border"></label>
+            <label>High <input type="color" id="tray-high-bg"><input type="color" id="tray-high-fg"><input type="color" id="tray-high-outline"><input type="color" id="tray-high-border"></label>
+            <label>Medium <input type="color" id="tray-medium-bg"><input type="color" id="tray-medium-fg"><input type="color" id="tray-medium-outline"><input type="color" id="tray-medium-border"></label>
+            <label>Low <input type="color" id="tray-low-bg"><input type="color" id="tray-low-fg"><input type="color" id="tray-low-outline"><input type="color" id="tray-low-border"></label>
+          </div>
         </div>
 
         <div class="settings-pane" id="discord-settings">
