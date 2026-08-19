@@ -12,10 +12,7 @@ use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 #[derive(Clone)]
-pub struct AppState {
-    pub device_state: Arc<Mutex<DeviceState>>,
-    pub device_cmd_tx: mpsc::Sender<DeviceCommand>,
-}
+pub struct AppState { pub device_state: Arc<Mutex<DeviceState>>, pub device_cmd_tx: mpsc::Sender<DeviceCommand> }
 
 #[tauri::command]
 fn get_device_state(state: State<AppState>) -> DeviceState { state.device_state.lock().unwrap().clone() }
@@ -51,10 +48,8 @@ fn check_battery_voice(state: State<AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn toggle_mute(state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::ToggleMute).map_err(|e| e.to_string()) }
-
 #[tauri::command]
 fn set_sidetone(enabled: bool, state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::SetSidetone(enabled)).map_err(|e| e.to_string()) }
-
 #[tauri::command]
 fn set_voice_prompts(enabled: bool, state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::SetVoicePrompts(enabled)).map_err(|e| e.to_string()) }
 
@@ -62,9 +57,18 @@ fn set_voice_prompts(enabled: bool, state: State<AppState>) -> Result<(), String
 fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(main) = app.get_webview_window("main") { let _ = main.hide(); }
     if let Some(window) = app.get_webview_window("compact") { let _ = window.show(); let _ = window.set_focus(); return Ok(()); }
-    tauri::WebviewWindowBuilder::new(&app, "compact", tauri::WebviewUrl::App("compact.html".into()))
+    let window = tauri::WebviewWindowBuilder::new(&app, "compact", tauri::WebviewUrl::App("compact.html".into()))
         .title("HyperHeadsetv2 Compact").inner_size(220.0, 200.0).min_inner_size(200.0, 180.0).max_inner_size(300.0, 280.0)
-        .resizable(true).center().build().map(|_| ()).map_err(|e| e.to_string())
+        .resizable(true).center().build().map_err(|e| e.to_string())?;
+    let app_for_close = app.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            if let Some(compact) = app_for_close.get_webview_window("compact") { let _ = compact.hide(); }
+            show_main_window(&app_for_close);
+        }
+    });
+    Ok(())
 }
 
 fn show_main_window(app: &tauri::AppHandle) {
@@ -84,14 +88,11 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
 }
 
 fn main() {
-    env_logger::init();
-    GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
-    let device_state = Arc::new(Mutex::new(DeviceState::default()));
-    let device_state_clone = device_state.clone();
+    env_logger::init(); GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
+    let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
     let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
 
-    tauri::Builder::default()
-        .manage(AppState { device_state: device_state_clone, device_cmd_tx: device_cmd_tx.clone() })
+    tauri::Builder::default().manage(AppState { device_state: device_state_clone, device_cmd_tx: device_cmd_tx.clone() })
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
             let menu = Menu::new(&app_handle)?;
@@ -111,9 +112,8 @@ fn main() {
                         else if event.id == quit_i.id() { app.exit(0); }
                     }
                 })
-                .on_tray_icon_event(|tray, event| {
-                    if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, button_state: tauri::tray::MouseButtonState::Up, .. } = event { show_main_window(&tray.app_handle()); }
-                }).build(&app_handle)?;
+                .on_tray_icon_event(|tray, event| { if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, button_state: tauri::tray::MouseButtonState::Up, .. } = event { show_main_window(&tray.app_handle()); } })
+                .build(&app_handle)?;
 
             if let Some(main_window) = app.get_webview_window("main") {
                 let window_for_close = main_window.clone();
@@ -142,11 +142,7 @@ fn main() {
                     }
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
                         let result = match cmd {
-                            DeviceCommand::ToggleMute => {
-                                let result = device.toggle_mute();
-                                match &result { Ok(_) => { let _ = app_handle_device.emit("device-command-ok", "mute"); }, Err(e) => { let _ = app_handle_device.emit("device-command-error", e.to_string()); } }
-                                result
-                            }
+                            DeviceCommand::ToggleMute => { let result = device.toggle_mute(); match &result { Ok(_) => { let _ = app_handle_device.emit("device-command-ok", "mute"); }, Err(e) => { let _ = app_handle_device.emit("device-command-error", e.to_string()); } } result }
                             DeviceCommand::SetSidetone(enabled) => { let result = device.set_sidetone(enabled); if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); } result }
                             DeviceCommand::SetVoicePrompts(enabled) => { let result = device.set_voice_prompts(enabled); if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); } result }
                         };
@@ -167,7 +163,7 @@ fn main() {
                             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
                             if device.state.battery_percent > 20 { last_battery_low = false; }
                             if device.state.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
-                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
+                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                             if !device.state.charging { last_full_charge = false; }
                             last_charging = device.state.charging;
                             if let Some(tray) = app_handle_device.tray_by_id("main") {
