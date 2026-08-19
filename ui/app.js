@@ -68,8 +68,9 @@ function trayToUi(t) {
   }
 }
 function uiToTray() {
-  const t = structuredClone(trayConfig);
+  const t = structuredClone(trayConfig || {});
   t.size = Number($('tray-size').value) || 256; t.font_scale = Number($('tray-font-scale').value) || 8; t.outline_width = Number($('tray-outline').value) || 0; t.border_width = Number($('tray-border').value) || 0; t.gap_between_digits = Number($('tray-gap').value) || 0;
+  if (!t.colors) return t;
   for (const name of ['charging','high','medium','low']) {
     t.colors[name].bg = colorValue(`tray-${name}-bg`, t.colors[name].bg); t.colors[name].fg = colorValue(`tray-${name}-fg`, t.colors[name].fg); t.colors[name].outline = colorValue(`tray-${name}-outline`, t.colors[name].outline); t.colors[name].border = colorValue(`tray-${name}-border`, t.colors[name].border);
   }
@@ -99,7 +100,11 @@ function uiToConfig() {
 }
 
 async function loadConfig() {
-  try { const [c, t] = await Promise.all([invoke('get_config'), invoke('get_tray_config')]); configToUi(c); trayToUi(t); }
+  try {
+    const [c, t] = await Promise.all([invoke('get_config'), invoke('get_tray_config')]);
+    configToUi(c); trayToUi(t);
+    if (c.start_in_compact_mode) setTimeout(() => invoke('open_compact_window').catch(e => console.debug('compact startup:', e)), 250);
+  }
   catch (error) { console.error('Settings load failed', error); toast(`Settings load failed: ${error}`); }
 }
 
@@ -108,10 +113,10 @@ async function saveSettings() {
   try {
     await invoke('save_config', { config: newConfig }); config = newConfig;
     await invoke('save_tray_config', { config: newTray }); trayConfig = newTray;
-    try { await invoke('apply_eq', { bands: newConfig.audio.eq_bands }); toast('Settings and EQ saved'); }
-    catch (eqError) { console.info('EQ apply:', eqError); toast(`Settings saved. EQ: ${eqError}`); }
+    try { await invoke('apply_eq', { bands: newConfig.audio.eq_bands }); }
+    catch (eqError) { console.info('EQ apply:', eqError); }
     await command('set_sidetone', { enabled: newConfig.device.sidetone }).catch(() => {});
-    markSaved();
+    markSaved(); toast('Settings saved');
   } catch (error) { console.error('Save failed', error); toast(`Save failed: ${error}`); }
 }
 
@@ -137,7 +142,14 @@ $('eq-reset').addEventListener('click', () => { document.querySelectorAll('.eq-b
 $('eq-preset').addEventListener('change', () => { const values = presets[$('eq-preset').value] || presets.Flat; document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[i]); markDirty(); });
 $('eq-apply').addEventListener('click', async () => { const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value)); try { await invoke('apply_eq', { bands }); toast('EQ applied'); } catch (e) { toast(`EQ: ${e}`); } });
 
-listen('device-state', event => updateBattery(event.payload)); listen('device-connected', refresh); listen('device-disconnected', () => updateBattery({ connected:false }));
-listen('device-command-error', event => toast(`Device command failed: ${event.payload}`)); listen('device-command-ok', event => { if (event.payload === 'mute') toast('Mute state changed'); });
+listen('device-state', event => updateBattery(event.payload));
+listen('device-connected', refresh);
+listen('device-disconnected', () => updateBattery({ connected:false }));
+listen('device-command-error', event => toast(`Device command failed: ${event.payload}`));
+listen('device-command-ok', event => { if (event.payload === 'mute') toast('Mute state changed'); });
 
-loadConfig(); refresh(); refreshAudio(); setTimeout(refresh, 300); setInterval(refreshAudio, 2000);
+loadConfig();
+refresh();
+refreshAudio();
+setInterval(refresh, 1000);
+setInterval(refreshAudio, 2000);
