@@ -55,6 +55,8 @@ fn set_mic_volume(percent: u8) -> Result<(), String> { hyperx_ngenuity_open::sys
 #[tauri::command]
 fn toggle_system_mic_mute() -> Result<(), String> { hyperx_ngenuity_open::system_audio::toggle_mic_mute().map_err(|e| e.to_string()) }
 #[tauri::command]
+fn toggle_system_output_mute() -> Result<(), String> { hyperx_ngenuity_open::system_audio::toggle_output_mute().map_err(|e| e.to_string()) }
+#[tauri::command]
 fn play_pause() -> Result<(), String> { hyperx_ngenuity_open::system_audio::play_pause().map_err(|e| e.to_string()) }
 #[tauri::command]
 fn apply_eq(bands: [f32; 10]) -> Result<(), String> {
@@ -70,8 +72,7 @@ fn set_sidetone(enabled: bool, state: State<AppState>) -> Result<(), String> { s
 #[tauri::command]
 fn set_voice_prompts(enabled: bool, state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::SetVoicePrompts(enabled)).map_err(|e| e.to_string()) }
 
-/// Compact is a configured Tauri window. Never create a second WebView for it:
-/// doing so can produce a blank window on WebView2/WebKit and bypass asset routing.
+/// Compact is a configured Tauri window. Never create a second WebView for it.
 #[tauri::command]
 fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(main) = app.get_webview_window("main") { let _ = main.hide(); }
@@ -146,8 +147,8 @@ fn main() {
                             if !startup_announced && device.state.battery_percent > 0 { startup_announced = true; let v = if device.state.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent) }; hyperx_ngenuity_open::audio::voice::play(v); last_charging = device.state.charging; }
                             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
                             if device.state.battery_percent > 20 { last_battery_low = false; }
-                            if device.state.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
-                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
+                            if device.state.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::Charging); }
+                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::FullCharge); }
                             if !device.state.charging { last_full_charge = false; } last_charging = device.state.charging;
                             if let Some(tray) = app_handle_device.tray_by_id("main") { let icon_config = TrayIconConfig::load_or_create(); let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, device.state.battery_percent, device.state.charging); let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))); let tooltip = if device.state.charging { format!("HyperHeadsetv2\n⚡ {}%", device.state.battery_percent) } else { format!("HyperHeadsetv2\n🔋 {}%", device.state.battery_percent) }; let _ = tray.set_tooltip(Some(&tooltip)); }
                         }
@@ -158,7 +159,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_config, save_config, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_config, save_config, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
