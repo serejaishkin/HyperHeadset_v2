@@ -39,7 +39,31 @@ function updateBattery(device) {
   setConnection('connected', pct); $('device-message').className = 'device-message connected'; $('device-message-title').textContent = 'Headset connected'; $('device-message-text').textContent = charging ? 'Charging' : 'Device is ready';
 }
 
-async function refresh() { try { updateBattery(await invoke('get_device_state')); } catch (error) { console.error('get_device_state failed', error); } }
+async function refreshDevices() {
+  try {
+    const devices = await invoke('get_connected_devices');
+    const container = $('device-selector-container');
+    const select = $('device-select');
+    if (devices && devices.length > 1) {
+      container.style.display = 'block';
+      const currentVal = select.value;
+      select.innerHTML = '';
+      devices.forEach((d, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${d.name || 'Headset #' + (idx+1)} (${d.battery_percent}%)`;
+        select.appendChild(opt);
+      });
+      if (currentVal !== '') select.value = currentVal;
+    } else if (container) {
+      container.style.display = 'none';
+    }
+  } catch (e) {
+    // Ignore if not implemented or unavailable
+  }
+}
+
+async function refresh() { try { updateBattery(await invoke('get_device_state')); refreshDevices(); } catch (error) { console.error('get_device_state failed', error); } }
 async function command(name, args = {}) { try { return await invoke(name, args); } catch (error) { console.error(`${name} failed`, error); toast(`${name}: ${error}`); throw error; } }
 
 async function refreshAudio() {
