@@ -1,9 +1,0 @@
-C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\futures_macro-9cc17f84f7d0a63f.d: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\executor.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\join.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\select.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\stream_select.rs
-
-C:\Users\sergejj\Documents\GitHub\HyperHeadsetv2\src-tauri\target\release\deps\futures_macro-9cc17f84f7d0a63f.dll: C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\lib.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\executor.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\join.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\select.rs C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\stream_select.rs
-
-C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\lib.rs:
-C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\executor.rs:
-C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\join.rs:
-C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\select.rs:
-C:\Users\sergejj\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\futures-macro-0.3.34\src\stream_select.rs:
