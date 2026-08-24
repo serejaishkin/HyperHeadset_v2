@@ -21,24 +21,14 @@ pub fn vlog(msg: &str) {
     }
 }
 
-#[cfg(feature = "embedded-voice")]
-mod embedded {
-    pub const BAT_000: &[u8] = include_bytes!("../../assets/voice/bat_000.wav");
-    pub const BAT_010: &[u8] = include_bytes!("../../assets/voice/bat_010.wav");
-    pub const BAT_020: &[u8] = include_bytes!("../../assets/voice/bat_020.wav");
-    pub const BAT_050: &[u8] = include_bytes!("../../assets/voice/bat_050.wav");
-    pub const BAT_100: &[u8] = include_bytes!("../../assets/voice/bat_100.wav");
-    pub const CHARGING: &[u8] = include_bytes!("../../assets/voice/charging.wav");
-    pub const FULL_CHARGE: &[u8] = include_bytes!("../../assets/voice/full_charge.wav");
-    pub const LOW_BATTERY: &[u8] = include_bytes!("../../assets/voice/low_battery.wav");
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum VoiceEvent {
     Battery(u8),
     Charging,
     FullCharge,
     LowBattery,
+    Connected,
+    Disconnected,
 }
 
 #[cfg(feature = "embedded-voice")]
@@ -46,13 +36,16 @@ pub fn play(event: VoiceEvent) {
     let cfg = get_cfg().lock().unwrap().clone();
     if !cfg.enabled { return; }
     vlog(&format!("play() called: {:?}", event));
-    let bytes: &'static [u8] = match event {
-        VoiceEvent::Battery(p) => nearest_battery(p),
-        VoiceEvent::Charging => { if !cfg.on_charging { return; } embedded::CHARGING }
-        VoiceEvent::FullCharge => { if !cfg.on_full_charge { return; } embedded::FULL_CHARGE }
-        VoiceEvent::LowBattery => { if !cfg.on_battery_low { return; } embedded::LOW_BATTERY }
+    let bytes: Option<&'static [u8]> = match event {
+        VoiceEvent::Battery(p) => Some(crate::audio::embedded_voice::get(p)),
+        VoiceEvent::Charging => { if !cfg.on_charging { return; } Some(crate::audio::embedded_voice::CHARGING) }
+        VoiceEvent::FullCharge => { if !cfg.on_full_charge { return; } Some(crate::audio::embedded_voice::FULL_CHARGE) }
+        VoiceEvent::LowBattery => { if !cfg.on_battery_low { return; } Some(crate::audio::embedded_voice::LOW_BATTERY) }
+        VoiceEvent::Connected | VoiceEvent::Disconnected => None,
     };
-    play_bytes(bytes);
+    if let Some(bytes) = bytes {
+        play_bytes(bytes);
+    }
 }
 
 /// Plays one of the bundled WAV files without requiring a connected headset.
@@ -60,7 +53,7 @@ pub fn play(event: VoiceEvent) {
 #[cfg(feature = "embedded-voice")]
 pub fn play_test() {
     vlog("play_test() called");
-    play_bytes(embedded::BAT_050);
+    play_bytes(crate::audio::embedded_voice::BAT_050);
 }
 
 #[cfg(not(feature = "embedded-voice"))]
@@ -77,17 +70,6 @@ fn play_bytes(bytes: &'static [u8]) {
         if let Err(e) = play_blocking(bytes) { vlog(&format!("playback ERROR: {}", e)); }
         else { vlog("playback OK"); }
     });
-}
-
-#[cfg(feature = "embedded-voice")]
-fn nearest_battery(percent: u8) -> &'static [u8] {
-    match percent {
-        0..=5 => embedded::BAT_000,
-        6..=15 => embedded::BAT_010,
-        16..=35 => embedded::BAT_020,
-        36..=65 => embedded::BAT_050,
-        _ => embedded::BAT_100,
-    }
 }
 
 #[cfg(feature = "embedded-voice")]
