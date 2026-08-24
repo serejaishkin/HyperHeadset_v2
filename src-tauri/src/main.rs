@@ -61,8 +61,8 @@ fn play_pause() -> Result<(), String> { hyperx_ngenuity_open::system_audio::play
 #[tauri::command]
 fn apply_eq(bands: [f32; 10]) -> Result<(), String> {
     #[cfg(target_os = "windows")] { return hyperx_ngenuity_open::audio::windows::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
-    #[cfg(target_os = "linux")] { let _ = bands; return Err("Linux EQ backend is not implemented yet".into()); }
-    #[cfg(target_os = "macos")] { let _ = bands; return Err("macOS EQ backend is not implemented yet".into()); }
+    #[cfg(target_os = "linux")] { return hyperx_ngenuity_open::audio::linux::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
+    #[cfg(target_os = "macos")] { return hyperx_ngenuity_open::audio::macos_eqmac::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))] { let _ = bands; Err("EQ backend is not implemented for this platform".into()) }
 }
 #[tauri::command]
