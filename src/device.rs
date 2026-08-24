@@ -7,6 +7,8 @@ use std::time::Duration;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DeviceState {
     pub connected: bool,
+    pub device_id: String,
+    pub name: String,
     pub battery_percent: u8,
     pub charging: bool,
     pub muted: bool,
@@ -253,6 +255,67 @@ fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result
                 }
             }
             Err(write_err.into())
+        }
+    }
+}
+
+pub struct MultiDeviceManager {
+    pub devices: Vec<HyperXDevice>,
+    pub active_index: usize,
+}
+
+impl MultiDeviceManager {
+    pub fn new() -> Self {
+        Self { devices: Vec::new(), active_index: 0 }
+    }
+
+    pub fn scan_and_connect(&mut self) -> anyhow::Result<()> {
+        let api = HidApi::new()?;
+        let mut new_devices = Vec::new();
+
+        for info in api.device_list() {
+            if info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id()) {
+                if let Ok(device) = api.open_path(info.path()) {
+                    let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
+                    if write_hid_report(&device, &packet).is_ok() {
+                        let mut buf = [0u8; 256];
+                        if let Ok(len) = device.read_timeout(&mut buf, 500) {
+                            if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
+                                let mut hx = HyperXDevice::new();
+                                hx.device = Some(device);
+                                hx.state.connected = true;
+                                hx.state.device_id = info.path().to_string_lossy().to_string();
+                                hx.state.name = info.product_string().unwrap_or_else(|| "HyperX Headset".into());
+                                hx.state.battery_percent = buf[7].min(100);
+                                new_devices.push(hx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        self.devices = new_devices;
+        if self.active_index >= self.devices.len() {
+            self.active_index = 0;
+        }
+
+        if self.devices.is_empty() {
+            Err(anyhow::anyhow!("No devices found"))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn active_device(&mut self) -> Option<&mut HyperXDevice> {
+        self.devices.get_mut(self.active_index)
+    }
+
+    pub fn active_state(&self) -> DeviceState {
+        if let Some(dev) = self.devices.get(self.active_index) {
+            dev.state.clone()
+        } else {
+            DeviceState::default()
         }
     }
 }

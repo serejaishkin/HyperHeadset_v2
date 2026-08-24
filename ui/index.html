@@ -20,6 +20,10 @@
       <div class="header-status"><span id="connection-state" class="connection-state searching">SEARCHING</span><span id="header-battery">[BAT] --%</span><button id="btn-compact" class="compact-button" title="Open compact mode">⛶</button></div>
     </header>
     <section class="tab-content active" id="dashboard">
+      <div id="device-selector-container" class="device-selector-row" style="display:none; margin-bottom: 14px;">
+        <label for="device-select" style="font-size:12px; color:#aaa; margin-right:8px;">Active Headset:</label>
+        <select id="device-select" style="background:#222; color:#fff; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:12px;"></select>
+      </div>
       <h1>Headset Status</h1>
       <div class="dashboard-grid">
         <section class="status-panel battery-panel"><div class="panel-title">Battery:</div><div class="battery-value" id="battery-percent">--%</div><div class="battery-bar"><div id="battery-bar-fill"></div></div><div class="battery-state" id="battery-status">Searching for device...</div></section>
