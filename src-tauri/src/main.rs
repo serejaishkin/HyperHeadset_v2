@@ -6,7 +6,7 @@ use std::time::Duration;
 use tauri::{Manager, State, Emitter, WindowEvent};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use hyperx_ngenuity_open::config::Config;
-use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, DeviceCommand};
+use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
@@ -108,8 +108,10 @@ fn main() {
     GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
     hyperx_ngenuity_open::audio::voice::update_config(Config::load().unwrap_or_default().voice);
     let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
+    let all_devices = Arc::new(Mutex::new(Vec::<DeviceState>::new())); let all_devices_clone = all_devices.clone();
     let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
-    tauri::Builder::default().manage(AppState { device_state: device_state_clone, device_cmd_tx: device_cmd_tx.clone() })
+    let (select_device_tx, select_device_rx) = mpsc::channel::<usize>();
+    tauri::Builder::default().manage(AppState { device_state: device_state_clone, all_devices: all_devices_clone, device_cmd_tx: device_cmd_tx.clone(), select_device_tx: select_device_tx.clone() })
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
             let menu = Menu::new(&app_handle)?;
@@ -137,40 +139,75 @@ fn main() {
                 compact_window.on_window_event(move |event| { if let WindowEvent::CloseRequested { api, .. } = event { api.prevent_close(); show_main_window(&app_for_close); } });
             }
             let app_handle_device = app_handle.clone();
+            let all_devices_inner = all_devices.clone();
             thread::spawn(move || {
-                let mut device = HyperXDevice::new(); let mut was_connected = false; let mut heartbeat_failures = 0u32;
+                let mut manager = MultiDeviceManager::new(); let mut was_connected = false; let mut heartbeat_failures = 0u32;
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 loop {
-                    if !device.state.connected {
-                        match device.connect() {
-                            Ok(_) => { was_connected = true; heartbeat_failures = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false; { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); } let _ = app_handle_device.emit("device-connected", ()); let _ = app_handle_device.emit("device-state", device.state.clone()); }
-                            Err(e) => { if was_connected { was_connected = false; publish_disconnected(&app_handle_device, &device_state_inner); } log::debug!("[Device] connect: {}", e); thread::sleep(Duration::from_secs(2)); continue; }
+                    while let Ok(idx) = select_device_rx.try_recv() {
+                        if idx < manager.devices.len() {
+                            manager.active_index = idx;
+                            let st = manager.active_state();
+                            { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                            let _ = app_handle_device.emit("device-state", st.clone());
+                            let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                            { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
+                            let _ = app_handle_device.emit("devices-list", all);
+                            log::info!("[Device] Switched active device to index {}", idx);
+                        }
+                    }
+                    if manager.devices.is_empty() || !manager.devices.iter().any(|d| d.state.connected) {
+                        match manager.scan_and_connect() {
+                            Ok(_) => {
+                                was_connected = true; heartbeat_failures = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false;
+                                let st = manager.active_state();
+                                { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                                let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                                { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
+                                let _ = app_handle_device.emit("device-connected", ()); let _ = app_handle_device.emit("device-state", st.clone()); let _ = app_handle_device.emit("devices-list", all);
+                            }
+                            Err(e) => { if was_connected { was_connected = false; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); } log::debug!("[Device] scan: {}", e); thread::sleep(Duration::from_secs(2)); continue; }
                         }
                     }
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
-                        let result = match cmd { DeviceCommand::ToggleMute => device.toggle_mute(), DeviceCommand::SetSidetone(enabled) => device.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => device.set_voice_prompts(enabled) };
-                        if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
-                        { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); } let _ = app_handle_device.emit("device-state", device.state.clone());
-                    }
-                    match device.refresh_state() {
-                        Ok(()) => {
-                            heartbeat_failures = 0; { let mut st = device_state_inner.lock().unwrap(); *st = device.state.clone(); } let _ = app_handle_device.emit("device-state", device.state.clone());
-                            if !startup_announced && device.state.battery_percent > 0 { startup_announced = true; let v = if device.state.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent) }; hyperx_ngenuity_open::audio::voice::play(v); last_charging = device.state.charging; }
-                            if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
-                            if device.state.battery_percent > 20 { last_battery_low = false; }
-                            if device.state.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::Charging); }
-                            if device.state.battery_percent == 100 && device.state.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::FullCharge); }
-                            if !device.state.charging { last_full_charge = false; } last_charging = device.state.charging;
-                            if let Some(tray) = app_handle_device.tray_by_id("main") { let icon_config = TrayIconConfig::load_or_create(); let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, device.state.battery_percent, device.state.charging); let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))); let tooltip = if device.state.charging { format!("HyperHeadsetv2\n⚡ {}%", device.state.battery_percent) } else { format!("HyperHeadsetv2\n🔋 {}%", device.state.battery_percent) }; let _ = tray.set_tooltip(Some(&tooltip)); }
+                        if let Some(dev) = manager.active_device() {
+                            let result = match cmd { DeviceCommand::ToggleMute => dev.toggle_mute(), DeviceCommand::SetSidetone(enabled) => dev.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => dev.set_voice_prompts(enabled) };
+                            if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
+                            let st = manager.active_state();
+                            { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st);
+                            let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                            { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
                         }
-                        Err(e) => { heartbeat_failures += 1; let enumerated = HyperXDevice::is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5: {}; enumeration={}", heartbeat_failures, e, enumerated); if heartbeat_failures >= 5 { device.disconnect(); heartbeat_failures = 0; publish_disconnected(&app_handle_device, &device_state_inner); } }
+                    }
+                    let mut refresh_ok = true;
+                    for dev in manager.devices.iter_mut() {
+                        if let Err(e) = dev.refresh_state() {
+                            log::debug!("[Device] refresh failed for {}: {}", dev.state.device_id, e);
+                            refresh_ok = false;
+                        }
+                    }
+                    if refresh_ok {
+                        heartbeat_failures = 0;
+                        let st = manager.active_state();
+                        { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st.clone());
+                        let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                        { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all.clone());
+                        if !startup_announced && st.battery_percent > 0 { startup_announced = true; let v = if st.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(st.battery_percent) }; hyperx_ngenuity_open::audio::voice::play(v); last_charging = st.charging; }
+                        if st.battery_percent <= 20 && st.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
+                        if st.battery_percent > 20 { last_battery_low = false; }
+                        if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::Charging); }
+                        if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::FullCharge); }
+                        if !st.charging { last_full_charge = false; } last_charging = st.charging;
+                        if let Some(tray) = app_handle_device.tray_by_id("main") { let icon_config = TrayIconConfig::load_or_create(); let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging); let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))); let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) }; let _ = tray.set_tooltip(Some(&tooltip)); }
+                    } else {
+                        heartbeat_failures += 1; let enumerated = HyperXDevice::is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 { for d in manager.devices.iter_mut() { d.disconnect(); } manager.devices.clear(); heartbeat_failures = 0; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); }
                     }
                     thread::sleep(Duration::from_millis(500));
                 }
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_config, save_config, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
