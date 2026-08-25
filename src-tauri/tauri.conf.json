@@ -29,7 +29,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmltYWwgc2lnbmluZyBwdWJsaWMga2V5CiBSV1QzQ3J4SXp4SzZkQ2xYc2JHVkljM05zYjNWdWRHbHZiaUJwY3lCamIyMXdZVzVuCkxuQnVaeUJ2YmlCamIyMXdZVzVuSUdadmNpQnZaaUJ2YmlCamIyMXdZVzVuQ2c9PQo=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4QzY0RUE3MzZDRjFFNTUKUldSVkhzODJwMDdHNkJCbW10cTJlMWFySHJvM3JTREQwZy9Wb0s5Y0VmdWtPNmd1UVRaMGc4N0IK",
       "endpoints": ["https://github.com/serejaishkin/HyperHeadset_v2/releases/latest/download/latest.json"]
     }
   }
