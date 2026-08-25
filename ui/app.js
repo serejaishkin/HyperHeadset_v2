@@ -177,6 +177,45 @@ $('eq-reset').addEventListener('click', () => { document.querySelectorAll('.eq-b
 $('eq-preset').addEventListener('change', () => { const values = presets[$('eq-preset').value] || presets.Flat; document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[i]); markDirty(); });
 $('eq-apply').addEventListener('click', async () => { const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value)); try { await invoke('apply_eq', { bands }); toast('EQ applied'); } catch (e) { toast(`EQ: ${e}`); } });
 
+let activeDeviceId = null;
+async function refreshPerDeviceEq() {
+  try {
+    const st = await invoke('get_device_state');
+    activeDeviceId = st.connected ? (st.device_id || '') : null;
+    const note = $('eq-device-note'), btnClear = $('eq-clear-per-device');
+    if (!activeDeviceId) { note.style.display = 'none'; btnClear.style.display = 'none'; return; }
+    const per = await invoke('get_per_device_config', { deviceId: activeDeviceId });
+    note.style.display = 'block';
+    note.textContent = per && per.audio
+      ? `Per-device EQ preset is active for "${per.name || 'this headset'}"`
+      : `Using global EQ for "${st.name || 'this headset'}"`;
+    btnClear.style.display = per && per.audio ? 'inline-block' : 'none';
+  } catch (e) { console.debug('per-device eq:', e); }
+}
+$('eq-save-per-device').addEventListener('click', async () => {
+  if (!activeDeviceId) { toast('No connected device'); return; }
+  try {
+    const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value));
+    const st = await invoke('get_device_state');
+    let per = null;
+    try { per = await invoke('get_per_device_config', { deviceId: activeDeviceId }); } catch (_) {}
+    per = Object.assign({ name: '', audio: null, device: null, voice: null }, per || {});
+    per.name = st.name || per.name;
+    per.audio = { eq_bands: bands };
+    await invoke('save_per_device_config', { deviceId: activeDeviceId, perCfg: per });
+    toast('Per-device EQ saved'); refreshPerDeviceEq();
+  } catch (e) { toast(`Save failed: ${e}`); }
+});
+$('eq-clear-per-device').addEventListener('click', async () => {
+  if (!activeDeviceId) return;
+  try {
+    let per = await invoke('get_per_device_config', { deviceId: activeDeviceId });
+    if (per) { per.audio = null; await invoke('save_per_device_config', { deviceId: activeDeviceId, perCfg: per }); }
+    toast('Per-device EQ removed'); refreshPerDeviceEq();
+  } catch (e) { toast(`Remove failed: ${e}`); }
+});
+refreshPerDeviceEq();
+
 async function loadVoiceDir() {
   try {
     const cfg = await invoke('get_config');
@@ -200,6 +239,24 @@ if (voiceUpload) voiceUpload.addEventListener('change', async (e) => {
   e.target.value = '';
 });
 loadVoiceDir();
+
+const btnUpdates = $('btn-check-updates');
+if (btnUpdates) btnUpdates.addEventListener('click', async () => {
+  try {
+    const updater = window.__TAURI__.updater;
+    const relaunch = window.__TAURI__.process ? window.__TAURI__.process.relaunch : null;
+    if (!updater || !updater.check) { toast('Updater not available'); return; }
+    toast('Checking for updates...');
+    const update = await updater.check();
+    if (!update) { toast('You are up to date'); return; }
+    toast(`Downloading update ${update.version}...`);
+    await update.downloadAndInstall();
+    if (relaunch) await relaunch();
+  } catch (e) {
+    console.error('update check failed:', e);
+    toast(`Update check failed: ${e}`);
+  }
+});
 
 listen('device-state', event => updateBattery(event.payload));
 listen('device-connected', refresh);
