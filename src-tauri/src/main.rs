@@ -29,6 +29,39 @@ fn select_device(index: usize, state: State<AppState>) -> Result<(), String> {
 #[tauri::command]
 fn get_config() -> Result<Config, String> { Ok(Config::load().unwrap_or_default()) }
 #[tauri::command]
+fn get_per_device_config(device_id: String) -> Result<Option<hyperx_ngenuity_open::config::PerDeviceConfig>, String> {
+    let cfg = Config::load().unwrap_or_default();
+    Ok(cfg.per_device.get(&device_id).cloned())
+}
+#[tauri::command]
+fn save_per_device_config(device_id: String, per_cfg: hyperx_ngenuity_open::config::PerDeviceConfig) -> Result<(), String> {
+    let mut cfg = Config::load().unwrap_or_default();
+    cfg.per_device.insert(device_id, per_cfg);
+    cfg.save().map_err(|e| e.to_string())
+}
+#[tauri::command]
+fn set_custom_voice_dir(path: String) -> Result<(), String> {
+    let mut cfg = Config::load().unwrap_or_default();
+    cfg.custom_voice_dir = if path.is_empty() { None } else { Some(path) };
+    cfg.save().map_err(|e| e.to_string())
+}
+#[tauri::command]
+fn upload_voice_file(filename: String, data: Vec<u8>) -> Result<String, String> {
+    let cfg = Config::load().unwrap_or_default();
+    let base = cfg.custom_voice_dir.clone().unwrap_or_else(|| {
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("custom_voice"))).unwrap_or_else(|| std::path::PathBuf::from("custom_voice")).to_string_lossy().to_string()
+    });
+    let dir = std::path::PathBuf::from(&base);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let safe = std::path::Path::new(&filename).file_name().unwrap_or_default();
+    let dest = dir.join(safe);
+    if dest.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase() != "wav" {
+        return Err("only .wav files allowed".into());
+    }
+    std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
+}
+#[tauri::command]
 fn save_config(config: Config) -> Result<(), String> {
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
     GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
@@ -111,7 +144,10 @@ fn main() {
     let all_devices = Arc::new(Mutex::new(Vec::<DeviceState>::new())); let all_devices_clone = all_devices.clone();
     let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
     let (select_device_tx, select_device_rx) = mpsc::channel::<usize>();
-    tauri::Builder::default().manage(AppState { device_state: device_state_clone, all_devices: all_devices_clone, device_cmd_tx: device_cmd_tx.clone(), select_device_tx: select_device_tx.clone() })
+    tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(AppState { device_state: device_state_clone, all_devices: all_devices_clone, device_cmd_tx: device_cmd_tx.clone(), select_device_tx: select_device_tx.clone() })
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
             let menu = Menu::new(&app_handle)?;
@@ -195,8 +231,8 @@ fn main() {
                         if !startup_announced && st.battery_percent > 0 { startup_announced = true; let v = if st.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(st.battery_percent) }; hyperx_ngenuity_open::audio::voice::play(v); last_charging = st.charging; }
                         if st.battery_percent <= 20 && st.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
                         if st.battery_percent > 20 { last_battery_low = false; }
-                        if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::Charging); }
-                        if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::FullCharge); }
+                        if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
+                        if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
                         if let Some(tray) = app_handle_device.tray_by_id("main") { let icon_config = TrayIconConfig::load_or_create(); let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging); let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))); let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) }; let _ = tray.set_tooltip(Some(&tooltip)); }
                     } else {
@@ -207,7 +243,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

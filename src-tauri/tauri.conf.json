@@ -23,6 +23,14 @@
   },
   "bundle": {
     "active": true, "targets": "all",
-    "icon": ["icons/icon.png", "icons/icon.ico"]
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "createUpdaterArtifacts": true,
+    "windows": { "nsis": { "displayLanguageSelector": false } }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmltYWwgc2lnbmluZyBwdWJsaWMga2V5CiBSV1QzQ3J4SXp4SzZkQ2xYc2JHVkljM05zYjNWdWRHbHZiaUJwY3lCamIyMXdZVzVuCkxuQnVaeUJ2YmlCamIyMXdZVzVuSUdadmNpQnZaaUJ2YmlCamIyMXdZVzVuQ2c9PQo=",
+      "endpoints": ["https://github.com/serejaishkin/HyperHeadset_v2/releases/latest/download/latest.json"]
+    }
   }
 }

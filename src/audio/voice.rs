@@ -36,6 +36,10 @@ pub fn play(event: VoiceEvent) {
     let cfg = get_cfg().lock().unwrap().clone();
     if !cfg.enabled { return; }
     vlog(&format!("play() called: {:?}", event));
+    if let Some(data) = try_custom_voice(&event) {
+        play_bytes_owned(data);
+        return;
+    }
     let bytes: Option<&'static [u8]> = match event {
         VoiceEvent::Battery(p) => Some(crate::audio::embedded_voice::get(p)),
         VoiceEvent::Charging => { if !cfg.on_charging { return; } Some(crate::audio::embedded_voice::CHARGING) }
@@ -46,6 +50,21 @@ pub fn play(event: VoiceEvent) {
     if let Some(bytes) = bytes {
         play_bytes(bytes);
     }
+}
+
+#[cfg(feature = "embedded-voice")]
+fn try_custom_voice(event: &VoiceEvent) -> Option<Vec<u8>> {
+    let cfg = crate::config::Config::load().unwrap_or_default();
+    let dir = cfg.custom_voice_dir?;
+    let fname = match event {
+        VoiceEvent::Battery(p) => format!("bat_{:03}.wav", p),
+        VoiceEvent::Charging => "charging.wav".to_string(),
+        VoiceEvent::FullCharge => "full_charge.wav".to_string(),
+        VoiceEvent::LowBattery => "low_battery.wav".to_string(),
+        _ => return None,
+    };
+    let path = std::path::PathBuf::from(dir).join(fname);
+    if path.exists() { std::fs::read(path).ok() } else { None }
 }
 
 /// Plays one of the bundled WAV files without requiring a connected headset.
@@ -73,11 +92,32 @@ fn play_bytes(bytes: &'static [u8]) {
 }
 
 #[cfg(feature = "embedded-voice")]
+fn play_bytes_owned(data: Vec<u8>) {
+    if data.len() < 44 { log::warn!("[Voice] WAV is too small ({} bytes)", data.len()); return; }
+    vlog(&format!("playback start custom, len={}", data.len()));
+    std::thread::spawn(move || {
+        if let Err(e) = play_blocking_owned(data) { vlog(&format!("playback ERROR: {}", e)); }
+        else { vlog("playback OK"); }
+    });
+}
+
+#[cfg(feature = "embedded-voice")]
 fn play_blocking(bytes: &'static [u8]) -> Result<(), Box<dyn std::error::Error>> {
     use rodio::{Decoder, OutputStream, Sink};
     let (_stream, stream_handle) = OutputStream::try_default()?;
     let sink = Sink::try_new(&stream_handle)?;
     let source = Decoder::new(Cursor::new(bytes))?;
+    sink.append(source);
+    sink.sleep_until_end();
+    Ok(())
+}
+
+#[cfg(feature = "embedded-voice")]
+fn play_blocking_owned(data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+    use rodio::{Decoder, OutputStream, Sink};
+    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let sink = Sink::try_new(&stream_handle)?;
+    let source = Decoder::new(Cursor::new(data))?;
     sink.append(source);
     sink.sleep_until_end();
     Ok(())
