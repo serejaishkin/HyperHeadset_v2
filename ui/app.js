@@ -177,6 +177,30 @@ $('eq-reset').addEventListener('click', () => { document.querySelectorAll('.eq-b
 $('eq-preset').addEventListener('change', () => { const values = presets[$('eq-preset').value] || presets.Flat; document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[i]); markDirty(); });
 $('eq-apply').addEventListener('click', async () => { const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value)); try { await invoke('apply_eq', { bands }); toast('EQ applied'); } catch (e) { toast(`EQ: ${e}`); } });
 
+async function loadVoiceDir() {
+  try {
+    const cfg = await invoke('get_config');
+    $('voice-custom-dir').value = cfg.custom_voice_dir || '';
+  } catch (e) { console.debug('voice dir load:', e); }
+}
+const btnSaveVoiceDir = $('btn-save-voice-dir');
+if (btnSaveVoiceDir) btnSaveVoiceDir.addEventListener('click', async () => {
+  try { await invoke('set_custom_voice_dir', { path: $('voice-custom-dir').value.trim() }); toast('Custom voice folder saved'); }
+  catch (e) { toast(`Save failed: ${e}`); }
+});
+const voiceUpload = $('voice-upload-file');
+if (voiceUpload) voiceUpload.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const saved = await invoke('upload_voice_file', { filename: file.name, data: Array.from(buf) });
+    toast(`Uploaded: ${saved}`);
+  } catch (err) { toast(`Upload failed: ${err}`); }
+  e.target.value = '';
+});
+loadVoiceDir();
+
 listen('device-state', event => updateBattery(event.payload));
 listen('device-connected', refresh);
 listen('device-disconnected', () => updateBattery({ connected:false }));
