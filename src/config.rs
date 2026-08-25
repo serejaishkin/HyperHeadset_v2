@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub use crate::input::MuteButtonMode;
@@ -20,6 +21,19 @@ pub struct Config {
     pub voice: VoiceConfig,
     pub discord: DiscordConfig,
     pub input: InputConfig,
+    #[serde(default)]
+    pub per_device: HashMap<String, PerDeviceConfig>,
+    #[serde(default)]
+    pub custom_voice_dir: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PerDeviceConfig {
+    #[serde(default)]
+    pub name: String,
+    pub audio: Option<AudioConfig>,
+    pub device: Option<DeviceConfig>,
+    pub voice: Option<VoiceConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,6 +127,8 @@ impl Default for Config {
             input: InputConfig {
                 mute_button_mode: MuteButtonMode::SmartDouble,
             },
+            per_device: HashMap::new(),
+            custom_voice_dir: None,
         }
     }
 }
@@ -133,5 +149,17 @@ impl Config {
     pub fn save(&self) -> anyhow::Result<()> {
         std::fs::write(Self::path(), toml::to_string_pretty(self)?)?;
         Ok(())
+    }
+
+    pub fn get_per_device(&self, device_id: &str) -> Option<&PerDeviceConfig> {
+        self.per_device.get(device_id)
+    }
+
+    pub fn upsert_per_device(&mut self, device_id: String, cfg: PerDeviceConfig) {
+        self.per_device.insert(device_id, cfg);
+    }
+
+    pub fn effective_audio(&self, device_id: &str) -> AudioConfig {
+        self.per_device.get(device_id).and_then(|p| p.audio.clone()).unwrap_or_else(|| self.audio.clone())
     }
 }
