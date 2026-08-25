@@ -155,6 +155,17 @@ $('volume').addEventListener('input', async e => { $('volume-value').textContent
 $('mic-volume').addEventListener('input', async e => { $('mic-value').textContent = `${e.target.value}%`; try { await invoke('set_mic_volume', { percent: Number(e.target.value) }); } catch (err) { console.debug(err); } });
 $('mic-toggle').addEventListener('click', () => command('toggle_mute'));
 $('play-button').addEventListener('click', () => command('play_pause'));
+const devSelect = $('device-select');
+if (devSelect) {
+  devSelect.addEventListener('change', async (e) => {
+    try {
+      await invoke('select_device', { index: Number(e.target.value) });
+      refresh();
+    } catch (err) {
+      toast(`Failed to switch device: ${err}`);
+    }
+  });
+}
 
 document.querySelectorAll('#settings input, #settings select').forEach(el => { el.addEventListener('change', markDirty); el.addEventListener('input', markDirty); });
 for (const button of document.querySelectorAll('.tab-btn')) button.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); button.classList.add('active'); $(button.dataset.tab).classList.add('active'); });

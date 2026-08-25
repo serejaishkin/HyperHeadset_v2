@@ -11,10 +11,21 @@ use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 #[derive(Clone)]
-pub struct AppState { pub device_state: Arc<Mutex<DeviceState>>, pub device_cmd_tx: mpsc::Sender<DeviceCommand> }
+pub struct AppState {
+    pub device_state: Arc<Mutex<DeviceState>>,
+    pub all_devices: Arc<Mutex<Vec<DeviceState>>>,
+    pub device_cmd_tx: mpsc::Sender<DeviceCommand>,
+    pub select_device_tx: mpsc::Sender<usize>,
+}
 
 #[tauri::command]
 fn get_device_state(state: State<AppState>) -> DeviceState { state.device_state.lock().unwrap().clone() }
+#[tauri::command]
+fn get_connected_devices(state: State<AppState>) -> Vec<DeviceState> { state.all_devices.lock().unwrap().clone() }
+#[tauri::command]
+fn select_device(index: usize, state: State<AppState>) -> Result<(), String> {
+    state.select_device_tx.send(index).map_err(|e| e.to_string())
+}
 #[tauri::command]
 fn get_config() -> Result<Config, String> { Ok(Config::load().unwrap_or_default()) }
 #[tauri::command]
