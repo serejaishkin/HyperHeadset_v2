@@ -285,7 +285,7 @@ impl MultiDeviceManager {
                                 hx.device = Some(device);
                                 hx.state.connected = true;
                                 hx.state.device_id = info.path().to_string_lossy().to_string();
-                                hx.state.name = info.product_string().unwrap_or_else(|| "HyperX Headset".into());
+                                hx.state.name = info.product_string().map(|s| s.to_string()).unwrap_or_else(|| "HyperX Headset".to_string());
                                 hx.state.battery_percent = buf[7].min(100);
                                 new_devices.push(hx);
                             }
