@@ -104,7 +104,10 @@ function uiToTray() {
 function configToUi(c) {
   config = structuredClone(c);
   $('cfg-enabled').checked = !!c.enabled; $('cfg-sidetone').checked = !!c.device?.sidetone; $('cfg-voice-prompts').checked = !!c.device?.voice_prompts;
-  $('cfg-auto-shutdown').value = c.device?.auto_shutdown_minutes ?? 30; $('cfg-mute-mode').value = c.input?.mute_button_mode ?? 'SmartDouble'; $('cfg-keybind').value = c.keybind ?? 'F20'; $('cfg-double-tap').value = c.double_tap_ms ?? 500;
+  $('cfg-auto-shutdown').value = c.device?.auto_shutdown_minutes ?? 30;
+  const modeRaw = String(c.input?.mute_button_mode ?? 'smart_double');
+  $('cfg-mute-mode').value = ['standard','media_play_pause','smart_double','smart_hold','hold_play_pause'].includes(modeRaw) ? modeRaw : 'smart_double';
+  $('cfg-keybind').value = c.keybind ?? 'F20'; $('cfg-double-tap').value = c.double_tap_ms ?? 500;
   $('voice-enabled').checked = !!c.voice?.enabled; $('voice-battery-low').checked = !!c.voice?.on_battery_low; $('voice-charging').checked = !!c.voice?.on_charging; $('voice-full-charge').checked = !!c.voice?.on_full_charge;
   $('voice-connected').checked = !!c.voice?.on_connected; $('voice-disconnected').checked = !!c.voice?.on_disconnected; $('voice-button-check').checked = c.voice?.on_button_check !== false; $('voice-exact-percent').checked = !!c.voice?.exact_percent;
   $('discord-mode').value = c.discord?.mode ?? 'Keybind'; $('discord-keybind').value = c.discord?.keybind ?? 'F20'; $('discord-app-id').value = c.discord?.direct?.app_id ?? ''; $('discord-battery').checked = !!c.discord?.direct?.show_battery; $('discord-mute').checked = !!c.discord?.direct?.show_mute_status;
@@ -145,7 +148,6 @@ async function saveSettings() {
 }
 
 $('btn-mute').addEventListener('click', () => command('toggle_mute'));
-$('btn-check').addEventListener('click', async () => { await refresh(); await refreshAudio(); });
 $('btn-reconnect').addEventListener('click', refresh);
 $('btn-voice-check').addEventListener('click', checkBatteryVoice);
 $('btn-test-voice').addEventListener('click', async () => { try { await invoke('test_voice'); toast('Bundled WAV test started'); } catch (e) { toast(`Voice test failed: ${e}`); } });
@@ -267,5 +269,5 @@ listen('device-command-ok', event => { if (event.payload === 'mute') toast('Mute
 loadConfig();
 refresh();
 refreshAudio();
-setInterval(refresh, 1000);
+setInterval(refresh, 2000);
 setInterval(refreshAudio, 2000);
