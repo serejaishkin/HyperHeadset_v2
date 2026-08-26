@@ -39,9 +39,9 @@ $('btn-mute-c').addEventListener('click', async () => {
     catch (error) { console.error('toggle_mute failed', error); }
 });
 
-$('btn-main-c').addEventListener('click', () => {
-    // The Rust close handler turns a close request into "hide compact + show main".
-    window.close();
+$('btn-main-c').addEventListener('click', async () => {
+    try { await invoke('show_main_window_cmd'); }
+    catch (error) { console.error('show_main_window_cmd failed', error); window.close(); }
 });
 
 $('vol-master').addEventListener('input', async (e) => {

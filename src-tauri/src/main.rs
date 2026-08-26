@@ -126,6 +126,11 @@ fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
     let _ = window.set_focus();
     Ok(())
 }
+#[tauri::command]
+fn show_main_window_cmd(app: tauri::AppHandle) -> Result<(), String> {
+    show_main_window(&app);
+    Ok(())
+}
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(compact) = app.get_webview_window("compact") { let _ = compact.hide(); }
     if let Some(window) = app.get_webview_window("main") { let _ = window.show(); let _ = window.unminimize(); let _ = window.set_focus(); }
@@ -243,7 +248,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window, show_main_window_cmd])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
