@@ -1,4 +1,4 @@
-//! Native CoreAudio input mute support for macOS.
+/// Native CoreAudio input mute support for macOS.
 use std::ffi::c_void;
 type AudioDeviceId = u32;
 type OSStatus = i32;
