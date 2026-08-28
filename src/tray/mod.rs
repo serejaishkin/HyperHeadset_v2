@@ -22,7 +22,7 @@ pub type PlatformTray = linux::LinuxTray;
 #[cfg(target_os = "macos")]
 pub mod macos;
 #[cfg(target_os = "macos")]
-pub type PlatformTray = macos::MacosTray;
+pub type PlatformTray = macos::MacOSTray;
 
 #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 pub struct PlatformTray;

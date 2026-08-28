@@ -42,7 +42,7 @@ mod platform {
 #[cfg(target_os="macos")]
 mod platform {
  use super::AudioLevels; use std::process::Command;
- #[path="system_audio_macos.rs"] mod coreaudio_mute;
+ mod coreaudio_mute { include!("system_audio_macos.rs"); }
  fn osa(s:&str)->anyhow::Result<String>{let o=Command::new("osascript").args(["-e",s]).output()?;if !o.status.success(){return Err(anyhow::anyhow!(String::from_utf8_lossy(&o.stderr).trim().to_string()))}Ok(String::from_utf8_lossy(&o.stdout).trim().to_string())}
  fn parse(s:String)->anyhow::Result<u8>{Ok(s.parse::<u8>()?.min(100))}
  pub fn get_levels()->anyhow::Result<AudioLevels>{Ok(AudioLevels{output:parse(osa("output volume of (get volume settings)")?)?,input:parse(osa("input volume of (get volume settings)")?)?})}
