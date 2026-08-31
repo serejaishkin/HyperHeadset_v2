@@ -1,4 +1,5 @@
-const { invoke, listen } = window.__TAURI__.core;
+const { invoke } = window.__TAURI__.core;
+const listen = window.__TAURI__.event ? window.__TAURI__.event.listen : window.__TAURI__.core.listen;
 
 const $ = (id) => document.getElementById(id);
 let toastTimer = null;
