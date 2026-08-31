@@ -138,7 +138,10 @@ fn show_main_window(app: &tauri::AppHandle) {
 fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>) {
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
-    if let Some(tray) = app.tray_by_id("main") { if let Some(icon) = app.default_window_icon().cloned() { let _ = tray.set_icon(Some(icon)); } let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения")); }
+    if let Some(tray) = app.tray_by_id("main") {
+        if let Some(icon) = app.default_window_icon().cloned() { let _ = tray.set_icon(Some(icon)); let _ = tray.set_icon_as_template(false); }
+        let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
+    }
 }
 
 fn main() {
@@ -239,7 +242,15 @@ fn main() {
                         if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
                         if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
-                        if let Some(tray) = app_handle_device.tray_by_id("main") { let icon_config = TrayIconConfig::load_or_create(); let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging); let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))); let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) }; let _ = tray.set_tooltip(Some(&tooltip)); }
+                        if let Some(tray) = app_handle_device.tray_by_id("main") {
+                            let icon_config = TrayIconConfig::load_or_create();
+                            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging);
+                            let img = tauri::image::Image::new(&rgba, w, h);
+                            let _ = tray.set_icon(Some(img));
+                            let _ = tray.set_icon_as_template(false);
+                            let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
+                            let _ = tray.set_tooltip(Some(&tooltip));
+                        }
                     } else {
                         heartbeat_failures += 1; let enumerated = HyperXDevice::is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 { for d in manager.devices.iter_mut() { d.disconnect(); } manager.devices.clear(); heartbeat_failures = 0; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); }
                     }

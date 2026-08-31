@@ -1,4 +1,5 @@
-const { invoke, listen } = window.__TAURI__.core;
+const { invoke } = window.__TAURI__.core;
+const listen = window.__TAURI__.event ? window.__TAURI__.event.listen : window.__TAURI__.core.listen;
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,4 +60,4 @@ listen('device-disconnected', () => updateCompact({ connected:false }));
 listen('device-command-error', e => console.error('Device command failed:', e.payload));
 
 refreshCompact();
-setInterval(refreshCompact, 1000);
+setInterval(refreshCompact, 2000);
