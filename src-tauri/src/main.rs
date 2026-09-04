@@ -10,6 +10,13 @@ use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, MultiDeviceManager
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
+fn load_tray_png() -> (Vec<u8>, u32, u32) {
+    let bytes = include_bytes!("../../assets/tray_16.png");
+    let img = image::load_from_memory(bytes).expect("tray_16.png").to_rgba8();
+    let w = img.width(); let h = img.height();
+    (img.into_raw(), w, h)
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub device_state: Arc<Mutex<DeviceState>>,
@@ -139,7 +146,8 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
     if let Some(tray) = app.tray_by_id("main") {
-        if let Some(icon) = app.default_window_icon().cloned() { let _ = tray.set_icon(Some(icon)); let _ = tray.set_icon_as_template(false); }
+        let (rgba, w, h) = load_tray_png();
+        let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
         let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
     }
 }
@@ -164,7 +172,8 @@ fn main() {
             let compact_i = MenuItem::new(&app_handle, "Компактное окно", true, None::<&str>)?;
             let quit_i = MenuItem::new(&app_handle, "Выход", true, None::<&str>)?;
             menu.append(&open_i)?; menu.append(&toggle_i)?; menu.append(&compact_i)?; menu.append(&PredefinedMenuItem::separator(&app_handle)?)?; menu.append(&quit_i)?;
-            let tray_icon = app_handle.default_window_icon().cloned().unwrap_or_else(|| tauri::image::Image::new(&[0,0,0,0], 1, 1));
+            let (tray_rgba, tray_w, tray_h) = load_tray_png();
+            let tray_icon = tauri::image::Image::new(&tray_rgba, tray_w, tray_h);
             let _tray = tauri::tray::TrayIconBuilder::with_id("main").icon(tray_icon).menu(&menu).tooltip("HyperHeadsetv2 — поиск наушников...")
                 .on_menu_event({ let device_cmd_tx = device_cmd_tx.clone(); move |app, event| {
                     if event.id == open_i.id() { show_main_window(app); }
@@ -245,9 +254,7 @@ fn main() {
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
                             let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging);
-                            let img = tauri::image::Image::new(&rgba, w, h);
-                            let _ = tray.set_icon(Some(img));
-                            let _ = tray.set_icon_as_template(false);
+                            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
                             let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
