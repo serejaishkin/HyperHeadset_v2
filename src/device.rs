@@ -59,18 +59,6 @@ impl HyperXDevice {
         Self { device: None, state: DeviceState::default() }
     }
 
-    pub fn is_enumerated() -> bool {
-        match HidApi::new() {
-            Ok(api) => api.device_list().any(|info| {
-                info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
-            }),
-            Err(e) => {
-                log::warn!("[HID] Cannot enumerate HID devices: {}", e);
-                false
-            }
-        }
-    }
-
     fn prepare_write(&self) {
         let Some(device) = self.device.as_ref() else { return };
         let mut buf = [0u8; 64];
@@ -262,20 +250,28 @@ fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result
 pub struct MultiDeviceManager {
     pub devices: Vec<HyperXDevice>,
     pub active_index: usize,
+    api: HidApi,
 }
 
 impl MultiDeviceManager {
     pub fn new() -> Self {
-        Self { devices: Vec::new(), active_index: 0 }
+        let api = HidApi::new().expect("Failed to initialize HID API");
+        Self { devices: Vec::new(), active_index: 0, api }
+    }
+
+    pub fn is_enumerated(&self) -> bool {
+        self.api.device_list().any(|info| {
+            info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
+        })
     }
 
     pub fn scan_and_connect(&mut self) -> anyhow::Result<()> {
-        let api = HidApi::new()?;
+        self.api.refresh_devices()?;
         let mut new_devices = Vec::new();
 
-        for info in api.device_list() {
+        for info in self.api.device_list() {
             if info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id()) {
-                if let Ok(device) = api.open_path(info.path()) {
+                if let Ok(device) = self.api.open_path(info.path()) {
                     let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
                     if write_hid_report(&device, &packet).is_ok() {
                         let mut buf = [0u8; 256];

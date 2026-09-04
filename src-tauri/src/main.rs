@@ -7,7 +7,7 @@ use tauri::{Manager, State, Emitter, WindowEvent};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri_plugin_autostart::MacosLauncher;
 use hyperx_ngenuity_open::config::Config;
-use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, MultiDeviceManager, DeviceCommand};
+use hyperx_ngenuity_open::device::{DeviceState, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
 
@@ -283,7 +283,14 @@ fn main() {
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
                     } else {
-                        heartbeat_failures += 1; let enumerated = HyperXDevice::is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 { for d in manager.devices.iter_mut() { d.disconnect(); } manager.devices.clear(); heartbeat_failures = 0; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); }
+                        heartbeat_failures += 1; let enumerated = manager.is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 {
+                            for d in manager.devices.iter_mut() { d.disconnect(); }
+                            publish_disconnected(&app_handle_device, &device_state_inner);
+                            { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
+                            let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
+                            thread::sleep(Duration::from_secs(3));
+                            heartbeat_failures = 0;
+                        }
                     }
                     thread::sleep(Duration::from_millis(500));
                 }
