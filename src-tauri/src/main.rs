@@ -9,7 +9,7 @@ use tauri_plugin_autostart::MacosLauncher;
 use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
-use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba};
+use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
 
 fn load_tray_png() -> (Vec<u8>, u32, u32) {
     static CACHED: std::sync::OnceLock<(Vec<u8>, u32, u32)> = std::sync::OnceLock::new();
@@ -163,13 +163,11 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
     if let Some(tray) = app.tray_by_id("main") {
         let icon_config = TrayIconConfig::load_or_create();
-        if icon_config.mode == TrayIconMode::Digits {
-            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
-            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
-        } else {
-            let (rgba, w, h) = load_tray_png();
-            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
-        }
+        let (rgba, w, h) = match icon_config.mode {
+            TrayIconMode::Big => generate_big_digits_rgba(0, 64),
+            TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, 0, false),
+        };
+        let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
         let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
     }
 }
@@ -276,13 +274,11 @@ fn main() {
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
-                            if icon_config.mode == TrayIconMode::Digits {
-                                let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging);
-                                let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
-                            } else {
-                                let (rgba, w, h) = load_tray_png();
-                                let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
-                            }
+                            let (rgba, w, h) = match icon_config.mode {
+                                TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, 64),
+                                TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging),
+                            };
+                            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
                             let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }

@@ -87,7 +87,7 @@ function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', 
 
 function trayToUi(t) {
   trayConfig = structuredClone(t);
-  $('tray-mode').value = t.mode || 'icon';
+  $('tray-mode').value = t.mode || 'big';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of ['charging','high','medium','low']) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);
@@ -95,7 +95,7 @@ function trayToUi(t) {
 }
 function uiToTray() {
   const t = structuredClone(trayConfig || {});
-  t.mode = $('tray-mode').value || 'icon';
+  t.mode = $('tray-mode').value || 'big';
   t.size = Number($('tray-size').value) || 256; t.font_scale = Number($('tray-font-scale').value) || 8; t.outline_width = Number($('tray-outline').value) || 0; t.border_width = Number($('tray-border').value) || 0; t.gap_between_digits = Number($('tray-gap').value) || 0;
   if (!t.colors) return t;
   for (const name of ['charging','high','medium','low']) {
