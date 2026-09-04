@@ -5,10 +5,11 @@ use std::thread;
 use std::time::Duration;
 use tauri::{Manager, State, Emitter, WindowEvent};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri_plugin_autostart::MacosLauncher;
 use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, HyperXDevice, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
-use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
+use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba};
 
 fn load_tray_png() -> (Vec<u8>, u32, u32) {
     static CACHED: std::sync::OnceLock<(Vec<u8>, u32, u32)> = std::sync::OnceLock::new();
@@ -89,6 +90,18 @@ fn get_tray_config() -> Result<TrayIconConfig, String> { Ok(TrayIconConfig::load
 #[tauri::command]
 fn save_tray_config(mut config: TrayIconConfig) -> Result<(), String> { config.sanitize(); config.save(TrayIconConfig::default_path()).map_err(|e| e.to_string()) }
 #[tauri::command]
+fn get_autostart_enabled(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+#[tauri::command]
+fn set_autostart_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    if enabled { app.autolaunch().enable().map_err(|e| e.to_string())?; }
+    else { app.autolaunch().disable().map_err(|e| e.to_string())?; }
+    Ok(())
+}
+#[tauri::command]
 fn check_battery_voice(state: State<AppState>) -> Result<(), String> {
     let device = state.device_state.lock().unwrap().clone();
     if !device.connected { return Err("Headset is not connected".into()); }
@@ -149,8 +162,14 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
     if let Some(tray) = app.tray_by_id("main") {
-        let (rgba, w, h) = load_tray_png();
-        let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+        let icon_config = TrayIconConfig::load_or_create();
+        if icon_config.mode == TrayIconMode::Digits {
+            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, 0, false);
+            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+        } else {
+            let (rgba, w, h) = load_tray_png();
+            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+        }
         let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
     }
 }
@@ -166,6 +185,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .manage(AppState { device_state: device_state_clone, all_devices: all_devices_clone, device_cmd_tx: device_cmd_tx.clone(), select_device_tx: select_device_tx.clone() })
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
@@ -256,8 +276,13 @@ fn main() {
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
-                            let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging);
-                            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+                            if icon_config.mode == TrayIconMode::Digits {
+                                let (rgba, w, h) = generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging);
+                                let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+                            } else {
+                                let (rgba, w, h) = load_tray_png();
+                                let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+                            }
                             let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
@@ -269,7 +294,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window, show_main_window_cmd])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window, show_main_window_cmd])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

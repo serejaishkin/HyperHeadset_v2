@@ -2,8 +2,16 @@ use image::{RgbaImage, Rgba};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TrayIconMode {
+    Icon,
+    Digits,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrayIconConfig {
+    pub mode: TrayIconMode,
     pub size: u32,
     pub font_scale: u32,
     pub outline_width: i32,
@@ -31,6 +39,7 @@ pub struct IconColors {
 impl Default for TrayIconConfig {
     fn default() -> Self {
         Self {
+            mode: TrayIconMode::Icon,
             size: 256,
             font_scale: 8,
             outline_width: 2,
