@@ -87,6 +87,7 @@ function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', 
 
 function trayToUi(t) {
   trayConfig = structuredClone(t);
+  $('tray-mode').value = t.mode || 'icon';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of ['charging','high','medium','low']) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);
@@ -94,6 +95,7 @@ function trayToUi(t) {
 }
 function uiToTray() {
   const t = structuredClone(trayConfig || {});
+  t.mode = $('tray-mode').value || 'icon';
   t.size = Number($('tray-size').value) || 256; t.font_scale = Number($('tray-font-scale').value) || 8; t.outline_width = Number($('tray-outline').value) || 0; t.border_width = Number($('tray-border').value) || 0; t.gap_between_digits = Number($('tray-gap').value) || 0;
   if (!t.colors) return t;
   for (const name of ['charging','high','medium','low']) {
@@ -129,8 +131,9 @@ function uiToConfig() {
 
 async function loadConfig() {
   try {
-    const [c, t] = await Promise.all([invoke('get_config'), invoke('get_tray_config')]);
+    const [c, t, autoStart] = await Promise.all([invoke('get_config'), invoke('get_tray_config'), invoke('get_autostart_enabled')]);
     configToUi(c); trayToUi(t);
+    $('cfg-start-os').checked = autoStart;
     if (c.start_in_compact_mode) setTimeout(() => invoke('open_compact_window').catch(e => console.debug('compact startup:', e)), 250);
   }
   catch (error) { console.error('Settings load failed', error); toast(`Settings load failed: ${error}`); }
@@ -171,6 +174,12 @@ if (devSelect) {
 }
 
 document.querySelectorAll('#settings input, #settings select').forEach(el => { el.addEventListener('change', markDirty); el.addEventListener('input', markDirty); });
+
+$('cfg-start-os').addEventListener('change', async (e) => {
+  try { await invoke('set_autostart_enabled', { enabled: e.target.checked }); toast(e.target.checked ? 'Autostart enabled' : 'Autostart disabled'); }
+  catch (err) { toast(`Autostart: ${err}`); }
+});
+
 for (const button of document.querySelectorAll('.tab-btn')) button.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); button.classList.add('active'); $(button.dataset.tab).classList.add('active'); });
 for (const button of document.querySelectorAll('.settings-tab')) button.addEventListener('click', () => { document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active')); document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active')); button.classList.add('active'); $(button.dataset.settingsTab).classList.add('active'); });
 
