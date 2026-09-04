@@ -164,7 +164,7 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     if let Some(tray) = app.tray_by_id("main") {
         let icon_config = TrayIconConfig::load_or_create();
         let (rgba, w, h) = match icon_config.mode {
-            TrayIconMode::Big => generate_big_digits_rgba(0, 64),
+            TrayIconMode::Big => generate_big_digits_rgba(0, false, &icon_config),
             TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, 0, false),
         };
         let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
@@ -275,7 +275,7 @@ fn main() {
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
                             let (rgba, w, h) = match icon_config.mode {
-                                TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, 64),
+                                TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, st.charging, &icon_config),
                                 TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging),
                             };
                             let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));

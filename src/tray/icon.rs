@@ -244,10 +244,22 @@ pub fn generate_battery_icon_rgba(
     (rgba, size, size)
 }
 
-pub fn generate_big_digits_rgba(percent: u8, size: u32) -> (Vec<u8>, u32, u32) {
+pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconConfig) -> (Vec<u8>, u32, u32) {
+    let size = config.size;
     let mut img = RgbaImage::new(size, size);
-    let fg = Rgba([255u8, 255, 255, 255]);
-    let outline = Rgba([0u8, 0, 0, 255]);
+
+    let scheme = if charging {
+        &config.colors.charging
+    } else if percent > 50 {
+        &config.colors.high
+    } else if percent > 20 {
+        &config.colors.medium
+    } else {
+        &config.colors.low
+    };
+
+    let fg = Rgba(scheme.fg);
+    let outline = Rgba(scheme.outline);
 
     let digits: [[u8; 7]; 10] = [
         [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],
