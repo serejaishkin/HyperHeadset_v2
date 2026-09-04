@@ -11,10 +11,13 @@ use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, generate_battery_icon_rgba};
 
 fn load_tray_png() -> (Vec<u8>, u32, u32) {
-    let bytes = include_bytes!("../../assets/tray_16.png");
-    let img = image::load_from_memory(bytes).expect("tray_16.png").to_rgba8();
-    let w = img.width(); let h = img.height();
-    (img.into_raw(), w, h)
+    static CACHED: std::sync::OnceLock<(Vec<u8>, u32, u32)> = std::sync::OnceLock::new();
+    CACHED.get_or_init(|| {
+        let bytes = include_bytes!("../../assets/tray_16.png");
+        let img = image::load_from_memory(bytes).expect("tray_16.png").to_rgba8();
+        let w = img.width(); let h = img.height();
+        (img.into_raw(), w, h)
+    }).clone()
 }
 
 #[derive(Clone)]
