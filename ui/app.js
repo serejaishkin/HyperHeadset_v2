@@ -88,6 +88,7 @@ function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', 
 function trayToUi(t) {
   trayConfig = structuredClone(t);
   $('tray-mode').value = t.mode || 'big';
+  const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'big' ? 'none' : '';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of ['charging','high','medium','low']) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);
@@ -103,6 +104,126 @@ function uiToTray() {
   }
   return t;
 }
+
+const DIGITS = [
+  [0b01110,0b10001,0b10011,0b10101,0b11001,0b10001,0b01110],
+  [0b00100,0b01100,0b00100,0b00100,0b00100,0b00100,0b01110],
+  [0b01110,0b10001,0b00001,0b00010,0b00100,0b01000,0b11111],
+  [0b11111,0b00010,0b00100,0b00010,0b00001,0b10001,0b01110],
+  [0b00010,0b00110,0b01010,0b10010,0b11111,0b00010,0b00010],
+  [0b11111,0b10000,0b11110,0b00001,0b00001,0b10001,0b01110],
+  [0b01110,0b10001,0b10000,0b11110,0b10001,0b10001,0b01110],
+  [0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000],
+  [0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110],
+  [0b01110,0b10001,0b10001,0b01111,0b00001,0b10001,0b01110],
+];
+
+function rgbaToRgbStr(a) { return `rgb(${a[0]},${a[1]},${a[2]})`; }
+
+function renderTrayPreview() {
+  const canvas = $('tray-preview');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const t = uiToTray();
+  const scheme = t.colors?.high || { bg:[0,180,80,255], fg:[255,255,255,255], outline:[10,10,10,255], border:[0,110,50,255] };
+  const percent = 72;
+  const sz = 64;
+  canvas.width = sz; canvas.height = sz;
+  ctx.clearRect(0, 0, sz, sz);
+
+  if (t.mode === 'big') {
+    const fg = scheme.fg, ol = scheme.outline;
+    const text = String(percent);
+    const n = text.length;
+    const gap = 2;
+    const maxDW = (sz - gap * (n - 1)) / (5 * n);
+    const maxDH = sz / 7;
+    const scale = Math.max(1, Math.min(Math.floor(maxDW), Math.floor(maxDH)));
+    const dw = 5 * scale, dh = 7 * scale;
+    const totalW = n * dw + (n - 1) * gap;
+    const sx = Math.floor((sz - totalW) / 2);
+    const sy = Math.floor((sz - dh) / 2);
+    const opx = Math.max(1, Math.floor(scale / 3));
+
+    for (let ci = 0; ci < n; ci++) {
+      const d = parseInt(text[ci]);
+      const digit = DIGITS[d];
+      const ox = sx + ci * (dw + gap);
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 5; col++) {
+          if ((digit[row] >> (4 - col)) & 1) {
+            for (let dy = -opx; dy <= opx; dy++) {
+              for (let dx = -opx; dx <= opx; dx++) {
+                const xi = ox + col * scale + dx, yi = sy + row * scale + dy;
+                if (xi >= 0 && yi >= 0 && xi < sz && yi < sz) {
+                  ctx.fillStyle = rgbaToRgbStr(ol); ctx.fillRect(xi, yi, 1, 1);
+                }
+              }
+            }
+            for (let dy = 0; dy < scale; dy++) {
+              for (let dx = 0; dx < scale; dx++) {
+                const x = ox + col * scale + dx, y = sy + row * scale + dy;
+                if (x < sz && y < sz) { ctx.fillStyle = rgbaToRgbStr(fg); ctx.fillRect(x, y, 1, 1); }
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {
+    const bg = scheme.bg, fg = scheme.fg, ol = scheme.outline, bd = scheme.border;
+    ctx.fillStyle = rgbaToRgbStr(bg); ctx.fillRect(0, 0, sz, sz);
+    const bw = t.border_width || 0;
+    if (bw > 0) { ctx.fillStyle = rgbaToRgbStr(bd); ctx.fillRect(0, 0, sz, bw); ctx.fillRect(0, sz - bw, sz, bw); ctx.fillRect(0, 0, bw, sz); ctx.fillRect(sz - bw, 0, bw, sz); }
+    const fs = t.font_scale || 8, opx = t.outline_width || 2, gap = t.gap_between_digits || 4;
+    const dw = 5 * fs, dh = 7 * fs;
+    const text = String(percent);
+    const n = text.length;
+    const totalW = n * dw + (n - 1) * gap;
+    const sx = Math.floor((sz - totalW) / 2);
+    const sy = Math.floor((sz - dh) / 2);
+
+    for (let ci = 0; ci < n; ci++) {
+      const d = parseInt(text[ci]);
+      const digit = DIGITS[d];
+      const ox = sx + ci * (dw + gap);
+      if (opx > 0) {
+        for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
+          if ((digit[row] >> (4 - col)) & 1) {
+            for (let dy = -opx; dy <= opx; dy++) for (let dx = -opx; dx <= opx; dx++) {
+              const xi = ox + col * fs + dx, yi = sy + row * fs + dy;
+              if (xi >= 0 && yi >= 0 && xi < sz && yi < sz) { ctx.fillStyle = rgbaToRgbStr(ol); ctx.fillRect(xi, yi, 1, 1); }
+            }
+          }
+        }
+      }
+      for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
+        if ((digit[row] >> (4 - col)) & 1) {
+          for (let dy = 0; dy < fs; dy++) for (let dx = 0; dx < fs; dx++) {
+            const x = ox + col * fs + dx, y = sy + row * fs + dy;
+            if (x < sz && y < sz) { ctx.fillStyle = rgbaToRgbStr(fg); ctx.fillRect(x, y, 1, 1); }
+          }
+        }
+      }
+    }
+  }
+  const info = $('tray-preview-info');
+  if (info) info.textContent = `${t.mode} · ${sz}×${sz} · scheme: high`;
+}
+
+['tray-mode','tray-size','tray-font-scale','tray-outline','tray-border','tray-gap',
+ 'tray-charging-bg','tray-charging-fg','tray-charging-outline','tray-charging-border',
+ 'tray-high-bg','tray-high-fg','tray-high-outline','tray-high-border',
+ 'tray-medium-bg','tray-medium-fg','tray-medium-outline','tray-medium-border',
+ 'tray-low-bg','tray-low-fg','tray-low-outline','tray-low-border'].forEach(id => {
+  const el = $(id); if (el) { el.addEventListener('input', renderTrayPreview); el.addEventListener('change', renderTrayPreview); }
+});
+
+$('tray-mode').addEventListener('change', () => {
+  const mode = $('tray-mode').value;
+  const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
+  renderTrayPreview();
+});
 
 function configToUi(c) {
   config = structuredClone(c);
@@ -132,7 +253,7 @@ function uiToConfig() {
 async function loadConfig() {
   try {
     const [c, t, autoStart] = await Promise.all([invoke('get_config'), invoke('get_tray_config'), invoke('get_autostart_enabled')]);
-    configToUi(c); trayToUi(t);
+    configToUi(c); trayToUi(t); renderTrayPreview();
     $('cfg-start-os').checked = autoStart;
     if (c.start_in_compact_mode) setTimeout(() => invoke('open_compact_window').catch(e => console.debug('compact startup:', e)), 250);
   }
