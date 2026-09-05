@@ -88,7 +88,15 @@ fn save_config(config: Config) -> Result<(), String> {
 #[tauri::command]
 fn get_tray_config() -> Result<TrayIconConfig, String> { Ok(TrayIconConfig::load_or_create()) }
 #[tauri::command]
-fn save_tray_config(mut config: TrayIconConfig) -> Result<(), String> { config.sanitize(); config.save(TrayIconConfig::default_path()).map_err(|e| e.to_string()) }
+fn save_tray_config(mut config: TrayIconConfig) -> Result<(), String> {
+    log::info!("[Tray] save_tray_config: mode={:?} high.fg={:?} high.outline={:?} medium.fg={:?} low.fg={:?} charging.fg={:?}",
+        config.mode, config.colors.high.fg, config.colors.high.outline,
+        config.colors.medium.fg, config.colors.low.fg, config.colors.charging.fg);
+    config.sanitize();
+    let path = TrayIconConfig::default_path();
+    log::info!("[Tray] saving to {:?}", path);
+    config.save(&path).map_err(|e| e.to_string())
+}
 #[tauri::command]
 fn get_autostart_enabled(app: tauri::AppHandle) -> bool {
     use tauri_plugin_autostart::ManagerExt;
@@ -274,6 +282,9 @@ fn main() {
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
+                            log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
+                                icon_config.mode, st.battery_percent, st.charging,
+                                icon_config.colors.high.fg, icon_config.colors.high.outline);
                             let (rgba, w, h) = match icon_config.mode {
                                 TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, st.charging, &icon_config),
                                 TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging),
