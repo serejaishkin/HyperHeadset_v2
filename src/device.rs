@@ -4,6 +4,166 @@ use hidapi::HidApi;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(target_os = "windows")]
+mod win_enumerate {
+    use std::ptr::{null, null_mut};
+
+    type HDEVINFO = *mut core::ffi::c_void;
+    type HANDLE = *mut core::ffi::c_void;
+    type BOOL = i32;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct GUID {
+        data1: u32,
+        data2: u16,
+        data3: u16,
+        data4: [u8; 8],
+    }
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct SP_DEVICE_INTERFACE_DATA {
+        cbSize: u32,
+        InterfaceClassGuid: GUID,
+        Flags: u32,
+        Reserved: usize,
+    }
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct SP_DEVICE_INTERFACE_DETAIL_DATA_W {
+        cbSize: u32,
+        DevicePath: [u16; 1],
+    }
+
+    #[link(name = "setupapi")]
+    #[link(name = "hid")]
+    extern "system" {
+        fn HidD_GetHidGuid() -> GUID;
+        fn SetupDiGetClassDevsW(
+            classguid: *const GUID,
+            enumerator: *const u16,
+            hwndparent: HANDLE,
+            flags: u32,
+        ) -> HDEVINFO;
+        fn SetupDiEnumDeviceInterfaces(
+            deviceinfoset: HDEVINFO,
+            deviceinfodata: *const core::ffi::c_void,
+            interfaceclassguid: *const GUID,
+            memberindex: u32,
+            deviceinterfacedata: *mut SP_DEVICE_INTERFACE_DATA,
+        ) -> BOOL;
+        fn SetupDiGetDeviceInterfaceDetailW(
+            deviceinfoset: HDEVINFO,
+            deviceinterfacedata: *const SP_DEVICE_INTERFACE_DATA,
+            deviceinterfacedetaildata: *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W,
+            deviceinterfacedetaildatasize: u32,
+            requiredsize: *mut u32,
+            deviceinfodata: *mut core::ffi::c_void,
+        ) -> BOOL;
+        fn SetupDiDestroyDeviceInfoList(deviceinfoset: HDEVINFO) -> BOOL;
+    }
+
+    const DIGCF_PRESENT: u32 = 0x02;
+    const DIGCF_DEVICEINTERFACE: u32 = 0x10;
+    const INVALID_HANDLE_VALUE: HANDLE = -1isize as HANDLE;
+
+    pub fn enumerate_hid_paths() -> Vec<String> {
+        let guid = unsafe { HidD_GetHidGuid() };
+
+        let dev_info = unsafe {
+            SetupDiGetClassDevsW(
+                &guid,
+                null(),
+                INVALID_HANDLE_VALUE,
+                DIGCF_PRESENT | DIGCF_DEVICEINTERFACE,
+            )
+        };
+        if dev_info == INVALID_HANDLE_VALUE {
+            log::warn!("[HID] SetupDiGetClassDevsW failed");
+            return Vec::new();
+        }
+
+        let mut paths = Vec::new();
+        let mut idx = 0u32;
+        loop {
+            let mut interface_data: SP_DEVICE_INTERFACE_DATA = unsafe { std::mem::zeroed() };
+            interface_data.cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32;
+            let result = unsafe {
+                SetupDiEnumDeviceInterfaces(
+                    dev_info,
+                    null(),
+                    &guid,
+                    idx,
+                    &mut interface_data,
+                )
+            };
+            if result == 0 { break; }
+            idx += 1;
+
+            let mut required_size = 0u32;
+            unsafe {
+                SetupDiGetDeviceInterfaceDetailW(
+                    dev_info,
+                    &interface_data,
+                    null_mut(),
+                    0,
+                    &mut required_size,
+                    null_mut(),
+                )
+            };
+
+            let detail_size = required_size as usize;
+            if detail_size == 0 { continue; }
+
+            let alloc_size = detail_size + 2;
+            let mut buf: Vec<u8> = vec![0u8; alloc_size];
+            let detail_ptr = buf.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
+            unsafe {
+                (*detail_ptr).cbSize = 8;
+            }
+
+            let result = unsafe {
+                SetupDiGetDeviceInterfaceDetailW(
+                    dev_info,
+                    &interface_data,
+                    detail_ptr,
+                    required_size,
+                    null_mut(),
+                    null_mut(),
+                )
+            };
+            if result == 0 { continue; }
+
+            let path_ptr = unsafe { (*detail_ptr).DevicePath.as_ptr() };
+            let path_wide: Vec<u16> = unsafe {
+                let mut len = 0;
+                while *path_ptr.add(len) != 0 { len += 1; }
+                std::slice::from_raw_parts(path_ptr, len).to_vec()
+            };
+            if let Ok(path) = String::from_utf16(&path_wide) {
+                paths.push(path);
+            }
+        }
+
+        unsafe { SetupDiDestroyDeviceInfoList(dev_info); };
+        paths
+    }
+
+    pub fn filter_paths_by_vid_pid(paths: &[String], vid: u16, pids: &[u16]) -> Vec<String> {
+        let vid_lower = format!("vid_{:04x}", vid);
+        paths.iter().filter(|p| {
+            let pl = p.to_lowercase();
+            if !pl.contains(&vid_lower) { return false; }
+            pids.iter().any(|pid| {
+                let pid_str = format!("pid_{:04x}", pid);
+                pl.contains(&pid_str)
+            })
+        }).cloned().collect()
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DeviceState {
     pub connected: bool,
@@ -254,44 +414,130 @@ pub struct MultiDeviceManager {
 }
 
 impl MultiDeviceManager {
-    pub fn new() -> Self {
-        let api = HidApi::new().expect("Failed to initialize HID API");
-        Self { devices: Vec::new(), active_index: 0, api }
+    pub fn new() -> Option<Self> {
+        use std::sync::mpsc;
+        log::info!("[HID] Initializing HidApi (no-enumerate, timeout 5s)...");
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(|| {
+                HidApi::disable_device_discovery();
+                HidApi::new()
+            });
+            let _ = tx.send(result);
+        });
+        match rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(Ok(Ok(api))) => { log::info!("[HID] HidApi initialized OK (no-enumerate)"); Some(Self { devices: Vec::new(), active_index: 0, api }) }
+            Ok(Ok(Err(e))) => { log::error!("[HID] HidApi::new() error: {}", e); None }
+            Ok(Err(_)) => { log::error!("[HID] HidApi::new() panicked"); None }
+            Err(_) => { log::error!("[HID] HidApi::new() timed out after 5s"); None }
+        }
     }
 
     pub fn is_enumerated(&self) -> bool {
-        self.api.device_list().any(|info| {
-            info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
-        })
+        #[cfg(target_os = "windows")]
+        {
+            let paths = win_enumerate::enumerate_hid_paths();
+            let filtered = win_enumerate::filter_paths_by_vid_pid(&paths, VENDOR_ID, PRODUCT_IDS);
+            !filtered.is_empty()
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            self.api.device_list().any(|info| {
+                info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
+            })
+        }
     }
 
     pub fn scan_and_connect(&mut self) -> anyhow::Result<()> {
-        self.api.refresh_devices()?;
-        let mut new_devices = Vec::new();
+        log::info!("[HID] scan_and_connect: enumerating HID paths via Win32...");
 
-        for info in self.api.device_list() {
-            if info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id()) {
-                if let Ok(device) = self.api.open_path(info.path()) {
-                    let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
-                    if write_hid_report(&device, &packet).is_ok() {
-                        let mut buf = [0u8; 256];
-                        if let Ok(len) = device.read_timeout(&mut buf, 500) {
-                            if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
-                                let mut hx = HyperXDevice::new();
-                                hx.device = Some(device);
-                                hx.state.connected = true;
-                                hx.state.device_id = info.path().to_string_lossy().to_string();
-                                hx.state.name = info.product_string().map(|s| s.to_string()).unwrap_or_else(|| "HyperX Headset".to_string());
-                                hx.state.battery_percent = buf[7].min(100);
-                                new_devices.push(hx);
+        #[cfg(target_os = "windows")]
+        {
+            let paths = win_enumerate::enumerate_hid_paths();
+            log::info!("[HID] scan: total HID paths={}", paths.len());
+            let candidates = win_enumerate::filter_paths_by_vid_pid(&paths, VENDOR_ID, PRODUCT_IDS);
+            log::info!("[HID] scan: {} candidate paths after VID/PID filter", candidates.len());
+
+            let mut new_devices = Vec::new();
+            for path in &candidates {
+                log::info!("[HID] scan: trying path={}", path);
+                match self.api.open_path(std::ffi::CString::new(path.as_str()).unwrap().as_c_str()) {
+                    Ok(device) => {
+                        let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
+                        match write_hid_report(&device, &packet) {
+                            Ok(_) => {
+                                let mut buf = [0u8; 256];
+                                match device.read_timeout(&mut buf, 500) {
+                                    Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
+                                        let mut hx = HyperXDevice::new();
+                                        hx.device = Some(device);
+                                        hx.state.connected = true;
+                                        hx.state.device_id = path.clone();
+                                        hx.state.name = "HyperX Headset".to_string();
+                                        hx.state.battery_percent = buf[7].min(100);
+                                        log::info!("[HID] scan: connected battery={}%", hx.state.battery_percent);
+                                        new_devices.push(hx);
+                                    }
+                                    Ok(len) => log::info!("[HID] scan: probe got {} bytes, not valid response: {:?}", len, &buf[0..8.min(len)]),
+                                    Err(e) => log::info!("[HID] scan: probe read failed: {}", e),
+                                }
+                            }
+                            Err(e) => log::info!("[HID] scan: probe write failed: {}", e),
+                        }
+                    }
+                    Err(e) => log::info!("[HID] scan: open_path failed: {}", e),
+                }
+            }
+
+            log::info!("[HID] scan: {} candidates, {} connected", candidates.len(), new_devices.len());
+            self.devices = new_devices;
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            log::info!("[HID] scan_and_connect: refreshing devices...");
+            self.api.refresh_devices()?;
+            let mut new_devices = Vec::new();
+            let mut candidates_seen = 0u32;
+
+            for info in self.api.device_list() {
+                if info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id()) {
+                    candidates_seen += 1;
+                    log::info!("[HID] scan: candidate VID={:04X} PID={:04X} path={:?}",
+                        info.vendor_id(), info.product_id(), info.path());
+                    match self.api.open_path(info.path()) {
+                        Ok(device) => {
+                            let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
+                            match write_hid_report(&device, &packet) {
+                                Ok(_) => {
+                                    let mut buf = [0u8; 256];
+                                    match device.read_timeout(&mut buf, 500) {
+                                        Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
+                                            let mut hx = HyperXDevice::new();
+                                            hx.device = Some(device);
+                                            hx.state.connected = true;
+                                            hx.state.device_id = info.path().to_string_lossy().to_string();
+                                            hx.state.name = info.product_string().map(|s| s.to_string()).unwrap_or_else(|| "HyperX Headset".to_string());
+                                            hx.state.battery_percent = buf[7].min(100);
+                                            log::info!("[HID] scan: connected battery={}%", hx.state.battery_percent);
+                                            new_devices.push(hx);
+                                        }
+                                        Ok(len) => log::info!("[HID] scan: probe got {} bytes, not valid response: {:?}", len, &buf[0..8.min(len)]),
+                                        Err(e) => log::info!("[HID] scan: probe read failed: {}", e),
+                                    }
+                                }
+                                Err(e) => log::info!("[HID] scan: probe write failed: {}", e),
                             }
                         }
+                        Err(e) => log::info!("[HID] scan: open_path failed: {}", e),
                     }
                 }
             }
+
+            log::info!("[HID] scan: {} candidates found, {} connected", candidates_seen, new_devices.len());
+            self.devices = new_devices;
         }
 
-        self.devices = new_devices;
         if self.active_index >= self.devices.len() {
             self.active_index = 0;
         }

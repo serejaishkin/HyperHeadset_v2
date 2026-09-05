@@ -238,7 +238,15 @@ fn main() {
             let app_handle_device = app_handle.clone();
             let all_devices_inner = all_devices.clone();
             thread::spawn(move || {
-                let mut manager = MultiDeviceManager::new(); let mut was_connected = false; let mut heartbeat_failures = 0u32;
+                log::info!("[Device] Device thread started");
+                log::info!("[Device] Creating MultiDeviceManager...");
+                let mut manager = loop {
+                    match MultiDeviceManager::new() {
+                        Some(m) => { log::info!("[Device] MultiDeviceManager created, entering loop"); break m; }
+                        None => { log::warn!("[Device] Failed to create MultiDeviceManager, retrying in 5s..."); thread::sleep(Duration::from_secs(5)); }
+                    }
+                };
+                let mut was_connected = false; let mut heartbeat_failures = 0u32;
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
@@ -254,6 +262,7 @@ fn main() {
                         }
                     }
                     if manager.devices.is_empty() || !manager.devices.iter().any(|d| d.state.connected) {
+                        log::info!("[Device] Devices empty or disconnected, calling scan_and_connect...");
                         match manager.scan_and_connect() {
                             Ok(_) => {
                                 was_connected = true; heartbeat_failures = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false;

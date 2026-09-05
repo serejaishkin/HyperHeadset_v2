@@ -265,7 +265,7 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     };
 
     let fg = Rgba(scheme.fg);
-    let outline = Rgba(scheme.outline);
+    let outline = Rgba(scheme.fg);
 
     let digits: [[u8; 7]; 10] = [
         [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],
