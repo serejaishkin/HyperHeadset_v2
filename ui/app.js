@@ -6,6 +6,8 @@ let toastTimer = null;
 let config = null;
 let trayConfig = null;
 let dirty = false;
+let currentBattery = 0;
+let currentCharging = false;
 
 function toast(message) {
   let node = $('toast');
@@ -26,6 +28,8 @@ function setConnection(mode, battery = null) {
 
 function updateBattery(device) {
   const connected = !!device?.connected, percent = Number(device?.battery_percent ?? 0), charging = !!device?.charging, fill = $('battery-bar-fill');
+  currentBattery = percent;
+  currentCharging = charging;
   if (!connected) {
     $('battery-percent').textContent = '--%'; $('battery-status').textContent = 'No connection';
     $('mic-status').textContent = 'Inactive'; $('mic-status').className = 'status-value inactive'; $('signal-value').textContent = '-- dBm';
@@ -125,14 +129,17 @@ function renderTrayPreview() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const t = uiToTray();
-  const scheme = t.colors?.high || { bg:[0,180,80,255], fg:[255,255,255,255], outline:[10,10,10,255], border:[0,110,50,255] };
-  const percent = 72;
+  const pct = currentBattery;
+  let schemeKey = pct <= 20 ? 'low' : pct <= 50 ? 'medium' : 'high';
+  if (currentCharging) schemeKey = 'charging';
+  const scheme = t.colors?.[schemeKey] || t.colors?.high || { bg:[0,180,80,255], fg:[255,255,255,255], outline:[10,10,10,255], border:[0,110,50,255] };
+  const percent = pct;
   const sz = 64;
   canvas.width = sz; canvas.height = sz;
   ctx.clearRect(0, 0, sz, sz);
 
   if (t.mode === 'big') {
-    const fg = scheme.fg, ol = scheme.outline;
+    const fg = scheme.fg, ol = scheme.fg;
     const text = String(percent);
     const n = text.length;
     const gap = 2;
@@ -208,7 +215,7 @@ function renderTrayPreview() {
     }
   }
   const info = $('tray-preview-info');
-  if (info) info.textContent = `${t.mode} · ${sz}×${sz} · scheme: high`;
+  if (info) info.textContent = `${t.mode} · ${sz}×${sz} · scheme: ${schemeKey} (${percent}%)`;
 }
 
 ['tray-mode','tray-size','tray-font-scale','tray-outline','tray-border','tray-gap',
