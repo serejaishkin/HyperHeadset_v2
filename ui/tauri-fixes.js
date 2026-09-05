@@ -11,18 +11,18 @@
     savedConfigSnapshot = snapshot(window.__hhCurrentConfig || null);
     savedTraySnapshot = snapshot(window.__hhCurrentTray || null);
     if ($('settings-dirty')) {
-      $('settings-dirty').textContent = 'Saved';
+      $('settings-dirty').textContent = 'Сохранено';
       $('settings-dirty').classList.remove('dirty');
     }
-    if ($('save-message')) $('save-message').textContent = 'Changes are saved to config.toml and tray_icon.toml';
+    if ($('save-message')) $('save-message').textContent = 'Изменения сохранены в config.toml и tray_icon.toml';
   }
 
   function setDirtyState() {
     if ($('settings-dirty')) {
-      $('settings-dirty').textContent = 'Unsaved changes';
+      $('settings-dirty').textContent = 'Несохранённые изменения';
       $('settings-dirty').classList.add('dirty');
     }
-    if ($('save-message')) $('save-message').textContent = 'There are unsaved changes';
+    if ($('save-message')) $('save-message').textContent = 'Есть несохранённые изменения';
   }
 
   function ensureTrayPreview() {
@@ -30,7 +30,7 @@
     if (!pane || $('tray-preview')) return;
     const box = document.createElement('div');
     box.id = 'tray-preview';
-    box.innerHTML = '<div class="settings-section-title">Preview</div><div class="tray-preview-card"><div class="tray-preview-icon" id="tray-preview-icon">72%</div><div class="tray-preview-meta"><strong id="tray-preview-label">Battery 72%</strong><span>Live preview of the tray battery icon</span></div></div>';
+    box.innerHTML = '<div class="settings-section-title">Превью</div><div class="tray-preview-card"><div class="tray-preview-icon" id="tray-preview-icon">72%</div><div class="tray-preview-meta"><strong id="tray-preview-label">Батарея 72%</strong><span>Превью иконки батареи в трее</span></div></div>';
     const title = pane.querySelector('.settings-section-title');
     if (title) title.insertAdjacentElement('afterend', box); else pane.prepend(box);
   }
@@ -61,7 +61,7 @@
     icon.style.fontSize = `${Math.max(22, Math.min(72, 18 * previewScale))}px`;
     icon.style.letterSpacing = `${Math.min(20, gap)}px`;
     icon.textContent = '72%';
-    if (label) label.textContent = `Battery 72% · ${size}px · scale ${scale} · gap ${gap}`;
+    if (label) label.textContent = `Батарея 72% · ${size}px · масштаб ${scale} · зазор ${gap}`;
   }
 
   async function syncSettings(force = false) {
@@ -86,7 +86,7 @@
     try {
       const c = typeof window.uiToConfig === 'function' ? window.uiToConfig() : null;
       const t = typeof window.uiToTray === 'function' ? window.uiToTray() : null;
-      if (!c || !t) throw new Error('Settings form is not initialized');
+      if (!c || !t) throw new Error('Форма настроек не инициализирована');
       console.log('[HH] Saving tray config:', JSON.stringify(t?.colors, null, 2));
       await invoke('save_config', { config: c });
       await invoke('save_tray_config', { config: t });
@@ -95,10 +95,10 @@
       try { await invoke('apply_eq', { bands: c.audio.eq_bands }); } catch (_) {}
       setSavedState();
       updateTrayPreview();
-      if (typeof window.toast === 'function') window.toast('Settings saved');
+      if (typeof window.toast === 'function') window.toast('Настройки сохранены');
     } catch (e) {
       console.error('[Settings] save failed', e);
-      if (typeof window.toast === 'function') window.toast(`Save failed: ${e}`);
+      if (typeof window.toast === 'function') window.toast(`Ошибка сохранения: ${e}`);
     }
   }
 

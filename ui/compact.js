@@ -12,7 +12,7 @@ function updateCompact(state) {
     const bar = $('progress-bar');
     const mic = $('mic-status');
 
-    connection.textContent = connected ? 'ON' : 'OFF';
+    connection.textContent = connected ? 'ВКЛ' : 'ВЫКЛ';
     connection.className = `connection ${connected ? 'on' : 'off'}`;
     battery.textContent = connected ? `${pct}%` : '--%';
 
@@ -20,14 +20,14 @@ function updateCompact(state) {
         status.textContent = 'Нет подключения';
         bar.style.width = '0%';
         bar.style.background = '#444';
-        mic.textContent = '🎙️ MIC OFFLINE';
+        mic.textContent = '🎙️ МИКР НЕАКТИВЕН';
         return;
     }
 
     status.textContent = state.charging ? '⚡ Заряжается' : '🔋 Батарея';
     bar.style.width = `${pct}%`;
     bar.style.background = state.charging ? '#20e83a' : pct > 30 ? '#35d07f' : pct > 15 ? '#ff9800' : '#f44336';
-    mic.textContent = state.muted ? '🔇 MUTE' : '🎙️ MIC ON';
+    mic.textContent = state.muted ? '🔇 ВЫКЛ' : '🎙️ ВКЛ';
 }
 
 async function refreshCompact() {
