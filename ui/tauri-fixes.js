@@ -87,6 +87,7 @@
       const c = typeof window.uiToConfig === 'function' ? window.uiToConfig() : null;
       const t = typeof window.uiToTray === 'function' ? window.uiToTray() : null;
       if (!c || !t) throw new Error('Settings form is not initialized');
+      console.log('[HH] Saving tray config:', JSON.stringify(t?.colors, null, 2));
       await invoke('save_config', { config: c });
       await invoke('save_tray_config', { config: t });
       window.__hhCurrentConfig = clone(c);

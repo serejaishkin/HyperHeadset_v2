@@ -88,14 +88,27 @@ fn save_config(config: Config) -> Result<(), String> {
 #[tauri::command]
 fn get_tray_config() -> Result<TrayIconConfig, String> { Ok(TrayIconConfig::load_or_create()) }
 #[tauri::command]
-fn save_tray_config(mut config: TrayIconConfig) -> Result<(), String> {
+fn save_tray_config(app: tauri::AppHandle, mut config: TrayIconConfig) -> Result<(), String> {
     log::info!("[Tray] save_tray_config: mode={:?} high.fg={:?} high.outline={:?} medium.fg={:?} low.fg={:?} charging.fg={:?}",
         config.mode, config.colors.high.fg, config.colors.high.outline,
         config.colors.medium.fg, config.colors.low.fg, config.colors.charging.fg);
     config.sanitize();
     let path = TrayIconConfig::default_path();
     log::info!("[Tray] saving to {:?}", path);
-    config.save(&path).map_err(|e| e.to_string())
+    config.save(&path).map_err(|e| e.to_string())?;
+    if let Some(tray) = app.tray_by_id("main") {
+        let state = app.state::<AppState>();
+        let device = state.device_state.lock().unwrap().clone();
+        let (rgba, w, h) = match config.mode {
+            TrayIconMode::Big => generate_big_digits_rgba(device.battery_percent, device.charging, &config),
+            TrayIconMode::Digits => generate_battery_icon_rgba(&config, device.battery_percent, device.charging),
+        };
+        match tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
+            Ok(_) => log::info!("[Tray] set_icon OK after save"),
+            Err(e) => log::warn!("[Tray] set_icon failed after save: {}", e),
+        }
+    }
+    Ok(())
 }
 #[tauri::command]
 fn get_autostart_enabled(app: tauri::AppHandle) -> bool {
@@ -175,7 +188,9 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
             TrayIconMode::Big => generate_big_digits_rgba(0, false, &icon_config),
             TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, 0, false),
         };
-        let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+        if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
+            log::warn!("[Tray] disconnected set_icon failed: {}", e);
+        }
         let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
     }
 }
@@ -289,7 +304,9 @@ fn main() {
                                 TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, st.charging, &icon_config),
                                 TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config, st.battery_percent, st.charging),
                             };
-                            let _ = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h)));
+                            if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
+                                log::warn!("[Tray] set_icon failed: {}", e);
+                            }
                             let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
