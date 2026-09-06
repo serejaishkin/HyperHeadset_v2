@@ -1,5 +1,8 @@
 /target
+/src-tauri/target
 /dist
 /node_modules
 *.log
 .DS_Store
+*.key
+*.key.pub

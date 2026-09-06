@@ -1,23 +1,75 @@
-const { invoke, listen } = window.__TAURI__.core;
+const { invoke } = window.__TAURI__.core;
+const listen = window.__TAURI__.event ? window.__TAURI__.event.listen : window.__TAURI__.core.listen;
+
+const $ = (id) => document.getElementById(id);
+function tr(key) { const lang = window.__currentLang || 'ru'; return window.I18N?.[lang]?.[key] ?? window.I18N?.ru?.[key] ?? key; }
 
 function updateCompact(state) {
-    const pct = document.getElementById('battery-pct');
-    const st = document.getElementById('battery-st');
-    const bar = document.getElementById('progress-bar');
-    const mic = document.getElementById('mic-status');
-    if (!state.connected) {
-        pct.textContent = '--%';
-        st.textContent = 'Нет подключения';
+    const connected = !!state?.connected;
+    const pct = Math.max(0, Math.min(100, Number(state?.battery_percent ?? 0)));
+    const connection = $('connection');
+    const battery = $('battery-pct');
+    const status = $('battery-st');
+    const bar = $('progress-bar');
+    const mic = $('mic-status');
+
+    connection.textContent = connected ? tr('conn.on') : tr('conn.off');
+    connection.className = `connection ${connected ? 'on' : 'off'}`;
+    battery.textContent = connected ? `${pct}%` : '--%';
+
+    if (!connected) {
+        status.textContent = tr('bat.no_connection');
         bar.style.width = '0%';
+        bar.style.background = '#444';
+        mic.textContent = '🎙️ ' + tr('bat.inactive');
         return;
     }
-    pct.textContent = state.battery_percent + '%';
-    st.textContent = state.charging ? '⚡ Заряжается' : '🔋 Батарея';
-    bar.style.width = state.battery_percent + '%';
-    bar.style.background = state.battery_percent > 30 ? '#4caf50' : state.battery_percent > 15 ? '#ff9800' : '#f44336';
-    mic.textContent = state.muted ? '🔇 MUTE' : '🎙️ MIC ON';
+
+    status.textContent = state.charging ? '⚡ ' + tr('bat.charging') : '🔋 ' + tr('bat.battery');
+    bar.style.width = `${pct}%`;
+    bar.style.background = state.charging ? '#20e83a' : pct > 30 ? '#35d07f' : pct > 15 ? '#ff9800' : '#f44336';
+    mic.textContent = state.muted ? '🔇 ' + tr('mic.off') : '🎙️ ' + tr('mic.on');
 }
 
-document.getElementById('btn-mute-c').addEventListener('click', () => invoke('toggle_mute'));
+async function refreshCompact() {
+    try { updateCompact(await invoke('get_device_state')); }
+    catch (error) { console.error('get_device_state failed', error); }
+}
+
+$('btn-mute-c').addEventListener('click', async () => {
+    try { await invoke('toggle_mute'); }
+    catch (error) { console.error('toggle_mute failed', error); }
+});
+
+$('btn-main-c').addEventListener('click', async () => {
+    try { await invoke('show_main_window_cmd'); }
+    catch (error) { console.error('show_main_window_cmd failed', error); window.close(); }
+});
+
+$('vol-master').addEventListener('input', async (e) => {
+    $('vol-value').textContent = `${e.target.value}%`;
+    try { await invoke('set_volume', { percent: Number(e.target.value) }); } catch (error) { console.debug(error); }
+});
+
+$('vol-mic').addEventListener('input', async (e) => {
+    $('mic-value').textContent = `${e.target.value}%`;
+    try { await invoke('set_mic_volume', { percent: Number(e.target.value) }); } catch (error) { console.debug(error); }
+});
+
 listen('device-state', e => updateCompact(e.payload));
-invoke('get_device_state').then(updateCompact);
+listen('device-disconnected', () => updateCompact({ connected:false }));
+listen('device-command-error', e => console.error('Device command failed:', e.payload));
+
+async function loadLang() {
+    try {
+        const c = await invoke('get_config');
+        const lang = c.language || 'ru';
+        window.__currentLang = lang;
+        document.documentElement.lang = lang;
+        if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+    } catch (e) { /* ignore */ }
+}
+
+refreshCompact();
+loadLang();
+setInterval(refreshCompact, 2000);

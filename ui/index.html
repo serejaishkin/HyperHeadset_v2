@@ -1,59 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>HyperHeadsetv2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyperX NGENUITY Open</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="settings">Settings</button>
-    <button class="tab-btn" id="btn-compact">⛶ Compact</button>
-  </div>
-
-  <div class="tab-content active" id="dashboard">
-    <div class="battery-ring">
-      <svg width="200" height="200" viewBox="0 0 100 100">
-        <circle class="bg" cx="50" cy="50" r="45"/>
-        <circle class="progress" id="ring-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283"/>
-      </svg>
-      <div class="battery-text">
-        <span id="battery-percent">--</span>
-        <span id="battery-status">Нет подключения</span>
+  <aside class="sidebar">
+    <div class="side-control"><div class="side-title">VOL</div><input id="volume" class="vertical-range" type="range" min="0" max="100" value="92"><div class="side-value" id="volume-value">92%</div></div>
+    <div class="side-control"><div class="side-title">MIC</div><input id="mic-volume" class="vertical-range" type="range" min="0" max="100" value="100"><div class="side-value" id="mic-value">100%</div></div>
+    <button class="side-button" id="mic-toggle" data-i18n="sidebar.mic_on">МИКР ВКЛ</button>
+    <label class="side-check"><input type="checkbox" id="sidetone"><span data-i18n="sidebar.sidetone">Сайдтон</span></label>
+    <button class="side-button play-button" id="play-button" data-i18n="sidebar.play">ИГРАТЬ</button>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <nav class="tabs"><button class="tab-btn active" data-tab="dashboard" data-i18n="tab.dashboard">Главная</button><button class="tab-btn" data-tab="equalizer" data-i18n="tab.equalizer">Эквалайзер</button><button class="tab-btn" data-tab="settings" data-i18n="tab.settings">Настройки</button></nav>
+      <div class="header-status"><span id="connection-state" class="connection-state searching" data-i18n="header.searching">ПОИСК</span><span id="header-battery">[БАТ] --%</span><button id="btn-compact" class="compact-button" data-i18n-title="header.compact_title" title="Компактный режим">⛶</button></div>
+    </header>
+    <section class="tab-content active" id="dashboard">
+      <div id="device-selector-container" class="device-selector-row" style="display:none; margin-bottom: 14px;">
+        <label for="device-select" style="font-size:12px; color:#aaa; margin-right:8px;" data-i18n="dash.active_headset">Активная гарнитура:</label>
+        <select id="device-select" style="background:#222; color:#fff; border:1px solid #444; padding:4px 8px; border-radius:4px; font-size:12px;"></select>
       </div>
-    </div>
-    <div class="actions">
-      <button id="btn-mute">🎙️ Мьют</button>
-      <button id="btn-check">🔋 Проверить</button>
-    </div>
-  </div>
-
-  <div class="tab-content" id="settings">
-    <h3>Headset</h3>
-    <div class="setting-row">
-      <label>Sidetone (слышать себя)</label>
-      <input type="checkbox" id="sidetone">
-    </div>
-    <div class="setting-row">
-      <label>Voice prompts</label>
-      <input type="checkbox" id="voice-prompts">
-    </div>
-    <h3>Voice Notifications</h3>
-    <div class="setting-row">
-      <label>Enabled</label>
-      <input type="checkbox" id="voice-enabled" checked>
-    </div>
-    <div class="setting-row">
-      <label>Battery low</label>
-      <input type="checkbox" id="voice-battery-low" checked>
-    </div>
-    <div class="setting-row">
-      <label>Charging</label>
-      <input type="checkbox" id="voice-charging" checked>
-    </div>
-  </div>
-
+      <h1 data-i18n="dash.title">Состояние гарнитуры</h1>
+      <div class="dashboard-grid">
+        <section class="status-panel battery-panel"><div class="panel-title" data-i18n="dash.battery">Батарея:</div><div class="battery-value" id="battery-percent">--%</div><div class="battery-bar"><div id="battery-bar-fill"></div></div><div class="battery-state" id="battery-status" data-i18n="dash.searching">Поиск устройства...</div></section>
+        <section class="status-panel"><div class="panel-title" data-i18n="dash.microphone">Микрофон:</div><div class="status-value" id="mic-status">Неизвестно</div><div class="panel-title signal-title" data-i18n="dash.signal">Сигнал:</div><div class="status-value" id="signal-value">-- dBm</div></section>
+      </div>
+      <h2 data-i18n="dash.quick_actions">Быстрые действия</h2>
+      <div class="quick-actions"><button id="btn-mute" data-i18n="dash.mute_mic">Выкл. микрофон</button><button id="btn-voice-check" data-i18n="dash.check_battery">Проверить батарею (голос)</button></div>
+      <div id="device-message" class="device-message"><strong id="device-message-title" data-i18n="dash.searching_headset">Поиск гарнитуры...</strong><span id="device-message-text" data-i18n="dash.connect_text">Подключите гарнитуру/донгл HyperX для начала. Обнаружение работает автоматически.</span><button id="btn-reconnect" data-i18n="dash.retry">Повторить</button></div>
+    </section>
+    <section class="tab-content" id="equalizer">
+      <h1 data-i18n="eq.title">Эквалайзер</h1>
+      <div class="eq-layout">
+        <div class="eq-toolbar"><label data-i18n="eq.preset">Пресет <select id="eq-preset"><option data-i18n="eq.preset_flat" value="Плоский">Плоский</option><option data-i18n="eq.preset_bass_boost" value="Усиление басов">Усиление басов</option><option data-i18n="eq.preset_bass_cut" value="Ослабление басов">Ослабление басов</option><option data-i18n="eq.preset_treble_boost" value="Усиление верхних">Усиление верхних</option><option data-i18n="eq.preset_voice_chat" value="Голосовой чат">Голосовой чат</option><option data-i18n="eq.preset_gaming" value="Игры">Игры</option></select></label><button id="eq-reset" data-i18n="eq.reset">Сбросить</button><button id="eq-apply" class="primary" data-i18n="eq.apply">Применить</button></div>
+        <div class="feature-note" id="eq-device-note" style="display:none"></div>
+        <div class="settings-actions"><button id="eq-save-per-device" data-i18n="eq.save_per_device">Сохранить как пресет гарнитуры</button><button id="eq-clear-per-device" style="display:none" data-i18n="eq.clear_per_device">Удалить пресет гарнитуры</button></div>
+        <div class="eq-bands" id="eq-bands">
+          <div class="eq-band"><input data-band="0" type="range" min="-12" max="12" value="0"><span>32</span></div><div class="eq-band"><input data-band="1" type="range" min="-12" max="12" value="0"><span>64</span></div><div class="eq-band"><input data-band="2" type="range" min="-12" max="12" value="0"><span>125</span></div><div class="eq-band"><input data-band="3" type="range" min="-12" max="12" value="0"><span>250</span></div><div class="eq-band"><input data-band="4" type="range" min="-12" max="12" value="0"><span>500</span></div><div class="eq-band"><input data-band="5" type="range" min="-12" max="12" value="0"><span>1k</span></div><div class="eq-band"><input data-band="6" type="range" min="-12" max="12" value="0"><span>2k</span></div><div class="eq-band"><input data-band="7" type="range" min="-12" max="12" value="0"><span>4k</span></div><div class="eq-band"><input data-band="8" type="range" min="-12" max="12" value="0"><span>8k</span></div><div class="eq-band"><input data-band="9" type="range" min="-12" max="12" value="0"><span>16k</span></div>
+        </div>
+        <div class="feature-note" data-i18n="eq.note">На Windows эквалайзер записывается в Equalizer APO. На Linux/macOS пресет сохраняется в конфиге.</div>
+      </div>
+    </section>
+    <section class="tab-content" id="settings">
+      <div class="settings-header"><div><h1 data-i18n="settings.title">Настройки</h1><p data-i18n="settings.subtitle">Настройки из оригинального приложения.</p></div><span id="settings-dirty" class="dirty-indicator" data-i18n="settings.saved">Сохранено</span></div>
+      <div class="settings-tabs"><button class="settings-tab active" data-settings-tab="headset-settings" data-i18n="settings.tab_headset">Гарнитура</button><button class="settings-tab" data-settings-tab="voice-settings" data-i18n="settings.tab_voice">Голос</button><button class="settings-tab" data-settings-tab="tray-settings" data-i18n="settings.tab_tray">Иконка в трее</button><button class="settings-tab" data-settings-tab="discord-settings" data-i18n="settings.tab_discord">Discord</button><button class="settings-tab" data-settings-tab="debug-settings" data-i18n="settings.tab_debug">Отладка</button><button class="settings-tab" data-settings-tab="interface-settings" data-i18n="settings.tab_interface">Интерфейс</button></div>
+      <div class="settings-scroll">
+        <div class="settings-pane active" id="headset-settings"><div class="settings-section-title" data-i18n="headset.section">Гарнитура</div><div class="setting-row"><div><strong data-i18n="headset.enabled">Приложение включено</strong><small data-i18n="headset.enabled_desc">Включить управление HyperHeadset</small></div><input type="checkbox" id="cfg-enabled"></div><div class="setting-row"><div><strong data-i18n="headset.sidetone">Сайдтон</strong><small data-i18n="headset.sidetone_desc">Слышать свой микрофон в гарнитуре</small></div><input type="checkbox" id="cfg-sidetone"></div><div class="setting-row"><div><strong data-i18n="headset.voice_prompts">Голосовые подсказки</strong><small data-i18n="headset.voice_prompts_desc">Запомнить настройку голосовых подсказок гарнитуры</small></div><input type="checkbox" id="cfg-voice-prompts"></div><div class="setting-row"><div><strong data-i18n="headset.auto_shutdown">Авто-выключение</strong><small data-i18n="headset.auto_shutdown_desc">0 — таймер выключен</small></div><div class="number-setting"><input type="number" id="cfg-auto-shutdown" min="0" max="60"><span>мин</span></div></div><div class="settings-section-title" data-i18n="headset.mute_button">Кнопка мьюта</div><div class="setting-row"><div><strong data-i18n="headset.mode">Режим</strong><small data-i18n="headset.mode_desc">Поведение кнопки гарнитуры</small></div><select id="cfg-mute-mode"><option data-i18n="headset.mode_standard" value="standard">Стандартный (Микр.мьют)</option><option data-i18n="headset.mode_play_pause" value="media_play_pause">Воспр./Пауза</option><option data-i18n="headset.mode_smart_double" value="smart_double">Умный: одно нажатие — мьют / двойное — воспр./пауза</option><option data-i18n="headset.mode_smart_hold" value="smart_hold">Умный: короткое — воспр./пауза / удержание — мьют</option><option data-i18n="headset.mode_hold_play_pause" value="hold_play_pause">Умный: короткое — мьют / удержание — воспр./пауза</option></select></div><div class="setting-row"><div><strong data-i18n="headset.keybind">Бинд</strong><small data-i18n="headset.keybind_desc">Глобальный мьют/клавиша Discord</small></div><input type="text" id="cfg-keybind"></div><div class="setting-row"><div><strong data-i18n="headset.double_tap">Задержка двойного нажатия</strong><small data-i18n="headset.double_tap_desc">Интервал умного двойного клика</small></div><div class="number-setting"><input type="number" id="cfg-double-tap" min="100" max="2000"><span>мс</span></div></div></div>
+        <div class="settings-pane" id="voice-settings"><div class="settings-section-title" data-i18n="voice.section_bundled">Встроенные WAV-голоса</div><div class="feature-note" data-i18n="voice.bundled_note">Проект содержит все голосовые подсказки батареи от bat_000.wav до bat_100.wav (0% до 100%), а также WAV-файлы зарядки, полной зарядки и низкого заряда батареи.</div><div class="setting-row"><div><strong data-i18n="voice.enabled">Включить голос</strong><small data-i18n="voice.enabled_desc">Включить голосовые уведомления о батарее/статусе</small></div><input type="checkbox" id="voice-enabled"></div><div class="setting-row"><div><strong data-i18n="voice.battery_low">Батарея разряжена</strong><small data-i18n="voice.battery_low_desc">Воспроизвести low_battery.wav</small></div><input type="checkbox" id="voice-battery-low"></div><div class="setting-row"><div><strong data-i18n="voice.charging">Зарядка</strong><small data-i18n="voice.charging_desc">Воспроизвести charging.wav</small></div><input type="checkbox" id="voice-charging"></div><div class="setting-row"><div><strong data-i18n="voice.full_charge">Полная зарядка</strong><small data-i18n="voice.full_charge_desc">Воспроизвести full_charge.wav</small></div><input type="checkbox" id="voice-full-charge"></div><div class="setting-row"><div><strong data-i18n="voice.on_connect">Уведомление о подключении</strong><small data-i18n="voice.on_connect_desc">Используются только доступные голосовые события</small></div><input type="checkbox" id="voice-connected"></div><div class="setting-row"><div><strong data-i18n="voice.on_disconnect">Уведомление об отключении</strong><small data-i18n="voice.on_disconnect_desc">Используются только доступные голосовые события</small></div><input type="checkbox" id="voice-disconnected"></div><div class="setting-row"><div><strong data-i18n="voice.button_check">Проверка кнопки</strong><small data-i18n="voice.button_check_desc">Разрешить проверку батареи (голос)</small></div><input type="checkbox" id="voice-button-check"></div><div class="setting-row"><div><strong data-i18n="voice.clip_mode">Режим клипа батареи</strong><small data-i18n="voice.clip_mode_desc">Используется ближайший встроенный клип</small></div><input type="checkbox" id="voice-exact-percent"></div><div class="settings-actions"><button id="btn-test-voice" class="primary" data-i18n="voice.test">Тест встроенных WAV</button></div><div class="settings-section-title" data-i18n="voice.section_custom">Пользовательский голосовой пакет</div><div class="feature-note" data-i18n="voice.custom_note">Загрузите свои WAV-файлы (bat_000.wav ... bat_100.wav, charging.wav, full_charge.wav, low_battery.wav). Пользовательские файлы заменяют встроенные.</div><div class="setting-row"><div><strong data-i18n="voice.custom_folder">Папка пользовательских голосов</strong><small data-i18n="voice.custom_folder_desc">Оставьте пустым для использования стандартной папки (custom_voice/ рядом с exe)</small></div><input type="text" id="voice-custom-dir" placeholder="C:\path\to\wav"></div><div class="setting-row"><div><strong>Загрузить WAV</strong><small>Файл будет сохранен с оригинальным именем</small></div><input type="file" id="voice-upload-file" accept=".wav"></div><div class="settings-actions"><button id="btn-save-voice-dir">Сохранить папку</button></div></div>
+        <div class="settings-pane" id="tray-settings"><div class="settings-section-title" data-i18n="tray.section">Иконка в трее — Превью</div><div style="text-align:center;margin-bottom:12px;"><canvas id="tray-preview" width="64" height="64" style="background:#222;border-radius:8px;image-rendering:pixelated;width:64px;height:64px;"></canvas><div id="tray-preview-info" style="font-size:11px;color:#888;margin-top:4px;"></div></div><div class="setting-row"><div><strong data-i18n="tray.mode">Режим</strong><small data-i18n="tray.mode_desc">Большой: крупные цифры / Цифры: стилизованная иконка</small></div><select id="tray-mode"><option data-i18n="tray.mode_big" value="big">Большой (крупные цифры)</option><option data-i18n="tray.mode_digits" value="digits">Цифры (стилизованная иконка)</option></select></div><div class="setting-row"><div><strong data-i18n="tray.icon_size">Размер иконки</strong><small data-i18n="tray.icon_size_desc">Разрешение превью</small></div><div class="number-setting"><input type="number" id="tray-size" min="16" max="512"><span>px</span></div></div><div id="digits-settings"><div class="setting-row"><div><strong data-i18n="tray.font_scale">Масштаб шрифта</strong></div><input type="number" id="tray-font-scale" min="1" max="20"></div><div class="setting-row"><div><strong data-i18n="tray.outline">Ширина обводки</strong></div><input type="number" id="tray-outline" min="0" max="10"></div><div class="setting-row"><div><strong data-i18n="tray.border">Ширина рамки</strong></div><input type="number" id="tray-border" min="0" max="20"></div><div class="setting-row"><div><strong data-i18n="tray.gap">Расстояние между цифрами</strong></div><input type="number" id="tray-gap" min="0" max="50"></div></div><div class="settings-section-title" data-i18n="tray.colors">Цвета: ФОН / ТЕКСТ / ОБВОДКА / РАМКА</div><div class="tray-color-grid"><label data-i18n="tray.color_charging">Зарядка <input type="color" id="tray-charging-bg"><input type="color" id="tray-charging-fg"><input type="color" id="tray-charging-outline"><input type="color" id="tray-charging-border"></label><label data-i18n="tray.color_high">Высокий <input type="color" id="tray-high-bg"><input type="color" id="tray-high-fg"><input type="color" id="tray-high-outline"><input type="color" id="tray-high-border"></label><label data-i18n="tray.color_medium">Средний <input type="color" id="tray-medium-bg"><input type="color" id="tray-medium-fg"><input type="color" id="tray-medium-outline"><input type="color" id="tray-medium-border"></label><label data-i18n="tray.color_low">Низкий <input type="color" id="tray-low-bg"><input type="color" id="tray-low-fg"><input type="color" id="tray-low-outline"><input type="color" id="tray-low-border"></label></div></div>
+        <div class="settings-pane" id="discord-settings"><div class="settings-section-title" data-i18n="discord.section">Discord</div><div class="setting-row"><div><strong data-i18n="discord.mode">Режим</strong><small data-i18n="discord.mode_desc">Режим интеграции Discord</small></div><select id="discord-mode"><option data-i18n="discord.mode_none" value="None">Нет</option><option data-i18n="discord.mode_keybind" value="Keybind">Клавиша привязки</option><option data-i18n="discord.mode_direct" value="Direct">Прямой</option></select></div><div class="setting-row"><div><strong data-i18n="discord.keybind">Клавиша привязки</strong><small data-i18n="discord.keybind_desc">Клавиша мьюта Discord</small></div><input type="text" id="discord-keybind"></div><div class="setting-row"><div><strong data-i18n="discord.app_id">ID приложения</strong><small data-i18n="discord.app_id_desc">ID приложения Discord Rich Presence</small></div><input type="text" id="discord-app-id"></div><div class="setting-row"><div><strong data-i18n="discord.show_battery">Показывать батарею</strong></div><input type="checkbox" id="discord-battery"></div><div class="setting-row"><div><strong data-i18n="discord.show_mute">Показывать статус мьюта</strong></div><input type="checkbox" id="discord-mute"></div></div>
+        <div class="settings-pane" id="debug-settings"><div class="settings-section-title" data-i18n="debug.section">Отладка и логирование</div><div class="setting-row"><div><strong data-i18n="debug.logging">Отладочный лог</strong><small data-i18n="debug.logging_desc">Подробные логи Rust</small></div><input type="checkbox" id="cfg-debug"></div><div class="setting-row"><div><strong data-i18n="debug.console">Лог в консоль</strong></div><input type="checkbox" id="cfg-console"></div><div class="setting-row"><div><strong data-i18n="debug.file">Лог в файл</strong><small data-i18n="debug.file_desc">Записывать hyperx-ngenuity-open.log</small></div><input type="checkbox" id="cfg-file"></div></div>
+        <div class="settings-pane" id="interface-settings"><div class="settings-section-title" data-i18n="interface.section">Интерфейс и запуск</div><div class="setting-row"><div><strong data-i18n="interface.start_os">Запускать с системой</strong><small data-i18n="interface.start_os_desc">Запускаться автоматически при загрузке ОС</small></div><input type="checkbox" id="cfg-start-os"></div><div class="setting-row"><div><strong data-i18n="interface.start_compact">Запускать в компактном режиме</strong><small data-i18n="interface.start_compact_desc">Открывать компактное окно автоматически после запуска</small></div><input type="checkbox" id="cfg-start-compact"></div><div class="setting-row"><div><strong data-i18n="interface.compact_mode">Компактный режим</strong><small data-i18n="interface.compact_mode_desc">Запоминать состояние компактного режима</small></div><input type="checkbox" id="cfg-compact"></div><div class="setting-row"><div><strong data-i18n="interface.language">Язык</strong></div><select id="cfg-language"><option value="ru">Русский</option><option value="en">English</option></select></div><div class="settings-section-title" data-i18n="interface.updates">Обновления</div><div class="settings-actions"><button id="btn-check-updates" data-i18n="interface.check_updates">Проверить обновления</button></div></div>
+      </div>
+      <div class="save-bar"><span id="save-message">Изменения сохраняются в config.toml</span><button id="btn-reset-settings" data-i18n="save.reload">Перезагрузить</button><button id="btn-save-settings" class="primary" data-i18n="save.save">Сохранить настройки</button></div>
+    </section>
+  </main>
+  <script src="lang.js"></script>
   <script src="app.js"></script>
+  <script src="tauri-fixes.js"></script>
 </body>
 </html>

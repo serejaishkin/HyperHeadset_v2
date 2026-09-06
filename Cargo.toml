@@ -14,6 +14,8 @@ toml = "0.8"
 log = "0.4"
 env_logger = "0.11"
 anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+thistermination = "1.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
 rodio = { version = "0.19", default-features = false, features = ["wav"] }
 reqwest = { version = "0.12", features = ["json"] }
@@ -40,13 +42,16 @@ windows = { version = "0.58", features = [
     "Win32_System_Com",
     "Win32_Media_Audio",
     "Win32_Media_Audio_Endpoints",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Storage_FileSystem",
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libpulse-binding = "2.28"
 ksni = "0.2"
 
 [features]
+default = ["embedded-voice"]
 embedded-voice = []
 
 [[bin]]

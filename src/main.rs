@@ -36,7 +36,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use hyperx_ngenuity_open::{
-    audio::DebouncedEQ,
+    audio::debounce::DebouncedEQ,
     config::Config,
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
@@ -44,7 +44,7 @@ use hyperx_ngenuity_open::{
     DeviceEvent,
 };
 
-use hyperx_ngenuity_open::tray::{PlatformTray, TrayCommand};
+use hyperx_ngenuity_open::tray::PlatformTray;
 
 #[cfg(target_os = "windows")]
 fn check_apo_available() -> bool {
@@ -265,7 +265,7 @@ fn main() -> anyhow::Result<()> {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
+            let mut discord_ws = hyperx_ngenuity_open::discord::rpc_ws::DiscordRPCClient::new(discord_app_id);
             if let Err(e) = discord_ws.connect().await {
                 log::warn!("Discord RPC WebSocket failed: {}", e);
             }
