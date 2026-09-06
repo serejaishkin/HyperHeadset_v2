@@ -182,6 +182,8 @@ window.I18N = {
     'bat.inactive': 'Неактивен',
     'mic.on': 'МИКР ВКЛ',
     'mic.off': 'МИКР ВЫКЛ',
+    'compact.mute': 'Мьют',
+    'compact.main': 'Основное',
   },
   en: {
     'sidebar.mic_on': 'MIC ON',
@@ -366,6 +368,8 @@ window.I18N = {
     'bat.inactive': 'Inactive',
     'mic.on': 'MIC ON',
     'mic.off': 'MIC OFF',
+    'compact.mute': 'Mute',
+    'compact.main': 'Main',
   },
 };
 
@@ -379,14 +383,19 @@ window.applyLanguage = function (lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (key && dict[key] !== undefined) {
-      el.textContent = dict[key];
-    }
-  });
-
-  document.querySelectorAll('option[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if (key && dict[key] !== undefined) {
-      el.textContent = dict[key];
+      if (el.tagName === 'OPTION') {
+        el.textContent = dict[key];
+      } else if (el.children.length > 0) {
+        // For elements with children (labels with inputs), only update text nodes
+        for (const node of el.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+            node.textContent = ' ' + dict[key] + ' ';
+            break;
+          }
+        }
+      } else {
+        el.textContent = dict[key];
+      }
     }
   });
 

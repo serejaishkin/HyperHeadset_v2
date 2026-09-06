@@ -9,6 +9,8 @@ let dirty = false;
 let currentBattery = 0;
 let currentCharging = false;
 
+function tr(key) { const lang = window.__currentLang || 'ru'; return window.I18N?.[lang]?.[key] ?? window.I18N?.ru?.[key] ?? key; }
+
 function toast(message) {
   let node = $('toast');
   if (!node) {
@@ -17,13 +19,13 @@ function toast(message) {
   node.textContent = message; node.classList.add('show'); clearTimeout(toastTimer);
   toastTimer = setTimeout(() => node.classList.remove('show'), 3000);
 }
-function markDirty() { dirty = true; $('settings-dirty').textContent = 'Несохранённые изменения'; $('settings-dirty').classList.add('dirty'); $('save-message').textContent = 'Есть несохранённые изменения'; }
-function markSaved() { dirty = false; $('settings-dirty').textContent = 'Сохранено'; $('settings-dirty').classList.remove('dirty'); $('save-message').textContent = 'Изменения сохранены в config.toml и tray_icon.toml'; }
+function markDirty() { dirty = true; $('settings-dirty').textContent = tr('settings.unsaved'); $('settings-dirty').classList.add('dirty'); $('save-message').textContent = tr('settings.unsaved_msg'); }
+function markSaved() { dirty = false; $('settings-dirty').textContent = tr('settings.saved'); $('settings-dirty').classList.remove('dirty'); $('save-message').textContent = tr('settings.save_msg'); }
 
 function setConnection(mode, battery = null) {
   const state = $('connection-state'); state.className = `connection-state ${mode}`;
-  state.textContent = mode === 'connected' ? 'ВКЛ' : mode === 'searching' ? 'ПОИСК' : 'ВЫКЛ';
-  $('header-battery').textContent = battery == null ? '[БАТ] --%' : `[БАТ] ${battery}%`;
+  state.textContent = mode === 'connected' ? tr('conn.on') : mode === 'searching' ? tr('conn.searching') : tr('conn.off');
+  $('header-battery').textContent = battery == null ? `${tr('header.battery')} --%` : `${tr('header.battery')} ${battery}%`;
 }
 
 function updateBattery(device) {
@@ -31,17 +33,17 @@ function updateBattery(device) {
   currentBattery = percent;
   currentCharging = charging;
   if (!connected) {
-    $('battery-percent').textContent = '--%'; $('battery-status').textContent = 'Нет подключения';
-    $('mic-status').textContent = 'Неактивен'; $('mic-status').className = 'status-value inactive'; $('signal-value').textContent = '-- dBm';
+    $('battery-percent').textContent = '--%'; $('battery-status').textContent = tr('bat.no_connection');
+    $('mic-status').textContent = tr('bat.inactive'); $('mic-status').className = 'status-value inactive'; $('signal-value').textContent = '-- dBm';
     fill.style.width = '0%'; fill.className = ''; setConnection('disconnected');
-    $('device-message').className = 'device-message'; $('device-message-title').textContent = 'Гарнитура отключена'; $('device-message-text').textContent = 'Ожидание устройства...'; return;
+    $('device-message').className = 'device-message'; $('device-message-title').textContent = tr('dash.disconnected_title'); $('device-message-text').textContent = tr('dash.disconnected_text'); return;
   }
   const pct = Math.max(0, Math.min(100, percent)); $('battery-percent').textContent = `${pct}%`;
-  $('battery-status').textContent = charging ? 'Зарядка' : 'Батарея'; fill.style.width = `${pct}%`; fill.className = charging ? 'charging' : pct <= 20 ? 'low' : '';
-  $('mic-status').textContent = device.muted ? 'Выключен' : 'Активен'; $('mic-status').className = device.muted ? 'status-value inactive' : 'status-value';
+  $('battery-status').textContent = charging ? tr('bat.charging') : tr('bat.battery'); fill.style.width = `${pct}%`; fill.className = charging ? 'charging' : pct <= 20 ? 'low' : '';
+  $('mic-status').textContent = device.muted ? tr('bat.muted') : tr('bat.active'); $('mic-status').className = device.muted ? 'status-value inactive' : 'status-value';
   $('signal-value').textContent = `${Number(device.signal_dbm ?? 0)} dBm`; $('sidetone').checked = !!device.sidetone;
-  $('mic-toggle').textContent = device.muted ? 'МИКР ВЫКЛ' : 'МИКР ВКЛ'; $('mic-toggle').classList.toggle('active', !!device.muted);
-  setConnection('connected', pct); $('device-message').className = 'device-message connected'; $('device-message-title').textContent = 'Гарнитура подключена'; $('device-message-text').textContent = charging ? 'Зарядка...' : 'Устройство готово';
+  $('mic-toggle').textContent = device.muted ? tr('mic.off') : tr('mic.on'); $('mic-toggle').classList.toggle('active', !!device.muted);
+  setConnection('connected', pct); $('device-message').className = 'device-message connected'; $('device-message-title').textContent = tr('dash.connected_title'); $('device-message-text').textContent = charging ? tr('dash.charging_text') : tr('dash.connected_text');
 }
 
 async function refreshDevices() {
@@ -80,8 +82,8 @@ async function refreshAudio() {
 }
 
 async function checkBatteryVoice() {
-  try { await invoke('check_battery_voice'); toast('Голосовое уведомление о батарее воспроизведено'); }
-  catch (error) { console.error('check_battery_voice failed', error); toast(`Ошибка проверки: ${error}`); }
+  try { await invoke('check_battery_voice'); toast(tr('toast.battery_voice_played')); }
+  catch (error) { console.error('check_battery_voice failed', error); toast(`${tr('toast.voice_check_error')}: ${error}`); }
 }
 
 function rgbaToHex(a) { return `#${[0,1,2].map(i => Number(a?.[i] ?? 0).toString(16).padStart(2,'0')).join('')}`; }
@@ -260,11 +262,15 @@ function uiToConfig() {
 async function loadConfig() {
   try {
     const [c, t, autoStart] = await Promise.all([invoke('get_config'), invoke('get_tray_config'), invoke('get_autostart_enabled')]);
+    const lang = c.language || 'ru';
+    window.__currentLang = lang;
+    document.documentElement.lang = lang;
+    if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
     configToUi(c); trayToUi(t); renderTrayPreview();
     $('cfg-start-os').checked = autoStart;
     if (c.start_in_compact_mode) setTimeout(() => invoke('open_compact_window').catch(e => console.debug('compact startup:', e)), 250);
   }
-  catch (error) { console.error('Settings load failed', error); toast(`Ошибка загрузки настроек: ${error}`); }
+  catch (error) { console.error('Settings load failed', error); toast(`${tr('toast.load_error')}: ${error}`); }
 }
 
 async function saveSettings() {
@@ -275,14 +281,14 @@ async function saveSettings() {
     try { await invoke('apply_eq', { bands: newConfig.audio.eq_bands }); }
     catch (eqError) { console.info('EQ apply:', eqError); }
     await command('set_sidetone', { enabled: newConfig.device.sidetone }).catch(() => {});
-    markSaved(); toast('Настройки сохранены');
-  } catch (error) { console.error('Save failed', error); toast(`Ошибка сохранения: ${error}`); }
+    markSaved(); toast(tr('toast.settings_saved'));
+  } catch (error) { console.error('Save failed', error); toast(`${tr('toast.save_error')}: ${error}`); }
 }
 
 $('btn-mute').addEventListener('click', () => command('toggle_mute'));
 $('btn-reconnect').addEventListener('click', refresh);
 $('btn-voice-check').addEventListener('click', checkBatteryVoice);
-$('btn-test-voice').addEventListener('click', async () => { try { await invoke('test_voice'); toast('Тест встроенного WAV запущен'); } catch (e) { toast(`Ошибка теста: ${e}`); } });
+$('btn-test-voice').addEventListener('click', async () => { try { await invoke('test_voice'); toast(tr('toast.voice_test')); } catch (e) { toast(`${tr('toast.voice_error')}: ${e}`); } });
 $('btn-save-settings').addEventListener('click', saveSettings); $('btn-reset-settings').addEventListener('click', loadConfig); $('btn-compact').addEventListener('click', () => command('open_compact_window'));
 $('sidetone').addEventListener('change', (e) => { command('set_sidetone', { enabled: e.target.checked }); if (config) { config.device.sidetone = e.target.checked; $('cfg-sidetone').checked = e.target.checked; markDirty(); } });
 $('volume').addEventListener('input', async e => { $('volume-value').textContent = `${e.target.value}%`; try { await invoke('set_volume', { percent: Number(e.target.value) }); } catch (err) { console.debug(err); } });
@@ -296,7 +302,7 @@ if (devSelect) {
       await invoke('select_device', { index: Number(e.target.value) });
       refresh();
     } catch (err) {
-      toast(`Ошибка переключения устройства: ${err}`);
+      toast(`${tr('toast.device_switch_error')}: ${err}`);
     }
   });
 }
@@ -304,8 +310,17 @@ if (devSelect) {
 document.querySelectorAll('#settings input, #settings select').forEach(el => { el.addEventListener('change', markDirty); el.addEventListener('input', markDirty); });
 
 $('cfg-start-os').addEventListener('change', async (e) => {
-  try { await invoke('set_autostart_enabled', { enabled: e.target.checked }); toast(e.target.checked ? 'Автозапуск включён' : 'Автозапуск выключен'); }
+  try { await invoke('set_autostart_enabled', { enabled: e.target.checked }); toast(e.target.checked ? tr('toast.autostart_on') : tr('toast.autostart_off')); }
   catch (err) { toast(`Autostart: ${err}`); }
+});
+
+$('cfg-language').addEventListener('change', (e) => {
+  const lang = e.target.value;
+  window.__currentLang = lang;
+  document.documentElement.lang = lang;
+  if (config) config.language = lang;
+  if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+  markDirty();
 });
 
 for (const button of document.querySelectorAll('.tab-btn')) button.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); button.classList.add('active'); $(button.dataset.tab).classList.add('active'); });
@@ -315,7 +330,7 @@ const presets = { 'Плоский':[0,0,0,0,0,0,0,0,0,0], 'Усиление ба
 for (const band of document.querySelectorAll('.eq-band input')) band.addEventListener('input', markDirty);
 $('eq-reset').addEventListener('click', () => { document.querySelectorAll('.eq-band input').forEach(i => i.value = 0); markDirty(); });
 $('eq-preset').addEventListener('change', () => { const values = presets[$('eq-preset').value] || presets.Flat; document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = values[i]); markDirty(); });
-$('eq-apply').addEventListener('click', async () => {     const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value)); try { await invoke('apply_eq', { bands }); toast('Эквалайзер применён'); } catch (e) { toast(`ЭК: ${e}`); } });
+$('eq-apply').addEventListener('click', async () => {     const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value)); try { await invoke('apply_eq', { bands }); toast(tr('toast.eq_applied')); } catch (e) { toast(`${tr('toast.eq_applied')}: ${e}`); } });
 
 let activeDeviceId = null;
 async function refreshPerDeviceEq() {
@@ -327,13 +342,13 @@ async function refreshPerDeviceEq() {
     const per = await invoke('get_per_device_config', { deviceId: activeDeviceId });
     note.style.display = 'block';
     note.textContent = per && per.audio
-      ? `Персональный пресет эквалайзера активен для "${per.name || 'этой гарнитуры'}"`
-      : `Используется глобальный эквалайзер для "${st.name || 'этой гарнитуры'}"`;
+      ? `${tr('eq.active_for')} "${per.name || 'this headset'}"`
+      : `${tr('eq.using_global')} "${st.name || 'this headset'}"`;
     btnClear.style.display = per && per.audio ? 'inline-block' : 'none';
   } catch (e) { console.debug('per-device eq:', e); }
 }
 $('eq-save-per-device').addEventListener('click', async () => {
-  if (!activeDeviceId) { toast('Нет подключённого устройства'); return; }
+  if (!activeDeviceId) { toast(tr('toast.no_device')); return; }
   try {
     const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value));
     const st = await invoke('get_device_state');
@@ -343,16 +358,16 @@ $('eq-save-per-device').addEventListener('click', async () => {
     per.name = st.name || per.name;
     per.audio = { eq_bands: bands };
     await invoke('save_per_device_config', { deviceId: activeDeviceId, perCfg: per });
-    toast('Пресет гарнитуры сохранён'); refreshPerDeviceEq();
-  } catch (e) { toast(`Ошибка сохранения: ${e}`); }
+    toast(tr('toast.eq_saved')); refreshPerDeviceEq();
+  } catch (e) { toast(`${tr('toast.save_error')}: ${e}`); }
 });
 $('eq-clear-per-device').addEventListener('click', async () => {
   if (!activeDeviceId) return;
   try {
     let per = await invoke('get_per_device_config', { deviceId: activeDeviceId });
     if (per) { per.audio = null; await invoke('save_per_device_config', { deviceId: activeDeviceId, perCfg: per }); }
-    toast('Пресет гарнитуры удалён'); refreshPerDeviceEq();
-  } catch (e) { toast(`Ошибка удаления: ${e}`); }
+    toast(tr('toast.eq_removed')); refreshPerDeviceEq();
+  } catch (e) { toast(`${tr('toast.save_error')}: ${e}`); }
 });
 refreshPerDeviceEq();
 
@@ -364,8 +379,8 @@ async function loadVoiceDir() {
 }
 const btnSaveVoiceDir = $('btn-save-voice-dir');
 if (btnSaveVoiceDir) btnSaveVoiceDir.addEventListener('click', async () => {
-  try { await invoke('set_custom_voice_dir', { path: $('voice-custom-dir').value.trim() }); toast('Папка голосов сохранена'); }
-  catch (e) { toast(`Ошибка сохранения: ${e}`); }
+  try { await invoke('set_custom_voice_dir', { path: $('voice-custom-dir').value.trim() }); toast(tr('toast.voice_folder_saved')); }
+  catch (e) { toast(`${tr('toast.save_error')}: ${e}`); }
 });
 const voiceUpload = $('voice-upload-file');
 if (voiceUpload) voiceUpload.addEventListener('change', async (e) => {
@@ -374,8 +389,8 @@ if (voiceUpload) voiceUpload.addEventListener('change', async (e) => {
   try {
     const buf = new Uint8Array(await file.arrayBuffer());
     const saved = await invoke('upload_voice_file', { filename: file.name, data: Array.from(buf) });
-    toast(`Загружен: ${saved}`);
-  } catch (err) { toast(`Ошибка загрузки: ${err}`); }
+    toast(`${tr('toast.uploaded')}: ${saved}`);
+  } catch (err) { toast(`${tr('toast.upload_error')}: ${err}`); }
   e.target.value = '';
 });
 loadVoiceDir();
@@ -385,24 +400,24 @@ if (btnUpdates) btnUpdates.addEventListener('click', async () => {
   try {
     const updater = window.__TAURI__.updater;
     const relaunch = window.__TAURI__.process ? window.__TAURI__.process.relaunch : null;
-    if (!updater || !updater.check) { toast('Обновлятель недоступен'); return; }
-    toast('Проверка обновлений...');
+    if (!updater || !updater.check) { toast(tr('toast.unsupported')); return; }
+    toast(tr('toast.update_checking'));
     const update = await updater.check();
-    if (!update) { toast('У вас последняя версия'); return; }
-    toast(`Скачивание обновления ${update.version}...`);
+    if (!update) { toast(tr('toast.up_to_date')); return; }
+    toast(`${tr('toast.downloading')} ${update.version}...`);
     await update.downloadAndInstall();
     if (relaunch) await relaunch();
   } catch (e) {
     console.error('update check failed:', e);
-    toast(`Ошибка проверки обновлений: ${e}`);
+    toast(`${tr('toast.update_error')}: ${e}`);
   }
 });
 
 listen('device-state', event => updateBattery(event.payload));
 listen('device-connected', refresh);
 listen('device-disconnected', () => updateBattery({ connected:false }));
-listen('device-command-error', event => toast(`Ошибка команды устройства: ${event.payload}`));
-listen('device-command-ok', event => { if (event.payload === 'mute') toast('Состояние мьюта изменено'); });
+listen('device-command-error', event => toast(`${tr('toast.device_cmd_error')}: ${event.payload}`));
+listen('device-command-ok', event => { if (event.payload === 'mute') toast(tr('toast.mute_toggled')); });
 
 loadConfig();
 refresh();

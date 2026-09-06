@@ -2,6 +2,7 @@ const { invoke } = window.__TAURI__.core;
 const listen = window.__TAURI__.event ? window.__TAURI__.event.listen : window.__TAURI__.core.listen;
 
 const $ = (id) => document.getElementById(id);
+function tr(key) { const lang = window.__currentLang || 'ru'; return window.I18N?.[lang]?.[key] ?? window.I18N?.ru?.[key] ?? key; }
 
 function updateCompact(state) {
     const connected = !!state?.connected;
@@ -12,22 +13,22 @@ function updateCompact(state) {
     const bar = $('progress-bar');
     const mic = $('mic-status');
 
-    connection.textContent = connected ? 'ВКЛ' : 'ВЫКЛ';
+    connection.textContent = connected ? tr('conn.on') : tr('conn.off');
     connection.className = `connection ${connected ? 'on' : 'off'}`;
     battery.textContent = connected ? `${pct}%` : '--%';
 
     if (!connected) {
-        status.textContent = 'Нет подключения';
+        status.textContent = tr('bat.no_connection');
         bar.style.width = '0%';
         bar.style.background = '#444';
-        mic.textContent = '🎙️ МИКР НЕАКТИВЕН';
+        mic.textContent = '🎙️ ' + tr('bat.inactive');
         return;
     }
 
-    status.textContent = state.charging ? '⚡ Заряжается' : '🔋 Батарея';
+    status.textContent = state.charging ? '⚡ ' + tr('bat.charging') : '🔋 ' + tr('bat.battery');
     bar.style.width = `${pct}%`;
     bar.style.background = state.charging ? '#20e83a' : pct > 30 ? '#35d07f' : pct > 15 ? '#ff9800' : '#f44336';
-    mic.textContent = state.muted ? '🔇 ВЫКЛ' : '🎙️ ВКЛ';
+    mic.textContent = state.muted ? '🔇 ' + tr('mic.off') : '🎙️ ' + tr('mic.on');
 }
 
 async function refreshCompact() {
@@ -59,5 +60,16 @@ listen('device-state', e => updateCompact(e.payload));
 listen('device-disconnected', () => updateCompact({ connected:false }));
 listen('device-command-error', e => console.error('Device command failed:', e.payload));
 
+async function loadLang() {
+    try {
+        const c = await invoke('get_config');
+        const lang = c.language || 'ru';
+        window.__currentLang = lang;
+        document.documentElement.lang = lang;
+        if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+    } catch (e) { /* ignore */ }
+}
+
 refreshCompact();
+loadLang();
 setInterval(refreshCompact, 2000);

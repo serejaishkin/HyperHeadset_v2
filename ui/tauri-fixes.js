@@ -7,22 +7,24 @@
   const clone = (v) => v == null ? v : structuredClone(v);
   const snapshot = (v) => JSON.stringify(v);
 
+  function tr(key) { const lang = window.__currentLang || 'ru'; return window.I18N?.[lang]?.[key] ?? window.I18N?.ru?.[key] ?? key; }
+
   function setSavedState() {
     savedConfigSnapshot = snapshot(window.__hhCurrentConfig || null);
     savedTraySnapshot = snapshot(window.__hhCurrentTray || null);
     if ($('settings-dirty')) {
-      $('settings-dirty').textContent = 'Сохранено';
+      $('settings-dirty').textContent = tr('settings.saved');
       $('settings-dirty').classList.remove('dirty');
     }
-    if ($('save-message')) $('save-message').textContent = 'Изменения сохранены в config.toml и tray_icon.toml';
+    if ($('save-message')) $('save-message').textContent = tr('settings.save_msg');
   }
 
   function setDirtyState() {
     if ($('settings-dirty')) {
-      $('settings-dirty').textContent = 'Несохранённые изменения';
+      $('settings-dirty').textContent = tr('settings.unsaved');
       $('settings-dirty').classList.add('dirty');
     }
-    if ($('save-message')) $('save-message').textContent = 'Есть несохранённые изменения';
+    if ($('save-message')) $('save-message').textContent = tr('settings.unsaved_msg');
   }
 
   function ensureTrayPreview() {
@@ -95,10 +97,10 @@
       try { await invoke('apply_eq', { bands: c.audio.eq_bands }); } catch (_) {}
       setSavedState();
       updateTrayPreview();
-      if (typeof window.toast === 'function') window.toast('Настройки сохранены');
+      if (typeof window.toast === 'function') window.toast(tr('toast.settings_saved'));
     } catch (e) {
       console.error('[Settings] save failed', e);
-      if (typeof window.toast === 'function') window.toast(`Ошибка сохранения: ${e}`);
+      if (typeof window.toast === 'function') window.toast(`${tr('toast.save_error')}: ${e}`);
     }
   }
 

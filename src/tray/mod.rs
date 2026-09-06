@@ -1,4 +1,3 @@
-#[cfg(not(target_os = "linux"))]
 pub mod icon;
 #[cfg(not(target_os = "linux"))]
 pub mod windows;
