@@ -272,7 +272,7 @@ fn main() {
                                 { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
                                 let _ = app_handle_device.emit("device-connected", ()); let _ = app_handle_device.emit("device-state", st.clone()); let _ = app_handle_device.emit("devices-list", all);
                             }
-                            Err(e) => { if was_connected { was_connected = false; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); } log::debug!("[Device] scan: {}", e); thread::sleep(Duration::from_secs(2)); continue; }
+                            Err(e) => { if was_connected { was_connected = false; publish_disconnected(&app_handle_device, &device_state_inner); { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); } let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new()); } log::debug!("[Device] scan: {}", e); thread::sleep(Duration::from_secs(10)); continue; }
                         }
                     }
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
@@ -325,7 +325,12 @@ fn main() {
                             publish_disconnected(&app_handle_device, &device_state_inner);
                             { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
                             let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
-                            thread::sleep(Duration::from_secs(3));
+                            if enumerated {
+                                log::warn!("[HID] Device enumerated but not accessible — NGENUITY may be holding it. Backing off 15s.");
+                                thread::sleep(Duration::from_secs(15));
+                            } else {
+                                thread::sleep(Duration::from_secs(3));
+                            }
                             heartbeat_failures = 0;
                         }
                     }
