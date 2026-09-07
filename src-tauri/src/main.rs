@@ -321,14 +321,24 @@ fn main() {
                         }
                     } else {
                         heartbeat_failures += 1; let enumerated = manager.is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 {
-                            for d in manager.devices.iter_mut() { d.disconnect(); }
-                            publish_disconnected(&app_handle_device, &device_state_inner);
-                            { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
-                            let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
                             if enumerated {
-                                log::warn!("[HID] Device enumerated but not accessible — NGENUITY may be holding it. Backing off 15s.");
+                                log::warn!("[HID] Device enumerated but not accessible — retrying HID open without publishing disconnect.");
+                                if let Err(e) = manager.scan_and_connect() {
+                                    log::debug!("[HID] Silent HID reopen failed: {}", e);
+                                } else {
+                                    let st = manager.active_state();
+                                    { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                                    let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                                    { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
+                                    let _ = app_handle_device.emit("device-state", st);
+                                    let _ = app_handle_device.emit("devices-list", all);
+                                }
                                 thread::sleep(Duration::from_secs(15));
                             } else {
+                                for d in manager.devices.iter_mut() { d.disconnect(); }
+                                publish_disconnected(&app_handle_device, &device_state_inner);
+                                { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
+                                let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
                                 thread::sleep(Duration::from_secs(3));
                             }
                             heartbeat_failures = 0;
