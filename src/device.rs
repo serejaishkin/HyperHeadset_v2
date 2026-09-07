@@ -490,10 +490,10 @@ impl MultiDeviceManager {
             }
 
             log::info!("[HID] scan: {} candidates, {} connected", candidates.len(), new_devices.len());
-            self.devices = new_devices;
-            if self.devices.is_empty() {
+            if new_devices.is_empty() {
                 anyhow::bail!("No HyperX device accessible (NGENUITY may be holding it)");
             }
+            self.devices = new_devices;
         }
 
         #[cfg(not(target_os = "windows"))]
