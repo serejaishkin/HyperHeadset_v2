@@ -209,6 +209,7 @@ const BASE_PACKET: [u8; 20] = [
 const GET_BATTERY_CMD_ID: u8 = 2;
 const GET_MUTE_CMD_ID: u8 = 5;
 const SET_MUTE_CMD_ID: u8 = 32;
+const GET_SIDE_TONE_CMD_ID: u8 = 34;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
 const GET_CHARGING_CMD_ID: u8 = 3;
 
@@ -320,6 +321,12 @@ impl HyperXDevice {
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
             Ok((status, _)) => self.state.charging = status == 1,
             Err(e) => log::debug!("[HID] Charging telemetry unavailable: {}", e),
+        }
+
+        self.prepare_write();
+        match send_and_read(device, GET_SIDE_TONE_CMD_ID, &[]) {
+            Ok(status) => self.state.sidetone = status == 1,
+            Err(e) => log::debug!("[HID] Sidetone telemetry unavailable: {}", e),
         }
 
         Ok(())
