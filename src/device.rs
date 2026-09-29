@@ -213,7 +213,7 @@ const GET_SIDE_TONE_CMD_ID: u8 = 34;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
 const GET_CHARGING_CMD_ID: u8 = 3;
 
-const RESPONSE_DELAY: Duration = Duration::from_millis(50);
+const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
@@ -262,7 +262,7 @@ impl HyperXDevice {
                     match write_hid_report(&device, &packet) {
                         Ok(_) => {
                             let mut buf = [0u8; 256];
-                            match device.read_timeout(&mut buf, 1000) {
+                            match device.read_timeout(&mut buf, 2000) {
                                 Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
                                     self.device = Some(device);
                                     self.state.connected = true;
@@ -303,7 +303,7 @@ impl HyperXDevice {
         thread::sleep(RESPONSE_DELAY);
 
         let mut buf = [0u8; 256];
-        let len = device.read_timeout(&mut buf, 1000)
+        let len = device.read_timeout(&mut buf, 2000)
             .map_err(|e| anyhow::anyhow!("battery read failed: {}", e))?;
         if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
             return Err(anyhow::anyhow!("invalid battery response: len={} raw={:02X?}", len, &buf[0..16.min(len)]));
@@ -374,7 +374,7 @@ fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<
     write_hid_report(device, &packet).map_err(|e| e.to_string())?;
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
-    match device.read_timeout(&mut buf, 1000) {
+    match device.read_timeout(&mut buf, 2000) {
         Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok(buf[4]),
         Ok(len) => Err(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)])),
         Err(e) => Err(format!("read failed: {}", e)),
@@ -386,7 +386,7 @@ fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -
     write_hid_report(device, &packet).map_err(|e| format!("write failed: {}", e))?;
     thread::sleep(RESPONSE_DELAY);
     let mut buf = [0u8; 256];
-    match device.read_timeout(&mut buf, 1000) {
+    match device.read_timeout(&mut buf, 2000) {
         Ok(0) => Err("read timeout/empty".into()),
         Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok((buf[4], buf[..len].to_vec())),
         Ok(len) => Err(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)])),
@@ -474,7 +474,7 @@ impl MultiDeviceManager {
                         match write_hid_report(&device, &packet) {
                             Ok(_) => {
                                 let mut buf = [0u8; 256];
-                                match device.read_timeout(&mut buf, 500) {
+                                match device.read_timeout(&mut buf, 2000) {
                                     Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
                                         let mut hx = HyperXDevice::new();
                                         hx.device = Some(device);
@@ -521,7 +521,7 @@ impl MultiDeviceManager {
                             match write_hid_report(&device, &packet) {
                                 Ok(_) => {
                                     let mut buf = [0u8; 256];
-                                    match device.read_timeout(&mut buf, 500) {
+                                    match device.read_timeout(&mut buf, 2000) {
                                         Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) => {
                                             let mut hx = HyperXDevice::new();
                                             hx.device = Some(device);
