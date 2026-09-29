@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{Manager, State, Emitter, WindowEvent};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri_plugin_autostart::MacosLauncher;
@@ -247,6 +247,7 @@ fn main() {
                     }
                 };
                 let mut was_connected = false; let mut heartbeat_failures = 0u32;
+                let mut last_hid_refresh = Instant::now() - Duration::from_secs(5);
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
@@ -285,6 +286,11 @@ fn main() {
                             { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
                         }
                     }
+                    if last_hid_refresh.elapsed() < Duration::from_secs(5) {
+                        thread::sleep(Duration::from_millis(500));
+                        continue;
+                    }
+                    last_hid_refresh = Instant::now();
                     let mut refresh_ok = true;
                     for dev in manager.devices.iter_mut() {
                         if let Err(e) = dev.refresh_state() {
