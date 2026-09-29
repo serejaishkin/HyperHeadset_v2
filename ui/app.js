@@ -94,7 +94,7 @@ function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', 
 function trayToUi(t) {
   trayConfig = structuredClone(t);
   $('tray-mode').value = t.mode || 'big';
-  const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'big' ? 'none' : '';
+  const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'big' ? 'block' : '';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of ['charging','high','medium','low']) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);

@@ -35,6 +35,7 @@ pub fn generate_battery_icon_rgba(
 
     let bg = Rgba(scheme.bg);
     let fg = Rgba(scheme.fg);
+    let outline = Rgba(scheme.outline);
     let border = Rgba(scheme.border);
 
     for pixel in img.pixels_mut() { *pixel = bg; }
@@ -76,7 +77,7 @@ pub fn generate_battery_icon_rgba(
                                 let yi = start_y as i32 + row as i32 * scale as i32 + dy;
                                 if xi >= 0 && yi >= 0 {
                                     let x = xi as u32; let y = yi as u32;
-                                    if x < size && y < size { img.put_pixel(x, y, fg); }
+                                    if x < size && y < size { img.put_pixel(x, y, outline); }
                                 }
                             }
                         }
