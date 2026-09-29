@@ -30,20 +30,19 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     };
 
     let fg = Rgba(scheme.fg);
+    let outline = Rgba(scheme.outline);
 
     let text = format!("{}", percent);
     let chars: Vec<char> = text.chars().collect();
     let n = chars.len() as u32;
-    let gap = 2;
-    let max_digit_w = (size - gap * n.saturating_sub(1)) / (5 * n);
-    let max_digit_h = size / 7;
-    let scale = max_digit_w.min(max_digit_h).max(1);
+    let gap = config.gap_between_digits.max(2);
+    let scale = config.font_scale.max(1);
     let digit_w = 5 * scale;
     let digit_h = 7 * scale;
     let total_w = n * digit_w + n.saturating_sub(1) * gap;
     let start_x = size.saturating_sub(total_w) / 2;
     let start_y = size.saturating_sub(digit_h) / 2;
-    let outline_px = (scale as i32 / 3).max(1);
+    let outline_px = config.outline_width.max(1);
 
     for (idx, ch) in chars.iter().enumerate() {
         let d = ch.to_digit(10).unwrap_or(0) as usize;
@@ -58,7 +57,7 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
                             let yi = start_y as i32 + row as i32 * scale as i32 + dy;
                             if xi >= 0 && yi >= 0 {
                                 let x = xi as u32; let y = yi as u32;
-                                if x < size && y < size { img.put_pixel(x, y, fg); }
+                                if x < size && y < size { img.put_pixel(x, y, outline); }
                             }
                         }
                     }
