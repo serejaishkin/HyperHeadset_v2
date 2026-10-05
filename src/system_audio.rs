@@ -31,7 +31,6 @@ mod platform {
  use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
  use windows::Win32::System::Com::StructuredStorage::PropVariantToStringWithDefault;
  use windows::Win32::System::Com::STGM;
- use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
  use windows::Win32::System::Com::{CoCreateInstance,CoInitializeEx,CLSCTX_ALL,COINIT_MULTITHREADED};
  fn endpoint(flow:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<IAudioEndpointVolume>{unsafe{let _=CoInitializeEx(None,COINIT_MULTITHREADED);let en:IMMDeviceEnumerator=CoCreateInstance(&MMDeviceEnumerator,None,CLSCTX_ALL)?;let d=en.GetDefaultAudioEndpoint(flow,eConsole)?;Ok(d.Activate(CLSCTX_ALL,None)?)}}
  fn read(f:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<u8>{unsafe{Ok((endpoint(f)?.GetMasterVolumeLevelScalar()?*100.0).round().clamp(0.0,100.0)as u8)}}
@@ -56,7 +55,7 @@ mod platform {
            let id = id.to_string()?;
            if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
              if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
-               let name = PropVariantToStringWithDefault(&value, windows::core::PCWSTR::null())
+               let name = PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null())
                  .to_string()
                  .unwrap_or_else(|_| id.clone());
                devices.push(AudioDevice {
