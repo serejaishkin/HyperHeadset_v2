@@ -53,19 +53,18 @@ mod platform {
        if let Ok(device) = collection.Item(i) {
          if let Ok(id) = device.GetId() {
            let id = id.to_string()?;
-           if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
-             if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
-               let name = PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null())
-                 .to_string()
-                 .unwrap_or_else(|_| id.clone());
-               devices.push(AudioDevice {
-                 id,
-                 name,
-                 is_output: true,
-                 is_input: false,
-               });
-             }
-           }
+           let name = device.OpenPropertyStore(STGM(0))
+             .ok()
+             .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
+             .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
+             .filter(|name| !name.trim().is_empty())
+             .unwrap_or_else(|| id.clone());
+           devices.push(AudioDevice {
+             id,
+             name,
+             is_output: true,
+             is_input: false,
+           });
          }
        }
      }
@@ -77,19 +76,18 @@ mod platform {
        if let Ok(device) = collection.Item(i) {
          if let Ok(id) = device.GetId() {
            let id = id.to_string()?;
-           if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
-             if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
-               let name = PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null())
-                 .to_string()
-                 .unwrap_or_else(|_| id.clone());
-               devices.push(AudioDevice {
-                 id,
-                 name,
-                 is_output: false,
-               is_input: true,
-               });
-             }
-           }
+           let name = device.OpenPropertyStore(STGM(0))
+             .ok()
+             .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
+             .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
+             .filter(|name| !name.trim().is_empty())
+             .unwrap_or_else(|| id.clone());
+           devices.push(AudioDevice {
+             id,
+             name,
+             is_output: false,
+             is_input: true,
+           });
          }
        }
      }
