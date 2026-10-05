@@ -56,50 +56,69 @@ mod platform {
      let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
      let mut devices = Vec::new();
 
-     // Get output devices
-     let collection = en.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;
-     let count = collection.GetCount()?;
-     for i in 0..count {
-       if let Ok(device) = collection.Item(i) {
-         if let Ok(id) = device.GetId() {
-           let id = id.to_string()?;
-           let name = device.OpenPropertyStore(STGM(0))
-             .ok()
-             .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
-             .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
-             .filter(|name| !name.trim().is_empty())
-             .unwrap_or_else(|| id.clone());
-           devices.push(AudioDevice {
-             id,
-             name,
-             is_output: true,
-             is_input: false,
-           });
+     // Enumerate active output endpoints. Do not let a capture-side failure
+     // hide valid output devices (and vice versa).
+     if let Ok(collection) = en.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) {
+       let count = collection.GetCount()?;
+       for i in 0..count {
+         if let Ok(device) = collection.Item(i) {
+           match device.GetId() {
+             Ok(raw_id) => {
+               let id = match raw_id.to_string() {
+                 Ok(id) => id,
+                 Err(e) => {
+                   log::warn!("[Audio] Failed to convert output endpoint ID: {}", e);
+                   continue;
+                 }
+               };
+               let name = device.OpenPropertyStore(STGM(0))
+                 .ok()
+                 .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
+                 .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
+                 .filter(|name| !name.trim().is_empty())
+                 .unwrap_or_else(|| id.clone());
+               devices.push(AudioDevice { id, name, is_output: true, is_input: false });
+             }
+             Err(e) => log::warn!("[Audio] Failed to get output endpoint ID: {}", e),
+           }
          }
        }
+     } else {
+       log::warn!("[Audio] EnumAudioEndpoints(eRender) failed");
      }
 
-     // Get input devices
-     let collection = en.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE)?;
-     let count = collection.GetCount()?;
-     for i in 0..count {
-       if let Ok(device) = collection.Item(i) {
-         if let Ok(id) = device.GetId() {
-           let id = id.to_string()?;
-           let name = device.OpenPropertyStore(STGM(0))
-             .ok()
-             .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
-             .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
-             .filter(|name| !name.trim().is_empty())
-             .unwrap_or_else(|| id.clone());
-           devices.push(AudioDevice {
-             id,
-             name,
-             is_output: false,
-             is_input: true,
-           });
+     // Enumerate active input endpoints independently.
+     if let Ok(collection) = en.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE) {
+       let count = collection.GetCount()?;
+       for i in 0..count {
+         if let Ok(device) = collection.Item(i) {
+           match device.GetId() {
+             Ok(raw_id) => {
+               let id = match raw_id.to_string() {
+                 Ok(id) => id,
+                 Err(e) => {
+                   log::warn!("[Audio] Failed to convert input endpoint ID: {}", e);
+                   continue;
+                 }
+               };
+               let name = device.OpenPropertyStore(STGM(0))
+                 .ok()
+                 .and_then(|store| store.GetValue(&PKEY_Device_FriendlyName).ok())
+                 .and_then(|value| PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null()).to_string().ok())
+                 .filter(|name| !name.trim().is_empty())
+                 .unwrap_or_else(|| id.clone());
+               devices.push(AudioDevice { id, name, is_output: false, is_input: true });
+             }
+             Err(e) => log::warn!("[Audio] Failed to get input endpoint ID: {}", e),
+           }
          }
        }
+     } else {
+       log::warn!("[Audio] EnumAudioEndpoints(eCapture) failed");
+     }
+
+     if devices.is_empty() {
+       return Err(anyhow::anyhow!("Windows Core Audio returned no active endpoints"));
      }
 
      Ok(devices)
