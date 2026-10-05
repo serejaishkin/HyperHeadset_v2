@@ -20,6 +20,7 @@ pub fn toggle_mic_mute() -> anyhow::Result<()> { platform::toggle_mic_mute() }
 pub fn toggle_output_mute() -> anyhow::Result<()> { platform::toggle_output_mute() }
 pub fn play_pause() -> anyhow::Result<()> { use enigo::{Direction, Enigo, Key, Keyboard, Settings}; let mut e=Enigo::new(&Settings::default()).map_err(|x| anyhow::anyhow!(x.to_string()))?; e.key(Key::MediaPlayPause,Direction::Click).map_err(|x| anyhow::anyhow!(x.to_string())) }
 pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> { platform::get_audio_devices() }
+pub fn get_default_output_device() -> anyhow::Result<String> { platform::get_default_output_device() }
 pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> { platform::set_default_output_device(device_id) }
 pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> { platform::set_default_input_device(device_id) }
 
@@ -39,6 +40,15 @@ mod platform {
  pub fn set_output(p:u8)->anyhow::Result<()>{set(eRender,p)} pub fn set_input(p:u8)->anyhow::Result<()>{set(eCapture,p)}
  pub fn toggle_mic_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eCapture)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
  pub fn toggle_output_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eRender)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
+
+ pub fn get_default_output_device() -> anyhow::Result<String> {
+   unsafe {
+     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+     let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+     let device = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
+     Ok(device.GetId()?.to_string()?)
+   }
+ }
 
  pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> {
    unsafe {
