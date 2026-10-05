@@ -469,7 +469,7 @@ impl HyperXApp {
                                             log::error!("[GUI] Failed to change output device '{}': {}", device.name, e);
                                         }
                                     }
-                                    ui.close();
+                                    ui.close_menu();
                                 }
                             }
                         });
