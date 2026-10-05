@@ -85,8 +85,8 @@ mod platform {
                devices.push(AudioDevice {
                  id,
                  name,
-                 is_output: true,
-                 is_input: false,
+                 is_output: false,
+               is_input: true,
                });
              }
            }
