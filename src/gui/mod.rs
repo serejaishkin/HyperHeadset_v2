@@ -35,6 +35,8 @@ pub struct HyperXApp {
     pub selected_settings_tab: SettingsTab,
     pub tray_icon_config: TrayIconConfig,
     pub i18n: crate::i18n::I18n,
+    pub audio_devices: Vec<crate::system_audio::AudioDevice>,
+    pub selected_audio_device: Option<String>,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -92,6 +94,8 @@ impl HyperXApp {
             selected_settings_tab: SettingsTab::Headset,
             tray_icon_config: TrayIconConfig::load_or_create(),
             i18n,
+            audio_devices: Vec::new(),
+            selected_audio_device: None,
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -434,6 +438,50 @@ impl HyperXApp {
                         controller.set_microphone_volume(mic_vol);
                     }
                 }
+                ui.add_space(4.0);
+
+                // --- System output device ---
+                if self.audio_devices.is_empty() {
+                    if let Ok(devices) = crate::system_audio::get_audio_devices() {
+                        self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
+                    }
+                }
+
+                if !self.audio_devices.is_empty() {
+                    let selected_name = self.selected_audio_device.as_ref()
+                        .and_then(|id| self.audio_devices.iter().find(|d| &d.id == id))
+                        .map(|d| d.name.clone())
+                        .unwrap_or_else(|| "Аудиоустройство".to_string());
+
+                    egui::ComboBox::from_id_salt("compact_audio_output")
+                        .selected_text(format!("🔊 {}", selected_name))
+                        .width(180.0)
+                        .show_ui(ui, |ui| {
+                            for device in self.audio_devices.clone() {
+                                let selected = self.selected_audio_device.as_ref() == Some(&device.id);
+                                if ui.selectable_label(selected, &device.name).clicked() {
+                                    match crate::system_audio::set_default_output_device(&device.id) {
+                                        Ok(()) => {
+                                            self.selected_audio_device = Some(device.id.clone());
+                                            log::info!("[GUI] Default output device changed to: {}", device.name);
+                                        }
+                                        Err(e) => {
+                                            log::error!("[GUI] Failed to change output device '{}': {}", device.name, e);
+                                        }
+                                    }
+                                    ui.close();
+                                }
+                            }
+                        });
+                } else {
+                    ui.add_enabled(false, egui::Button::new("🔊 Нет аудиоустройств"));
+                }
+
+                if ui.small_button("↻").on_hover_text("Обновить список аудиоустройств").clicked() {
+                    self.audio_devices.clear();
+                    self.selected_audio_device = None;
+                }
+
                 ui.add_space(4.0);
                 if ui.button(format!("⛶ {}", self.i18n.t("Expand"))).clicked() {
                     self.config.compact_mode = false;
