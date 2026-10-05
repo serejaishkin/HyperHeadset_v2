@@ -37,6 +37,7 @@ pub struct HyperXApp {
     pub i18n: crate::i18n::I18n,
     pub audio_devices: Vec<crate::system_audio::AudioDevice>,
     pub selected_audio_device: Option<String>,
+    pub last_audio_device_scan: Instant,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -96,6 +97,7 @@ impl HyperXApp {
             i18n,
             audio_devices: Vec::new(),
             selected_audio_device: None,
+            last_audio_device_scan: Instant::now() - Duration::from_secs(5),
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -441,10 +443,25 @@ impl HyperXApp {
                 ui.add_space(4.0);
 
                 // --- System output device ---
-                if self.audio_devices.is_empty() {
-                    if let Ok(devices) = crate::system_audio::get_audio_devices() {
-                        self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
+                // Keep retrying while the list is empty. Core Audio/COM can become
+                // available a little after the GUI has started, so a single failed
+                // enumeration must not permanently leave the compact UI empty.
+                if self.audio_devices.is_empty() && self.last_audio_device_scan.elapsed() >= Duration::from_secs(1) {
+                    self.last_audio_device_scan = Instant::now();
+                    match crate::system_audio::get_audio_devices() {
+                        Ok(devices) => {
+                            self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
+                            if !self.audio_devices.is_empty() {
+                                log::info!("[GUI] Loaded {} active output audio device(s)", self.audio_devices.len());
+                            } else {
+                                log::warn!("[GUI] Windows Core Audio returned no active output devices");
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("[GUI] Failed to enumerate Windows audio devices: {}", e);
+                        }
                     }
+
                     // Reflect the device Windows is actually using as the current selection.
                     if self.selected_audio_device.is_none() {
                         if let Ok(default_id) = crate::system_audio::get_default_output_device() {
@@ -488,14 +505,7 @@ impl HyperXApp {
                 if ui.small_button("↻").on_hover_text("Обновить список аудиоустройств").clicked() {
                     self.audio_devices.clear();
                     self.selected_audio_device = None;
-                    if let Ok(devices) = crate::system_audio::get_audio_devices() {
-                        self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
-                    }
-                    if let Ok(default_id) = crate::system_audio::get_default_output_device() {
-                        if self.audio_devices.iter().any(|d| d.id == default_id) {
-                            self.selected_audio_device = Some(default_id);
-                        }
-                    }
+                    self.last_audio_device_scan = Instant::now() - Duration::from_secs(1);
                 }
 
                 ui.add_space(4.0);
