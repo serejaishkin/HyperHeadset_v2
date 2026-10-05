@@ -98,32 +98,60 @@ mod platform {
    }
  }
 
- pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
-   // Use PowerShell as fallback for setting default audio device
-   let ps_script = format!(
-     "$dev = Get-AudioDevice -List | Where-Object {{ $_.ID -eq '{}' }}; Set-AudioDevice -ID $dev.ID -Default",
-     device_id.replace("'", "''")
-   );
-   std::process::Command::new("powershell")
-     .args(["-Command", &ps_script])
-     .output()
-     .map_err(|e| anyhow::anyhow!("PowerShell command failed: {}", e))?;
+ fn set_default_endpoint_native(device_id: &str) -> anyhow::Result<()> {
+   use std::ffi::c_void;
+   use windows::core::{GUID, IUnknown, PCWSTR};
+
+   const CLSID_POLICY_CONFIG_CLIENT: GUID = GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9);
+   const ROLE_CONSOLE: i32 = 0;
+   const ROLE_MULTIMEDIA: i32 = 1;
+   const ROLE_COMMUNICATIONS: i32 = 2;
+
+   #[repr(C)]
+   struct PolicyConfigVTable {
+     query_interface: *const c_void,
+     add_ref: *const c_void,
+     release: *const c_void,
+     get_mix_format: *const c_void,
+     get_device_format: *const c_void,
+     reset_device_format: *const c_void,
+     set_device_format: *const c_void,
+     get_processing_period: *const c_void,
+     set_processing_period: *const c_void,
+     get_share_mode: *const c_void,
+     set_share_mode: *const c_void,
+     get_property_value: *const c_void,
+     set_property_value: *const c_void,
+     set_default_endpoint: unsafe extern "system" fn(*mut c_void, PCWSTR, i32) -> windows::core::HRESULT,
+     set_endpoint_visibility: *const c_void,
+   }
+
+   unsafe {
+     let policy: IUnknown = windows::Win32::System::Com::CoCreateInstance(
+       &CLSID_POLICY_CONFIG_CLIENT,
+       None,
+       CLSCTX_ALL,
+     )?;
+     let raw = policy.as_raw();
+     let vtbl = *(raw as *const *const PolicyConfigVTable);
+     let wide: Vec<u16> = device_id.encode_utf16().chain(std::iter::once(0)).collect();
+     let endpoint = PCWSTR(wide.as_ptr());
+
+     for role in [ROLE_CONSOLE, ROLE_MULTIMEDIA, ROLE_COMMUNICATIONS] {
+       let hr = (vtbl.set_default_endpoint)(raw as *mut c_void, endpoint, role);
+       hr.ok().map_err(|e| anyhow::anyhow!("SetDefaultEndpoint failed for role {}: {}", role, e))?;
+     }
+   }
    Ok(())
  }
 
- pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-   // Use PowerShell as fallback for setting default audio device
-   let ps_script = format!(
-     "$dev = Get-AudioDevice -List | Where-Object {{ $_.ID -eq '{}' }}; Set-AudioDevice -ID $dev.ID -Default",
-     device_id.replace("'", "''")
-   );
-   std::process::Command::new("powershell")
-     .args(["-Command", &ps_script])
-     .output()
-     .map_err(|e| anyhow::anyhow!("PowerShell command failed: {}", e))?;
-   Ok(())
+ pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
+   set_default_endpoint_native(device_id)
  }
-}
+
+ pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
+   set_default_endpoint_native(device_id)
+ }
 
 #[cfg(target_os="linux")]
 mod platform {
