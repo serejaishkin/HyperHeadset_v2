@@ -100,7 +100,7 @@ mod platform {
 
  fn set_default_endpoint_native(device_id: &str) -> anyhow::Result<()> {
    use std::ffi::c_void;
-   use windows::core::{GUID, IUnknown, PCWSTR};
+   use windows::core::{GUID, IUnknown, PCWSTR, Interface};
 
    const CLSID_POLICY_CONFIG_CLIENT: GUID = GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9);
    const ROLE_CONSOLE: i32 = 0;
