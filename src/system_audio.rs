@@ -79,7 +79,7 @@ mod platform {
            let id = id.to_string()?;
            if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
              if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
-               let name = PropVariantToStringWithDefault(&value, windows::core::PCWSTR::null())
+               let name = PropVariantToStringWithDefault(&value as *const _, windows::core::PCWSTR::null())
                  .to_string()
                  .unwrap_or_else(|_| id.clone());
                devices.push(AudioDevice {
