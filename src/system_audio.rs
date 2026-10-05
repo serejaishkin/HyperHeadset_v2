@@ -28,7 +28,10 @@ mod platform {
  use super::{AudioLevels, AudioDevice};
  use windows::Win32::Media::Audio::{eCapture,eConsole,eRender,IMMDeviceEnumerator,MMDeviceEnumerator,DEVICE_STATE_ACTIVE};
  use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
- use windows::Win32::Media::Audio::Policy::{ERole,eCommunications};
+ use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
+ use windows::Win32::System::Com::StructuredStorage::PropVariantToStringWithDefault;
+ use windows::Win32::System::Com::STGM;
+ use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
  use windows::Win32::System::Com::{CoCreateInstance,CoInitializeEx,CLSCTX_ALL,COINIT_MULTITHREADED};
  fn endpoint(flow:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<IAudioEndpointVolume>{unsafe{let _=CoInitializeEx(None,COINIT_MULTITHREADED);let en:IMMDeviceEnumerator=CoCreateInstance(&MMDeviceEnumerator,None,CLSCTX_ALL)?;let d=en.GetDefaultAudioEndpoint(flow,eConsole)?;Ok(d.Activate(CLSCTX_ALL,None)?)}}
  fn read(f:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<u8>{unsafe{Ok((endpoint(f)?.GetMasterVolumeLevelScalar()?*100.0).round().clamp(0.0,100.0)as u8)}}
@@ -50,13 +53,19 @@ mod platform {
      for i in 0..count {
        if let Ok(device) = collection.Item(i) {
          if let Ok(id) = device.GetId() {
-           if let Ok(name) = device.GetFriendlyName() {
-             devices.push(AudioDevice {
-               id: id.to_string(),
-               name: name.to_string(),
-               is_output: true,
-               is_input: false,
-             });
+           let id = id.to_string()?;
+           if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
+             if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
+               let name = PropVariantToStringWithDefault(&value, windows::core::PCWSTR::null())
+                 .to_string()
+                 .unwrap_or_else(|_| id.clone());
+               devices.push(AudioDevice {
+                 id,
+                 name,
+                 is_output: true,
+                 is_input: false,
+               });
+             }
            }
          }
        }
@@ -68,13 +77,19 @@ mod platform {
      for i in 0..count {
        if let Ok(device) = collection.Item(i) {
          if let Ok(id) = device.GetId() {
-           if let Ok(name) = device.GetFriendlyName() {
-             devices.push(AudioDevice {
-               id: id.to_string(),
-               name: name.to_string(),
-               is_output: false,
-               is_input: true,
-             });
+           let id = id.to_string()?;
+           if let Ok(store) = device.OpenPropertyStore(STGM(0)) {
+             if let Ok(value) = store.GetValue(&PKEY_Device_FriendlyName) {
+               let name = PropVariantToStringWithDefault(&value, windows::core::PCWSTR::null())
+                 .to_string()
+                 .unwrap_or_else(|_| id.clone());
+               devices.push(AudioDevice {
+                 id,
+                 name,
+                 is_output: true,
+                 is_input: false,
+               });
+             }
            }
          }
        }
