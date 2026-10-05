@@ -85,27 +85,29 @@ mod platform {
  }
 
  pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
-   unsafe {
-     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-     use windows::core::HSTRING;
-     let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-     let device = en.GetDevice(&HSTRING::from(device_id))?;
-     let policy_config: windows::Win32::Media::Audio::Policy::IPolicyConfig = CoCreateInstance(&windows::Win32::Media::Audio::Policy::PolicyConfig, None, CLSCTX_ALL)?;
-     policy_config.SetDefaultEndpoint(device_id, eConsole)?;
-     Ok(())
-   }
+   // Use PowerShell as fallback for setting default audio device
+   let ps_script = format!(
+     "$dev = Get-AudioDevice -List | Where-Object {{ $_.ID -eq '{}' }}; Set-AudioDevice -ID $dev.ID -Default",
+     device_id.replace("'", "''")
+   );
+   std::process::Command::new("powershell")
+     .args(["-Command", &ps_script])
+     .output()
+     .map_err(|e| anyhow::anyhow!("PowerShell command failed: {}", e))?;
+   Ok(())
  }
 
  pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-   unsafe {
-     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-     use windows::core::HSTRING;
-     let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-     let device = en.GetDevice(&HSTRING::from(device_id))?;
-     let policy_config: windows::Win32::Media::Audio::Policy::IPolicyConfig = CoCreateInstance(&windows::Win32::Media::Audio::Policy::PolicyConfig, None, CLSCTX_ALL)?;
-     policy_config.SetDefaultEndpoint(device_id, eConsole)?;
-     Ok(())
-   }
+   // Use PowerShell as fallback for setting default audio device
+   let ps_script = format!(
+     "$dev = Get-AudioDevice -List | Where-Object {{ $_.ID -eq '{}' }}; Set-AudioDevice -ID $dev.ID -Default",
+     device_id.replace("'", "''")
+   );
+   std::process::Command::new("powershell")
+     .args(["-Command", &ps_script])
+     .output()
+     .map_err(|e| anyhow::anyhow!("PowerShell command failed: {}", e))?;
+   Ok(())
  }
 }
 
