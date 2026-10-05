@@ -407,62 +407,29 @@ impl eframe::App for HyperXApp {
 impl HyperXApp {
     fn show_compact_ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            // Compact layout is intentionally kept within the fixed 260x300 window.
             ui.vertical_centered(|ui| {
-                ui.add_space(5.0);
+                ui.add_space(3.0);
+
                 let icon = if self.device_state.charging { "⚡" } else { "🔋" };
                 let color = if self.device_state.battery_percent > 30 { egui::Color32::GREEN }
                     else if self.device_state.battery_percent > 15 { egui::Color32::YELLOW }
                     else { egui::Color32::RED };
                 ui.colored_label(color, format!("{} {}%", icon, self.device_state.battery_percent));
-                ui.add(egui::ProgressBar::new(self.device_state.battery_percent as f32 / 100.0).desired_width(180.0).fill(color));
-                ui.add_space(5.0);
-                let mic_icon = if self.device_state.muted { "🔇" } else { "🎙️" };
-                let mic_text = if self.device_state.muted { self.i18n.t("MUTE") } else { self.i18n.t("MIC ON") };
-                ui.label(format!("{} {}", mic_icon, mic_text));
-                ui.add_space(5.0);
-                ui.label(self.i18n.t("VOL"));
-                let mut vol = self.volume;
-                ui.add(egui::Slider::new(&mut vol, 0.0..=100.0).show_value(true).text(""));
-                if vol != self.volume {
-                    self.volume = vol;
-                    if let Some(ref controller) = self.volume_controller {
-                        controller.set_master_volume(vol);
-                    }
-                }
-                ui.add_space(5.0);
-                ui.add_space(4.0);
-                ui.label(self.i18n.t("MIC"));
-                let mut mic_vol = self.mic_volume;
-                ui.add(egui::Slider::new(&mut mic_vol, 0.0..=100.0).show_value(true).text(""));
-                if mic_vol != self.mic_volume {
-                    self.mic_volume = mic_vol;
-                    if let Some(ref controller) = self.volume_controller {
-                        controller.set_microphone_volume(mic_vol);
-                    }
-                }
-                ui.add_space(4.0);
 
                 // --- System output device ---
-                // Keep retrying while the list is empty. Core Audio/COM can become
-                // available a little after the GUI has started, so a single failed
-                // enumeration must not permanently leave the compact UI empty.
+                // Put the selector near the top so it cannot be pushed below the
+                // visible area by the volume/microphone controls.
                 if self.audio_devices.is_empty() && self.last_audio_device_scan.elapsed() >= Duration::from_secs(1) {
                     self.last_audio_device_scan = Instant::now();
                     match crate::system_audio::get_audio_devices() {
                         Ok(devices) => {
                             self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
-                            if !self.audio_devices.is_empty() {
-                                log::info!("[GUI] Loaded {} active output audio device(s)", self.audio_devices.len());
-                            } else {
-                                log::warn!("[GUI] Windows Core Audio returned no active output devices");
-                            }
+                            log::info!("[GUI] Compact audio scan: {} output device(s)", self.audio_devices.len());
                         }
-                        Err(e) => {
-                            log::error!("[GUI] Failed to enumerate Windows audio devices: {}", e);
-                        }
+                        Err(e) => log::error!("[GUI] Compact audio scan failed: {}", e),
                     }
 
-                    // Reflect the device Windows is actually using as the current selection.
                     if self.selected_audio_device.is_none() {
                         if let Ok(default_id) = crate::system_audio::get_default_output_device() {
                             if self.audio_devices.iter().any(|d| d.id == default_id) {
@@ -472,43 +439,74 @@ impl HyperXApp {
                     }
                 }
 
-                if !self.audio_devices.is_empty() {
-                    let selected_name = self.selected_audio_device.as_ref()
-                        .and_then(|id| self.audio_devices.iter().find(|d| &d.id == id))
-                        .map(|d| d.name.clone())
-                        .unwrap_or_else(|| "Аудиоустройство".to_string());
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    ui.label("🔊");
+                    if self.audio_devices.is_empty() {
+                        ui.add_enabled(false, egui::Button::new("Аудиоустройства не найдены"));
+                    } else {
+                        let selected_name = self.selected_audio_device.as_ref()
+                            .and_then(|id| self.audio_devices.iter().find(|d| &d.id == id))
+                            .map(|d| d.name.clone())
+                            .unwrap_or_else(|| self.audio_devices[0].name.clone());
 
-                    egui::ComboBox::from_id_salt("compact_audio_output")
-                        .selected_text(format!("🔊 {}", selected_name))
-                        .width(180.0)
-                        .show_ui(ui, |ui| {
-                            for device in self.audio_devices.clone() {
-                                let selected = self.selected_audio_device.as_ref() == Some(&device.id);
-                                if ui.selectable_label(selected, &device.name).clicked() {
-                                    match crate::system_audio::set_default_output_device(&device.id) {
-                                        Ok(()) => {
-                                            self.selected_audio_device = Some(device.id.clone());
-                                            log::info!("[GUI] Default output device changed to: {}", device.name);
+                        egui::ComboBox::from_id_salt("compact_audio_output")
+                            .selected_text(selected_name)
+                            .width(185.0)
+                            .show_ui(ui, |ui| {
+                                for device in self.audio_devices.clone() {
+                                    let selected = self.selected_audio_device.as_ref() == Some(&device.id);
+                                    if ui.selectable_label(selected, &device.name).clicked() {
+                                        match crate::system_audio::set_default_output_device(&device.id) {
+                                            Ok(()) => {
+                                                self.selected_audio_device = Some(device.id.clone());
+                                                log::info!("[GUI] Default output changed to: {}", device.name);
+                                            }
+                                            Err(e) => {
+                                                log::error!("[GUI] Failed to change output '{}': {}", device.name, e);
+                                            }
                                         }
-                                        Err(e) => {
-                                            log::error!("[GUI] Failed to change output device '{}': {}", device.name, e);
-                                        }
+                                        ui.close_menu();
                                     }
-                                    ui.close_menu();
                                 }
-                            }
-                        });
-                } else {
-                    ui.add_enabled(false, egui::Button::new("🔊 Нет аудиоустройств"));
+                            });
+                    }
+
+                    if ui.small_button("↻").on_hover_text("Обновить аудиоустройства").clicked() {
+                        self.audio_devices.clear();
+                        self.selected_audio_device = None;
+                        self.last_audio_device_scan = Instant::now() - Duration::from_secs(1);
+                    }
+                });
+
+                ui.add_space(3.0);
+                let mic_icon = if self.device_state.muted { "🔇" } else { "🎙️" };
+                let mic_text = if self.device_state.muted { self.i18n.t("MUTE") } else { self.i18n.t("MIC ON") };
+                ui.label(format!("{} {}", mic_icon, mic_text));
+
+                ui.add_space(2.0);
+                ui.label(self.i18n.t("VOL"));
+                let mut vol = self.volume;
+                ui.add(egui::Slider::new(&mut vol, 0.0..=100.0).show_value(true).text(""));
+                if vol != self.volume {
+                    self.volume = vol;
+                    if let Some(ref controller) = self.volume_controller {
+                        controller.set_master_volume(vol);
+                    }
                 }
 
-                if ui.small_button("↻").on_hover_text("Обновить список аудиоустройств").clicked() {
-                    self.audio_devices.clear();
-                    self.selected_audio_device = None;
-                    self.last_audio_device_scan = Instant::now() - Duration::from_secs(1);
+                ui.add_space(2.0);
+                ui.label(self.i18n.t("MIC"));
+                let mut mic_vol = self.mic_volume;
+                ui.add(egui::Slider::new(&mut mic_vol, 0.0..=100.0).show_value(true).text(""));
+                if mic_vol != self.mic_volume {
+                    self.mic_volume = mic_vol;
+                    if let Some(ref controller) = self.volume_controller {
+                        controller.set_microphone_volume(mic_vol);
+                    }
                 }
 
-                ui.add_space(4.0);
+                ui.add_space(2.0);
                 if ui.button(format!("⛶ {}", self.i18n.t("Expand"))).clicked() {
                     self.config.compact_mode = false;
                     self.needs_save = true;
