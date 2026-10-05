@@ -445,6 +445,14 @@ impl HyperXApp {
                     if let Ok(devices) = crate::system_audio::get_audio_devices() {
                         self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
                     }
+                    // Reflect the device Windows is actually using as the current selection.
+                    if self.selected_audio_device.is_none() {
+                        if let Ok(default_id) = crate::system_audio::get_default_output_device() {
+                            if self.audio_devices.iter().any(|d| d.id == default_id) {
+                                self.selected_audio_device = Some(default_id);
+                            }
+                        }
+                    }
                 }
 
                 if !self.audio_devices.is_empty() {
@@ -480,6 +488,14 @@ impl HyperXApp {
                 if ui.small_button("↻").on_hover_text("Обновить список аудиоустройств").clicked() {
                     self.audio_devices.clear();
                     self.selected_audio_device = None;
+                    if let Ok(devices) = crate::system_audio::get_audio_devices() {
+                        self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
+                    }
+                    if let Ok(default_id) = crate::system_audio::get_default_output_device() {
+                        if self.audio_devices.iter().any(|d| d.id == default_id) {
+                            self.selected_audio_device = Some(default_id);
+                        }
+                    }
                 }
 
                 ui.add_space(4.0);
