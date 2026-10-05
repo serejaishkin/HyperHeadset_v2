@@ -86,6 +86,40 @@ async function checkBatteryVoice() {
   catch (error) { console.error('check_battery_voice failed', error); toast(`${tr('toast.voice_check_error')}: ${error}`); }
 }
 
+async function loadAudioDevices() {
+  try {
+    const devices = await invoke('get_audio_devices');
+    const outputSelect = $('fallback-output');
+    const inputSelect = $('fallback-input');
+
+    if (outputSelect) {
+      const currentOutput = outputSelect.value;
+      outputSelect.innerHTML = '<option value="">Нет</option>';
+      devices.filter(d => d.is_output).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        outputSelect.appendChild(opt);
+      });
+      if (currentOutput) outputSelect.value = currentOutput;
+    }
+
+    if (inputSelect) {
+      const currentInput = inputSelect.value;
+      inputSelect.innerHTML = '<option value="">Нет</option>';
+      devices.filter(d => d.is_input).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        inputSelect.appendChild(opt);
+      });
+      if (currentInput) inputSelect.value = currentInput;
+    }
+  } catch (error) {
+    console.error('loadAudioDevices failed', error);
+  }
+}
+
 function rgbaToHex(a) { return `#${[0,1,2].map(i => Number(a?.[i] ?? 0).toString(16).padStart(2,'0')).join('')}`; }
 function hexToRgba(hex, alpha = 255) { const h = String(hex || '#000000').replace('#',''); return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0, alpha]; }
 function setColor(id, value) { const el = $(id); if (el) el.value = rgbaToHex(value); }
@@ -246,6 +280,7 @@ function configToUi(c) {
   $('discord-mode').value = c.discord?.mode ?? 'Keybind'; $('discord-keybind').value = c.discord?.keybind ?? 'F20'; $('discord-app-id').value = c.discord?.direct?.app_id ?? ''; $('discord-battery').checked = !!c.discord?.direct?.show_battery; $('discord-mute').checked = !!c.discord?.direct?.show_mute_status;
   $('cfg-debug').checked = !!c.debug_logging; $('cfg-console').checked = !!c.log_to_console; $('cfg-file').checked = !!c.log_to_file; $('cfg-start-os').checked = !!c.start_with_os; $('cfg-start-compact').checked = !!c.start_in_compact_mode; $('cfg-compact').checked = !!c.compact_mode; $('cfg-language').value = c.language ?? 'ru';
   const bands = c.audio?.eq_bands ?? Array(10).fill(0); document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = Number(bands[i] ?? 0));
+  $('fallback-output').value = c.audio?.fallback_output_device ?? ''; $('fallback-input').value = c.audio?.fallback_input_device ?? ''; $('auto-switch-audio').checked = !!c.audio?.auto_switch_audio;
   $('sidetone').checked = !!c.device?.sidetone; markSaved();
 }
 
@@ -256,7 +291,11 @@ function uiToConfig() {
   c.voice.enabled = $('voice-enabled').checked; c.voice.on_battery_low = $('voice-battery-low').checked; c.voice.on_charging = $('voice-charging').checked; c.voice.on_full_charge = $('voice-full-charge').checked; c.voice.on_connected = $('voice-connected').checked; c.voice.on_disconnected = $('voice-disconnected').checked; c.voice.on_button_check = $('voice-button-check').checked; c.voice.exact_percent = $('voice-exact-percent').checked;
   c.discord.mode = $('discord-mode').value; c.discord.keybind = $('discord-keybind').value.trim() || null; c.discord.direct.app_id = $('discord-app-id').value.trim(); c.discord.direct.show_battery = $('discord-battery').checked; c.discord.direct.show_mute_status = $('discord-mute').checked;
   c.debug_logging = $('cfg-debug').checked; c.log_to_console = $('cfg-console').checked; c.log_to_file = $('cfg-file').checked;
-  c.audio.eq_bands = Array.from(document.querySelectorAll('.eq-band input')).map(input => Number(input.value)); return c;
+  c.audio.eq_bands = Array.from(document.querySelectorAll('.eq-band input')).map(input => Number(input.value));
+  c.audio.fallback_output_device = $('fallback-output').value || null;
+  c.audio.fallback_input_device = $('fallback-input').value || null;
+  c.audio.auto_switch_audio = $('auto-switch-audio').checked;
+  return c;
 }
 
 async function loadConfig() {
@@ -268,6 +307,7 @@ async function loadConfig() {
     if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
     configToUi(c); trayToUi(t); renderTrayPreview();
     $('cfg-start-os').checked = autoStart;
+    loadAudioDevices();
     if (c.start_in_compact_mode) setTimeout(() => invoke('open_compact_window').catch(e => console.debug('compact startup:', e)), 250);
   }
   catch (error) { console.error('Settings load failed', error); toast(`${tr('toast.load_error')}: ${error}`); }
@@ -290,6 +330,7 @@ $('btn-reconnect').addEventListener('click', refresh);
 $('btn-voice-check').addEventListener('click', checkBatteryVoice);
 $('btn-test-voice').addEventListener('click', async () => { try { await invoke('test_voice'); toast(tr('toast.voice_test')); } catch (e) { toast(`${tr('toast.voice_error')}: ${e}`); } });
 $('btn-save-settings').addEventListener('click', saveSettings); $('btn-reset-settings').addEventListener('click', loadConfig); $('btn-compact').addEventListener('click', () => command('open_compact_window'));
+$('btn-refresh-audio-devices').addEventListener('click', loadAudioDevices);
 $('sidetone').addEventListener('change', (e) => { command('set_sidetone', { enabled: e.target.checked }); if (config) { config.device.sidetone = e.target.checked; $('cfg-sidetone').checked = e.target.checked; markDirty(); } });
 $('volume').addEventListener('input', async e => { $('volume-value').textContent = `${e.target.value}%`; try { await invoke('set_volume', { percent: Number(e.target.value) }); } catch (err) { console.debug(err); } });
 $('mic-volume').addEventListener('input', async e => { $('mic-value').textContent = `${e.target.value}%`; try { await invoke('set_mic_volume', { percent: Number(e.target.value) }); } catch (err) { console.debug(err); } });

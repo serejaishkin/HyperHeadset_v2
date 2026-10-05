@@ -39,6 +39,12 @@ pub struct PerDeviceConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioConfig {
     pub eq_bands: [f32; 10],
+    #[serde(default)]
+    pub fallback_output_device: Option<String>,
+    #[serde(default)]
+    pub fallback_input_device: Option<String>,
+    #[serde(default)]
+    pub auto_switch_audio: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,7 +105,12 @@ impl Default for Config {
             log_to_console: true,
             log_to_file: false,
             start_in_compact_mode: false,
-            audio: AudioConfig { eq_bands: [0.0; 10] },
+            audio: AudioConfig {
+                eq_bands: [0.0; 10],
+                fallback_output_device: None,
+                fallback_input_device: None,
+                auto_switch_audio: false,
+            },
             device: DeviceConfig {
                 sidetone: false,
                 voice_prompts: true,

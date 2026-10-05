@@ -147,6 +147,30 @@ fn toggle_system_output_mute() -> Result<(), String> { hyperx_ngenuity_open::sys
 #[tauri::command]
 fn play_pause() -> Result<(), String> { hyperx_ngenuity_open::system_audio::play_pause().map_err(|e| e.to_string()) }
 #[tauri::command]
+fn get_audio_devices() -> Result<Vec<hyperx_ngenuity_open::system_audio::AudioDevice>, String> { hyperx_ngenuity_open::system_audio::get_audio_devices().map_err(|e| e.to_string()) }
+#[tauri::command]
+fn set_default_output_device(device_id: String) -> Result<(), String> { hyperx_ngenuity_open::system_audio::set_default_output_device(&device_id).map_err(|e| e.to_string()) }
+#[tauri::command]
+fn set_default_input_device(device_id: String) -> Result<(), String> { hyperx_ngenuity_open::system_audio::set_default_input_device(&device_id).map_err(|e| e.to_string()) }
+#[tauri::command]
+fn switch_to_fallback_audio(state: State<AppState>) -> Result<(), String> {
+    let device = state.device_state.lock().unwrap().clone();
+    if !device.connected {
+        let config = Config::load().map_err(|e| e.to_string())?;
+        if config.audio.auto_switch_audio {
+            if let Some(ref output_id) = config.audio.fallback_output_device {
+                log::info!("[Audio] Switching to fallback output: {}", output_id);
+                hyperx_ngenuity_open::system_audio::set_default_output_device(output_id).map_err(|e| e.to_string())?;
+            }
+            if let Some(ref input_id) = config.audio.fallback_input_device {
+                log::info!("[Audio] Switching to fallback input: {}", input_id);
+                hyperx_ngenuity_open::system_audio::set_default_input_device(input_id).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    Ok(())
+}
+#[tauri::command]
 fn apply_eq(bands: [f32; 10]) -> Result<(), String> {
     #[cfg(target_os = "windows")] { return hyperx_ngenuity_open::audio::windows::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
     #[cfg(target_os = "linux")] { return hyperx_ngenuity_open::audio::linux::apply_eq_bands(&bands).map_err(|e| e.to_string()); }
@@ -182,6 +206,21 @@ fn show_main_window(app: &tauri::AppHandle) {
 fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>) {
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
+
+    // Switch to fallback audio devices if configured
+    if let Ok(config) = Config::load() {
+        if config.audio.auto_switch_audio {
+            if let Some(ref output_id) = config.audio.fallback_output_device {
+                log::info!("[Audio] Switching to fallback output: {}", output_id);
+                let _ = hyperx_ngenuity_open::system_audio::set_default_output_device(output_id);
+            }
+            if let Some(ref input_id) = config.audio.fallback_input_device {
+                log::info!("[Audio] Switching to fallback input: {}", input_id);
+                let _ = hyperx_ngenuity_open::system_audio::set_default_input_device(input_id);
+            }
+        }
+    }
+
     if let Some(tray) = app.tray_by_id("main") {
         let icon_config = TrayIconConfig::load_or_create();
         let (rgba, w, h) = match icon_config.mode {
@@ -355,7 +394,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window, show_main_window_cmd])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
