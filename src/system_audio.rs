@@ -152,6 +152,7 @@ mod platform {
  pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
    set_default_endpoint_native(device_id)
  }
+}
 
 #[cfg(target_os="linux")]
 mod platform {
