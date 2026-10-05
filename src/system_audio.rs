@@ -138,7 +138,7 @@ mod platform {
      let endpoint = PCWSTR(wide.as_ptr());
 
      for role in [ROLE_CONSOLE, ROLE_MULTIMEDIA, ROLE_COMMUNICATIONS] {
-       let hr = (vtbl.set_default_endpoint)(raw as *mut c_void, endpoint, role);
+       let hr = ((*vtbl).set_default_endpoint)(raw as *mut c_void, endpoint, role);
        hr.ok().map_err(|e| anyhow::anyhow!("SetDefaultEndpoint failed for role {}: {}", role, e))?;
      }
    }
