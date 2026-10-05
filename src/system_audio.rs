@@ -288,7 +288,7 @@ mod platform {
    osa(&script)?;
    Ok(())
  }
-}
+
  pub fn toggle_mic_mute()->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
  pub fn toggle_output_mute()->anyhow::Result<()>{osa("set volume output muted not (output muted of (get volume settings))")?;Ok(())}
 }
