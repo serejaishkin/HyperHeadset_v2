@@ -269,7 +269,7 @@ impl eframe::App for HyperXApp {
         }
 
         if self.config.compact_mode {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([220.0, 200.0].into()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([260.0, 300.0].into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
             self.show_compact_ui(ctx);
         } else {
