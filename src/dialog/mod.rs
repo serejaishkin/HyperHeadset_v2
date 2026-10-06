@@ -47,7 +47,7 @@ pub fn open_export_dialog(default_name: &str) -> Option<PathBuf> {
 
 // ===== Windows: COM IFileDialog =====
 #[cfg(target_os = "windows")]
-fn open_file_dialog_windows(title: &str, filter: &str) -> Option<PathBuf> {
+fn open_file_dialog_windows(title: &str, _filter: &str) -> Option<PathBuf> {
     // For now, use a simple approach with PowerShell
     let script = format!(
         r#"Add-Type -AssemblyName System.Windows.Forms; 

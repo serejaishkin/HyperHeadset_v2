@@ -104,8 +104,7 @@ pub fn show(ui: &mut egui::Ui, bands: &mut [f32; 10], needs_save: &mut bool, apo
             }
             #[cfg(target_os = "macos")]
             {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                if let Err(e) = rt.block_on(crate::audio::macos_eqmac::save_preset("custom", bands)) {
+                if let Err(e) = crate::audio::macos_eqmac::apply_eq_bands(&bands) {
                     log::error!("Failed to save preset: {}", e);
                 }
             }

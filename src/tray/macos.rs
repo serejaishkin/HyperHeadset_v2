@@ -105,6 +105,8 @@ impl MacOSTray {
         let percent = *self.current_percent.lock().unwrap();
         let _ = self.tray_icon.set_tooltip(Some(&build_tooltip(percent, muted)));
     }
+
+    pub fn update_connected(&mut self, _connected: bool) {}
 }
 
 fn build_tooltip(percent: u8, muted: bool) -> String {

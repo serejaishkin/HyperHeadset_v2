@@ -5,14 +5,32 @@
   "identifier": "com.hyperheadsetv2",
   "build": { "frontendDist": "../ui" },
   "app": {
-    "windows": [{
-      "label": "main", "title": "HyperHeadsetv2",
-      "width": 980, "height": 600,
-      "minWidth": 400, "minHeight": 300, "center": true
-    }]
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main", "title": "HyperHeadsetv2",
+        "width": 980, "height": 600,
+        "minWidth": 400, "minHeight": 300, "center": true
+      },
+      {
+        "label": "compact", "url": "compact.html", "title": "HyperHeadsetv2 Compact",
+        "width": 280, "height": 300,
+        "minWidth": 240, "minHeight": 240,
+        "maxWidth": 420, "maxHeight": 480,
+        "center": true, "visible": false, "resizable": true
+      }
+    ]
   },
   "bundle": {
     "active": true, "targets": "all",
-    "icon": ["icons/icon.png", "icons/icon.ico"]
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "createUpdaterArtifacts": true,
+    "windows": { "nsis": { "displayLanguageSelector": false } }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4QzY0RUE3MzZDRjFFNTUKUldSVkhzODJwMDdHNkJCbW10cTJlMWFySHJvM3JTREQwZy9Wb0s5Y0VmdWtPNmd1UVRaMGc4N0IK",
+      "endpoints": ["https://github.com/serejaishkin/HyperHeadset_v2/releases/latest/download/latest.json"]
+    }
   }
 }
