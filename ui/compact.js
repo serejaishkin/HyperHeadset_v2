@@ -12,6 +12,7 @@ function updateCompact(state) {
     const status = $('battery-st');
     const bar = $('progress-bar');
     const mic = $('mic-status');
+    const sidetone = $('sidetone-c');
 
     connection.textContent = connected ? tr('conn.on') : tr('conn.off');
     connection.className = `connection ${connected ? 'on' : 'off'}`;
@@ -22,6 +23,7 @@ function updateCompact(state) {
         bar.style.width = '0%';
         bar.style.background = '#444';
         mic.textContent = '🎙️ ' + tr('bat.inactive');
+        if (sidetone) sidetone.checked = false;
         return;
     }
 
@@ -29,6 +31,7 @@ function updateCompact(state) {
     bar.style.width = `${pct}%`;
     bar.style.background = state.charging ? '#20e83a' : pct > 30 ? '#35d07f' : pct > 15 ? '#ff9800' : '#f44336';
     mic.textContent = state.muted ? '🔇 ' + tr('mic.off') : '🎙️ ' + tr('mic.on');
+    if (sidetone) sidetone.checked = !!state.sidetone;
 }
 
 async function refreshCompact() {
@@ -54,6 +57,11 @@ $('vol-master').addEventListener('input', async (e) => {
 $('vol-mic').addEventListener('input', async (e) => {
     $('mic-value').textContent = `${e.target.value}%`;
     try { await invoke('set_mic_volume', { percent: Number(e.target.value) }); } catch (error) { console.debug(error); }
+});
+
+$('sidetone-c').addEventListener('change', async (e) => {
+    try { await invoke('set_sidetone', { enabled: e.target.checked }); }
+    catch (error) { console.error('set_sidetone failed', error); }
 });
 
 listen('device-state', e => updateCompact(e.payload));

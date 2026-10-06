@@ -337,6 +337,9 @@ mod platform {
    Ok(devices)
  }
 
+ pub fn toggle_mic_mute()->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
+ pub fn toggle_output_mute()->anyhow::Result<()>{osa("set volume output volume to (output volume of (get volume settings))")?;Ok(())}
+
  pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
    let script = format!(r#"
      tell application "System Events"
@@ -358,9 +361,6 @@ mod platform {
    osa(&script)?;
    Ok(())
  }
-
- pub fn toggle_mic_mute()->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
- pub fn toggle_output_mute()->anyhow::Result<()>{osa("set volume output muted not (output muted of (get volume settings))")?;Ok(())}
 }
 
 #[cfg(not(any(target_os="windows",target_os="linux",target_os="macos")))]

@@ -194,6 +194,7 @@ window.I18N = {
     'mic.off': 'МИКР ВЫКЛ',
     'compact.mute': 'Мьют',
     'compact.main': 'Основное',
+    'compact.sidetone': 'Сайдтон',
   },
   en: {
     'sidebar.mic_on': 'MIC ON',
@@ -390,6 +391,7 @@ window.I18N = {
     'mic.off': 'MIC OFF',
     'compact.mute': 'Mute',
     'compact.main': 'Main',
+    'compact.sidetone': 'Sidetone',
   },
 };
 

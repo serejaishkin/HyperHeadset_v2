@@ -20,6 +20,8 @@
     .mic { font-size:13px; margin:10px 0; font-weight:600; }
     .row { display:flex; align-items:center; gap:8px; margin:7px 0; }
     .row label { width:32px; color:#999; font-size:10px; text-align:left; }
+    .row label.check-row { width:auto; display:flex; align-items:center; gap:4px; font-size:11px; }
+    .row label.check-row input { width:auto; }
     input[type=range] { flex:1; accent-color:#c81e1e; }
     button { background:#1a1a1a; border:1px solid #333; color:#fff; padding:6px 9px; border-radius:5px; cursor:pointer; font-size:11px; }
     button:hover { border-color:#c81e1e; }
@@ -33,6 +35,7 @@
     <div class="status" id="battery-st">Нет подключения</div>
     <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
     <div class="mic" id="mic-status">🎙️ МИКР НЕАКТИВЕН</div>
+    <div class="row"><label class="check-row"><input type="checkbox" id="sidetone-c"><span data-i18n="compact.sidetone">Сайдтон</span></label></div>
     <div class="row"><label>VOL</label><input type="range" id="vol-master" min="0" max="100" value="50"><span id="vol-value">50%</span></div>
     <div class="row"><label>MIC</label><input type="range" id="vol-mic" min="0" max="100" value="50"><span id="mic-value">50%</span></div>
     <div class="actions"><button id="btn-mute-c" data-i18n="compact.mute">Мьют</button><button id="btn-main-c" data-i18n="compact.main">Основное</button></div>
