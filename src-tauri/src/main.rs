@@ -238,8 +238,16 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
 
 fn main() {
     env_logger::init();
-    GLOBAL_MUTE_HANDLER.set_keybind(Some("F20".to_string()));
-    hyperx_ngenuity_open::audio::voice::update_config(Config::load().unwrap_or_default().voice);
+    let config = Config::load().unwrap_or_default();
+    GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
+    GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
+        hyperx_ngenuity_open::config::MuteButtonMode::Standard => hyperx_ngenuity_open::input::MuteButtonMode::Standard,
+        hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::MediaPlayPause,
+        hyperx_ngenuity_open::config::MuteButtonMode::SmartDouble => hyperx_ngenuity_open::input::MuteButtonMode::SmartDouble,
+        hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => hyperx_ngenuity_open::input::MuteButtonMode::SmartHold,
+        hyperx_ngenuity_open::config::MuteButtonMode::HoldPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::HoldPlayPause,
+    });
+    hyperx_ngenuity_open::audio::voice::update_config(config.voice);
     let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
     let all_devices = Arc::new(Mutex::new(Vec::<DeviceState>::new())); let all_devices_clone = all_devices.clone();
     let (device_cmd_tx, device_cmd_rx) = mpsc::channel();
