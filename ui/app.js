@@ -394,6 +394,15 @@ if (globalKeybindInput) {
   });
 }
 
+// Mute button mode change handler
+$('cfg-mute-mode').addEventListener('change', async (e) => {
+  try {
+    await invoke('set_mute_button_mode', { mode: e.target.value });
+  } catch (error) {
+    console.error('set_mute_button_mode failed', error);
+  }
+});
+
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
   const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
