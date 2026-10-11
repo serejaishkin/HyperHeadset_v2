@@ -190,6 +190,7 @@ pub enum DeviceCommand {
     ToggleMute,
     SetSidetone(bool),
     SetVoicePrompts(bool),
+    SetAutoShutdown(u32),
 }
 
 pub struct HyperXDevice {
@@ -212,6 +213,7 @@ const SET_MUTE_CMD_ID: u8 = 32;
 const GET_SIDE_TONE_CMD_ID: u8 = 34;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
 const GET_CHARGING_CMD_ID: u8 = 3;
+const SET_AUTO_SHUTDOWN_CMD_ID: u8 = 6;
 
 const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
@@ -353,6 +355,25 @@ impl HyperXDevice {
 
     pub fn set_voice_prompts(&mut self, _enabled: bool) -> anyhow::Result<()> {
         Err(anyhow::anyhow!("Voice prompts are not supported by the current HID protocol"))
+    }
+
+    pub fn set_auto_shutdown(&mut self, minutes: u32) -> anyhow::Result<()> {
+        let Some(device) = self.device.as_ref() else {
+            return Err(anyhow::anyhow!("Device handle is not connected"));
+        };
+
+        let packet = build_packet(SET_AUTO_SHUTDOWN_CMD_ID, &[minutes as u8]);
+        write_hid_report(device, &packet)
+            .map_err(|e| anyhow::anyhow!("auto shutdown write failed: {}", e))?;
+        thread::sleep(RESPONSE_DELAY);
+
+        let mut buf = [0u8; 256];
+        let len = device.read_timeout(&mut buf, 2000)
+            .map_err(|e| anyhow::anyhow!("auto shutdown read failed: {}", e))?;
+        if len < 5 || !is_valid_response(&buf, len, SET_AUTO_SHUTDOWN_CMD_ID) {
+            return Err(anyhow::anyhow!("invalid auto shutdown response: len={} raw={:02X?}", len, &buf[0..16.min(len)]));
+        }
+        Ok(())
     }
 }
 
