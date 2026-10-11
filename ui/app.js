@@ -262,6 +262,12 @@ function renderTrayPreview() {
   const el = $(id); if (el) { el.addEventListener('input', renderTrayPreview); el.addEventListener('change', renderTrayPreview); }
 });
 
+$('cfg-auto-shutdown').addEventListener('change', async (e) => {
+  const minutes = Number(e.target.value) || 0;
+  try { await invoke('set_auto_shutdown', { minutes }); }
+  catch (error) { console.error('set_auto_shutdown failed', error); }
+});
+
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
   const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
