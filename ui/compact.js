@@ -68,16 +68,69 @@ listen('device-state', e => updateCompact(e.payload));
 listen('device-disconnected', () => updateCompact({ connected:false }));
 listen('device-command-error', e => console.error('Device command failed:', e.payload));
 
-async function loadLang() {
-    try {
-        const c = await invoke('get_config');
-        const lang = c.language || 'ru';
-        window.__currentLang = lang;
-        document.documentElement.lang = lang;
-        if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
-    } catch (e) { /* ignore */ }
+async function loadAudioDevices() {
+  try {
+    const devices = await invoke('get_audio_devices');
+    const outputSelect = $('fallback-output-c');
+    const inputSelect = $('fallback-input-c');
+
+    if (outputSelect) {
+      const currentOutput = outputSelect.value;
+      outputSelect.innerHTML = '<option value="">Нет</option>';
+      devices.filter(d => d.is_output).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        outputSelect.appendChild(opt);
+      });
+      outputSelect.value = currentOutput;
+    }
+
+    if (inputSelect) {
+      const currentInput = inputSelect.value;
+      inputSelect.innerHTML = '<option value="">Нет</option>';
+      devices.filter(d => d.is_input).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        inputSelect.appendChild(opt);
+      });
+      inputSelect.value = currentInput;
+    }
+  } catch (error) {
+    console.error('loadAudioDevices failed', error);
+  }
 }
 
+async function loadConfig() {
+  try {
+    const c = await invoke('get_config');
+    const lang = c.language || 'ru';
+    window.__currentLang = lang;
+    document.documentElement.lang = lang;
+    if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+
+    if ($('fallback-output-c')) $('fallback-output-c').value = c.audio?.fallback_output_device ?? '';
+    if ($('fallback-input-c')) $('fallback-input-c').value = c.audio?.fallback_input_device ?? '';
+    if ($('auto-switch-c')) $('auto-switch-c').checked = !!c.audio?.auto_switch_audio;
+  } catch (e) { console.error('loadConfig failed', e); }
+}
+
+async function saveConfig() {
+  try {
+    const c = await invoke('get_config');
+    c.audio.fallback_output_device = $('fallback-output-c').value || null;
+    c.audio.fallback_input_device = $('fallback-input-c').value || null;
+    c.audio.auto_switch_audio = $('auto-switch-c').checked;
+    await invoke('save_config', { config: c });
+  } catch (e) { console.error('saveConfig failed', e); }
+}
+
+$('fallback-output-c').addEventListener('change', saveConfig);
+$('fallback-input-c').addEventListener('change', saveConfig);
+$('auto-switch-c').addEventListener('change', saveConfig);
+
 refreshCompact();
-loadLang();
+loadConfig();
+loadAudioDevices();
 setInterval(refreshCompact, 2000);
