@@ -268,6 +268,132 @@ $('cfg-auto-shutdown').addEventListener('change', async (e) => {
   catch (error) { console.error('set_auto_shutdown failed', error); }
 });
 
+// Discord keybind capture
+const discordKeybindInput = $('discord-keybind');
+if (discordKeybindInput) {
+  discordKeybindInput.addEventListener('focus', () => {
+    discordKeybindInput.value = '';
+    discordKeybindInput.placeholder = 'Нажмите клавишу...';
+  });
+
+  discordKeybindInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    let key = e.key;
+
+    // Handle special keys
+    if (e.key === ' ') key = 'Space';
+    else if (e.key === 'Control') key = 'Ctrl';
+    else if (e.key === 'Alt') key = 'Alt';
+    else if (e.key === 'Shift') key = 'Shift';
+    else if (e.key === 'Meta') key = 'Win';
+    else if (e.key === 'Escape') key = 'Escape';
+    else if (e.key === 'Tab') key = 'Tab';
+    else if (e.key === 'Enter') key = 'Enter';
+    else if (e.key === 'Backspace') key = 'Backspace';
+    else if (e.key === 'Delete') key = 'Delete';
+    else if (e.key === 'Insert') key = 'Insert';
+    else if (e.key === 'Home') key = 'Home';
+    else if (e.key === 'End') key = 'End';
+    else if (e.key === 'PageUp') key = 'PageUp';
+    else if (e.key === 'PageDown') key = 'PageDown';
+    else if (e.key === 'ArrowUp') key = 'ArrowUp';
+    else if (e.key === 'ArrowDown') key = 'ArrowDown';
+    else if (e.key === 'ArrowLeft') key = 'ArrowLeft';
+    else if (e.key === 'ArrowRight') key = 'ArrowRight';
+    else if (e.key === 'F1') key = 'F1';
+    else if (e.key === 'F2') key = 'F2';
+    else if (e.key === 'F3') key = 'F3';
+    else if (e.key === 'F4') key = 'F4';
+    else if (e.key === 'F5') key = 'F5';
+    else if (e.key === 'F6') key = 'F6';
+    else if (e.key === 'F7') key = 'F7';
+    else if (e.key === 'F8') key = 'F8';
+    else if (e.key === 'F9') key = 'F9';
+    else if (e.key === 'F10') key = 'F10';
+    else if (e.key === 'F11') key = 'F11';
+    else if (e.key === 'F12') key = 'F12';
+    else if (e.key.startsWith('F') && e.key.length > 1) key = e.key;
+
+    // Build modifiers string
+    let keyStr = '';
+    if (e.ctrlKey) keyStr += 'Ctrl+';
+    if (e.altKey) keyStr += 'Alt+';
+    if (e.shiftKey) keyStr += 'Shift+';
+    if (e.metaKey) keyStr += 'Win+';
+    keyStr += key;
+
+    discordKeybindInput.value = keyStr;
+    discordKeybindInput.blur(); // Remove focus after capturing
+  });
+
+  discordKeybindInput.addEventListener('blur', () => {
+    discordKeybindInput.placeholder = 'Нажмите клавишу...';
+  });
+}
+
+// Global keybind capture (cfg-keybind)
+const globalKeybindInput = $('cfg-keybind');
+if (globalKeybindInput) {
+  globalKeybindInput.addEventListener('focus', () => {
+    globalKeybindInput.value = '';
+    globalKeybindInput.placeholder = 'Нажмите клавишу...';
+  });
+
+  globalKeybindInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    let key = e.key;
+
+    // Handle special keys
+    if (e.key === ' ') key = 'Space';
+    else if (e.key === 'Control') key = 'Ctrl';
+    else if (e.key === 'Alt') key = 'Alt';
+    else if (e.key === 'Shift') key = 'Shift';
+    else if (e.key === 'Meta') key = 'Win';
+    else if (e.key === 'Escape') key = 'Escape';
+    else if (e.key === 'Tab') key = 'Tab';
+    else if (e.key === 'Enter') key = 'Enter';
+    else if (e.key === 'Backspace') key = 'Backspace';
+    else if (e.key === 'Delete') key = 'Delete';
+    else if (e.key === 'Insert') key = 'Insert';
+    else if (e.key === 'Home') key = 'Home';
+    else if (e.key === 'End') key = 'End';
+    else if (e.key === 'PageUp') key = 'PageUp';
+    else if (e.key === 'PageDown') key = 'PageDown';
+    else if (e.key === 'ArrowUp') key = 'ArrowUp';
+    else if (e.key === 'ArrowDown') key = 'ArrowDown';
+    else if (e.key === 'ArrowLeft') key = 'ArrowLeft';
+    else if (e.key === 'ArrowRight') key = 'ArrowRight';
+    else if (e.key === 'F1') key = 'F1';
+    else if (e.key === 'F2') key = 'F2';
+    else if (e.key === 'F3') key = 'F3';
+    else if (e.key === 'F4') key = 'F4';
+    else if (e.key === 'F5') key = 'F5';
+    else if (e.key === 'F6') key = 'F6';
+    else if (e.key === 'F7') key = 'F7';
+    else if (e.key === 'F8') key = 'F8';
+    else if (e.key === 'F9') key = 'F9';
+    else if (e.key === 'F10') key = 'F10';
+    else if (e.key === 'F11') key = 'F11';
+    else if (e.key === 'F12') key = 'F12';
+    else if (e.key.startsWith('F') && e.key.length > 1) key = e.key;
+
+    // Build modifiers string
+    let keyStr = '';
+    if (e.ctrlKey) keyStr += 'Ctrl+';
+    if (e.altKey) keyStr += 'Alt+';
+    if (e.shiftKey) keyStr += 'Shift+';
+    if (e.metaKey) keyStr += 'Win+';
+    keyStr += key;
+
+    globalKeybindInput.value = keyStr;
+    globalKeybindInput.blur(); // Remove focus after capturing
+  });
+
+  globalKeybindInput.addEventListener('blur', () => {
+    globalKeybindInput.placeholder = 'Нажмите клавишу...';
+  });
+}
+
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
   const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
