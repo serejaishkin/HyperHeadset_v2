@@ -349,6 +349,7 @@ impl HyperXDevice {
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
         write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
+        thread::sleep(RESPONSE_DELAY);
         self.state.sidetone = enabled;
         Ok(())
     }
