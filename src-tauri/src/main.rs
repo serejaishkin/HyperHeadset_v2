@@ -10,6 +10,8 @@ use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
+use hyperx_ngenuity_open::input::MuteButtonMode as InputMuteButtonMode;
+use hyperx_ngenuity_open::config::MuteButtonMode;
 
 fn load_tray_png() -> (Vec<u8>, u32, u32) {
     static CACHED: std::sync::OnceLock<(Vec<u8>, u32, u32)> = std::sync::OnceLock::new();
@@ -80,11 +82,11 @@ fn save_config(config: Config) -> Result<(), String> {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
     }
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
-        hyperx_ngenuity_open::config::MuteButtonMode::Standard => hyperx_ngenuity_open::input::MuteButtonMode::Standard,
-        hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::MediaPlayPause,
-        hyperx_ngenuity_open::config::MuteButtonMode::SmartDouble => hyperx_ngenuity_open::input::MuteButtonMode::SmartDouble,
-        hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => hyperx_ngenuity_open::input::MuteButtonMode::SmartHold,
-        hyperx_ngenuity_open::config::MuteButtonMode::HoldPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::HoldPlayPause,
+        MuteButtonMode::Standard => InputMuteButtonMode::Standard,
+        MuteButtonMode::MediaPlayPause => InputMuteButtonMode::MediaPlayPause,
+        MuteButtonMode::SmartDouble => InputMuteButtonMode::SmartDouble,
+        MuteButtonMode::SmartHold => InputMuteButtonMode::SmartHold,
+        MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
     config.save().map_err(|e| e.to_string())
 }
@@ -190,8 +192,6 @@ fn set_voice_prompts(enabled: bool, state: State<AppState>) -> Result<(), String
 fn set_auto_shutdown(minutes: u32, state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::SetAutoShutdown(minutes)).map_err(|e| e.to_string()) }
 #[tauri::command]
 fn set_mute_button_mode(mode: String) -> Result<(), String> {
-    use hyperx_ngenuity_open::config::MuteButtonMode;
-    use hyperx_ngenuity_open::input::MuteButtonMode as InputMuteButtonMode;
     let parsed_mode = match mode.as_str() {
         "standard" => MuteButtonMode::Standard,
         "media_play_pause" => MuteButtonMode::MediaPlayPause,
@@ -274,11 +274,11 @@ fn main() {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
     }
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
-        hyperx_ngenuity_open::config::MuteButtonMode::Standard => hyperx_ngenuity_open::input::MuteButtonMode::Standard,
-        hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::MediaPlayPause,
-        hyperx_ngenuity_open::config::MuteButtonMode::SmartDouble => hyperx_ngenuity_open::input::MuteButtonMode::SmartDouble,
-        hyperx_ngenuity_open::config::MuteButtonMode::SmartHold => hyperx_ngenuity_open::input::MuteButtonMode::SmartHold,
-        hyperx_ngenuity_open::config::MuteButtonMode::HoldPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::HoldPlayPause,
+        MuteButtonMode::Standard => InputMuteButtonMode::Standard,
+        MuteButtonMode::MediaPlayPause => InputMuteButtonMode::MediaPlayPause,
+        MuteButtonMode::SmartDouble => InputMuteButtonMode::SmartDouble,
+        MuteButtonMode::SmartHold => InputMuteButtonMode::SmartHold,
+        MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
     hyperx_ngenuity_open::audio::voice::update_config(config.voice);
     let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
@@ -364,7 +364,7 @@ fn main() {
                             let result = match cmd { DeviceCommand::ToggleMute => dev.toggle_mute(), DeviceCommand::SetSidetone(enabled) => dev.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => dev.set_voice_prompts(enabled), DeviceCommand::SetAutoShutdown(minutes) => dev.set_auto_shutdown(minutes) };
                             if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                             let st = manager.active_state();
-                            { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st);
+                            { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st.clone());
                             let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
                             { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
                             // Trigger Discord mute on device mute change
