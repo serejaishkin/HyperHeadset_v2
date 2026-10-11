@@ -76,6 +76,9 @@ fn upload_voice_file(filename: String, data: Vec<u8>) -> Result<String, String> 
 fn save_config(config: Config) -> Result<(), String> {
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
     GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
+    if let Some(discord_keybind) = config.discord.keybind.clone() {
+        GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
+    }
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => hyperx_ngenuity_open::input::MuteButtonMode::Standard,
         hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::MediaPlayPause,
@@ -204,6 +207,12 @@ fn set_mute_button_mode(mode: String) -> Result<(), String> {
         MuteButtonMode::SmartHold => InputMuteButtonMode::SmartHold,
         MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
+    // Also update keybind from discord config
+    if let Ok(config) = Config::load() {
+        if let Some(discord_keybind) = config.discord.keybind {
+            GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
+        }
+    }
     Ok(())
 }
 
@@ -261,6 +270,9 @@ fn main() {
     env_logger::init();
     let config = Config::load().unwrap_or_default();
     GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
+    if let Some(discord_keybind) = config.discord.keybind.clone() {
+        GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
+    }
     GLOBAL_MUTE_HANDLER.set_mode(match config.input.mute_button_mode {
         hyperx_ngenuity_open::config::MuteButtonMode::Standard => hyperx_ngenuity_open::input::MuteButtonMode::Standard,
         hyperx_ngenuity_open::config::MuteButtonMode::MediaPlayPause => hyperx_ngenuity_open::input::MuteButtonMode::MediaPlayPause,
@@ -348,12 +360,17 @@ fn main() {
                     }
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
                         if let Some(dev) = manager.active_device() {
+                            let prev_muted = dev.state.muted;
                             let result = match cmd { DeviceCommand::ToggleMute => dev.toggle_mute(), DeviceCommand::SetSidetone(enabled) => dev.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => dev.set_voice_prompts(enabled), DeviceCommand::SetAutoShutdown(minutes) => dev.set_auto_shutdown(minutes) };
                             if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                             let st = manager.active_state();
                             { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st);
                             let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
                             { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
+                            // Trigger Discord mute on device mute change
+                            if prev_muted != st.muted {
+                                hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER.on_mute_toggled(st.muted);
+                            }
                         }
                     }
                     if last_hid_refresh.elapsed() < Duration::from_secs(5) {
