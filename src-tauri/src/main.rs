@@ -331,6 +331,8 @@ fn main() {
                 let mut was_connected = false; let mut heartbeat_failures = 0u32;
                 let mut last_hid_refresh = Instant::now() - Duration::from_secs(5);
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
+                let mut last_mute_toggle = Instant::now() - Duration::from_secs(10);
+                let mut last_sidetone_state = false;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
                         if idx < manager.devices.len() {
@@ -361,6 +363,7 @@ fn main() {
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
                         if let Some(dev) = manager.active_device() {
                             let prev_muted = dev.state.muted;
+                            let prev_sidetone = dev.state.sidetone;
                             let result = match cmd { DeviceCommand::ToggleMute => dev.toggle_mute(), DeviceCommand::SetSidetone(enabled) => dev.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => dev.set_voice_prompts(enabled), DeviceCommand::SetAutoShutdown(minutes) => dev.set_auto_shutdown(minutes) };
                             if let Err(e) = &result { let _ = app_handle_device.emit("device-command-error", e.to_string()); }
                             let st = manager.active_state();
@@ -369,7 +372,24 @@ fn main() {
                             { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
                             // Trigger Discord mute on device mute change
                             if prev_muted != st.muted {
-                                hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER.on_mute_toggled(st.muted);
+                                last_mute_toggle = Instant::now();
+                                // Check if sidetone changed (indicates long press)
+                                if prev_sidetone != st.sidetone {
+                                    // Long press detected: trigger Play/Pause instead of mute
+                                    log::info!("[Device] Long press detected (sidetone changed), triggering Play/Pause");
+                                    hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER.do_media_play_pause();
+                                    // Restore sidetone to prevent drift
+                                    if let Err(e) = dev.set_sidetone(prev_sidetone) {
+                                        log::warn!("[Device] Failed to restore sidetone: {}", e);
+                                    }
+                                } else {
+                                    // Normal press: trigger mute
+                                    hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER.on_mute_toggled(st.muted);
+                                }
+                            }
+                            // Track sidetone state
+                            if prev_sidetone != st.sidetone {
+                                last_sidetone_state = st.sidetone;
                             }
                         }
                     }
@@ -388,6 +408,17 @@ fn main() {
                     if refresh_ok {
                         heartbeat_failures = 0;
                         let st = manager.active_state();
+                        // Restore sidetone from config on connect/reconnect
+                        if let Ok(config) = Config::load() {
+                            if let Some(dev) = manager.active_device() {
+                                if st.sidetone != config.device.sidetone {
+                                    log::info!("[Device] Restoring sidetone from config: {} -> {}", st.sidetone, config.device.sidetone);
+                                    if let Err(e) = dev.set_sidetone(config.device.sidetone) {
+                                        log::warn!("[Device] Failed to restore sidetone: {}", e);
+                                    }
+                                }
+                            }
+                        }
                         { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st.clone());
                         let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
                         { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all.clone());
