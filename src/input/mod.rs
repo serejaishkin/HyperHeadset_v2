@@ -126,8 +126,18 @@ impl MuteHandler {
             MuteButtonMode::Standard => self.do_mute(),
             MuteButtonMode::MediaPlayPause => self.do_media_play_pause(),
             MuteButtonMode::SmartDouble => self.handle_smart_double(),
-            MuteButtonMode::SmartHold => { self.do_mute(); }
-            MuteButtonMode::HoldPlayPause => {}
+            MuteButtonMode::SmartHold => {
+                // SmartHold requires down/up events which Tauri doesn't provide
+                // Fall back to SmartDouble behavior for now
+                log::warn!("[MuteHandler] SmartHold mode requires on_button_down/on_button_up events, using SmartDouble fallback");
+                self.handle_smart_double();
+            }
+            MuteButtonMode::HoldPlayPause => {
+                // HoldPlayPause requires down/up events which Tauri doesn't provide
+                // Fall back to SmartDouble behavior for now
+                log::warn!("[MuteHandler] HoldPlayPause mode requires on_button_down/on_button_up events, using SmartDouble fallback");
+                self.handle_smart_double();
+            }
         }
     }
 
@@ -146,7 +156,8 @@ impl MuteHandler {
     }
 
     pub fn on_button_down(&self) {
-        if self.get_mode() == MuteButtonMode::SmartHold {
+        let mode = self.get_mode();
+        if mode == MuteButtonMode::SmartHold || mode == MuteButtonMode::HoldPlayPause {
             *self.press_start.lock() = Some(Instant::now());
         }
     }
