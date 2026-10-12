@@ -268,6 +268,17 @@ $('cfg-auto-shutdown').addEventListener('change', async (e) => {
   catch (error) { console.error('set_auto_shutdown failed', error); }
 });
 
+$('sidetone').addEventListener('change', async (e) => {
+  try { await invoke('set_sidetone', { enabled: e.target.checked }); }
+  catch (error) { console.error('set_sidetone failed', error); }
+  // Also save to config to preserve state
+  try {
+    const c = await invoke('get_config');
+    c.device.sidetone = e.target.checked;
+    await invoke('save_config', { config: c });
+  } catch (error) { console.error('save config failed', error); }
+});
+
 // Discord keybind capture
 const discordKeybindInput = $('discord-keybind');
 if (discordKeybindInput) {
@@ -436,6 +447,8 @@ function uiToConfig() {
   c.audio.fallback_output_device = $('fallback-output').value || null;
   c.audio.fallback_input_device = $('fallback-input').value || null;
   c.audio.auto_switch_audio = $('auto-switch-audio').checked;
+  // Ensure sidetone state is preserved
+  c.device.sidetone = $('sidetone').checked;
   return c;
 }
 
