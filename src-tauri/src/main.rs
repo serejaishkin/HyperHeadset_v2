@@ -216,6 +216,11 @@ fn set_mute_button_mode(mode: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_current_keybind() -> Option<String> {
+    GLOBAL_MUTE_HANDLER.get_keybind()
+}
+
 /// Compact is a configured Tauri window. Never create a second WebView for it.
 #[tauri::command]
 fn open_compact_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -471,7 +476,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

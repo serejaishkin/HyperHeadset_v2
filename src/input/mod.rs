@@ -52,6 +52,11 @@ impl MuteHandler {
 
     pub fn set_keybind(&self, keybind: Option<String>) {
         *self.keybind.lock() = keybind;
+        log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
+    }
+
+    pub fn get_keybind(&self) -> Option<String> {
+        self.keybind.lock().clone()
     }
 
     pub fn volume_up(&self) {
@@ -109,7 +114,7 @@ impl MuteHandler {
             Some("Numpad8") => Key::Numpad8,
             Some("Numpad9") => Key::Numpad9,
             Some("NumpadAdd") => Key::Add,
-            Some("NumpadSubtract") => Key::Subtract,
+            Some("NumpadSubtract") | Some("NumpadMinus") => Key::Subtract,
             Some("NumpadMultiply") => Key::Multiply,
             Some("NumpadDivide") => Key::Divide,
             Some("NumpadDecimal") => Key::Decimal,
@@ -118,7 +123,7 @@ impl MuteHandler {
         };
 
         let _ = enigo.key(key, Direction::Click);
-        log::info!("[MuteHandler] Sent key: {:?}", keybind);
+        log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?})", keybind, key);
     }
 
     pub fn on_mute_toggled(&self, _muted: bool) {

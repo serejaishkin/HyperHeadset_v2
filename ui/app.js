@@ -414,6 +414,18 @@ $('cfg-mute-mode').addEventListener('change', async (e) => {
   }
 });
 
+// Display current keybind for debugging
+async function updateKeybindDisplay() {
+  try {
+    const keybind = await invoke('get_current_keybind');
+    console.log('Current keybind:', keybind);
+  } catch (error) {
+    console.error('get_current_keybind failed', error);
+  }
+}
+setInterval(updateKeybindDisplay, 5000);
+updateKeybindDisplay();
+
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
   const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
