@@ -426,6 +426,18 @@ async function updateKeybindDisplay() {
 setInterval(updateKeybindDisplay, 5000);
 updateKeybindDisplay();
 
+// Test mute button for debugging
+if ($('btn-test-mute')) {
+  $('btn-test-mute').addEventListener('click', async () => {
+    try {
+      console.log('Testing mute...');
+      await invoke('toggle_mute');
+    } catch (error) {
+      console.error('Test mute failed', error);
+    }
+  });
+}
+
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
   const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';

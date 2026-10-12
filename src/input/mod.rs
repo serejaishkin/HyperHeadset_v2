@@ -79,6 +79,7 @@ impl MuteHandler {
         let mut last = self.last_hotkey.lock();
         if let Some(t) = *last {
             if t.elapsed() < Duration::from_millis(150) {
+                log::warn!("[MuteHandler] Mute throttled (150ms debounce)");
                 return;
             }
         }
@@ -87,6 +88,8 @@ impl MuteHandler {
 
         let mut enigo = self.enigo.lock();
         let keybind = self.keybind.lock().clone();
+
+        log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
 
         let key = match keybind.as_deref() {
             Some("F13") => Key::F13,
@@ -122,8 +125,8 @@ impl MuteHandler {
             _ => Key::F20,
         };
 
-        let _ = enigo.key(key, Direction::Click);
-        log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?})", keybind, key);
+        let result = enigo.key(key, Direction::Click);
+        log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?}), result: {:?}", keybind, key, result);
     }
 
     pub fn on_mute_toggled(&self, _muted: bool) {
