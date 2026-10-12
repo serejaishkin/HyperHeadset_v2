@@ -51,8 +51,8 @@ impl MuteHandler {
     }
 
     pub fn set_keybind(&self, keybind: Option<String>) {
-        *self.keybind.lock() = keybind;
         log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
+        *self.keybind.lock() = keybind;
     }
 
     pub fn get_keybind(&self) -> Option<String> {
