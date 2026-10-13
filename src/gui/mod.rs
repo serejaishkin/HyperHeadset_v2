@@ -35,6 +35,9 @@ pub struct HyperXApp {
     pub selected_settings_tab: SettingsTab,
     pub tray_icon_config: TrayIconConfig,
     pub i18n: crate::i18n::I18n,
+    pub audio_devices: Vec<crate::system_audio::AudioDevice>,
+    pub selected_audio_device: Option<String>,
+    pub last_audio_device_scan: Instant,
     #[cfg(target_os = "windows")]
     pub volume_controller: Option<crate::platform::windows::volume::WindowsVolume>,
     #[cfg(target_os = "linux")]
@@ -92,6 +95,9 @@ impl HyperXApp {
             selected_settings_tab: SettingsTab::Headset,
             tray_icon_config: TrayIconConfig::load_or_create(),
             i18n,
+            audio_devices: Vec::new(),
+            selected_audio_device: None,
+            last_audio_device_scan: Instant::now() - Duration::from_secs(5),
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
             #[cfg(target_os = "linux")]
@@ -182,6 +188,7 @@ impl eframe::App for HyperXApp {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                         self.window_hidden = false;
+                        ctx.request_repaint();
                     }
                     crate::tray::TrayCommand::Quit => {
                         std::process::exit(0);
@@ -224,15 +231,22 @@ impl eframe::App for HyperXApp {
                     crate::DeviceEvent::StateChanged(state) => {
                         self.device_state = state.clone();
                         if let Some(tray) = &mut self.tray {
+                            tray.update_connected(true);
                             tray.update_battery(state.battery_percent, state.charging);
                             tray.update_mute(state.muted);
                         }
                     }
                     crate::DeviceEvent::Connected => {
                         self.device_state.connected = true;
+                        if let Some(tray) = &mut self.tray {
+                            tray.update_connected(true);
+                        }
                     }
                     crate::DeviceEvent::Disconnected => {
                         self.device_state.connected = false;
+                        if let Some(tray) = &mut self.tray {
+                            tray.update_connected(false);
+                        }
                     }
                     crate::DeviceEvent::BatteryLow(percent) => {
                         if self.last_battery_warning != Some(percent) {
@@ -257,7 +271,7 @@ impl eframe::App for HyperXApp {
         }
 
         if self.config.compact_mode {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([220.0, 200.0].into()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([260.0, 300.0].into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
             self.show_compact_ui(ctx);
         } else {
@@ -393,19 +407,84 @@ impl eframe::App for HyperXApp {
 impl HyperXApp {
     fn show_compact_ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            // Compact layout is intentionally kept within the fixed 260x300 window.
             ui.vertical_centered(|ui| {
-                ui.add_space(5.0);
+                ui.add_space(3.0);
+
                 let icon = if self.device_state.charging { "⚡" } else { "🔋" };
                 let color = if self.device_state.battery_percent > 30 { egui::Color32::GREEN }
                     else if self.device_state.battery_percent > 15 { egui::Color32::YELLOW }
                     else { egui::Color32::RED };
                 ui.colored_label(color, format!("{} {}%", icon, self.device_state.battery_percent));
-                ui.add(egui::ProgressBar::new(self.device_state.battery_percent as f32 / 100.0).desired_width(180.0).fill(color));
-                ui.add_space(5.0);
+
+                // --- System output device ---
+                // Put the selector near the top so it cannot be pushed below the
+                // visible area by the volume/microphone controls.
+                if self.audio_devices.is_empty() && self.last_audio_device_scan.elapsed() >= Duration::from_secs(1) {
+                    self.last_audio_device_scan = Instant::now();
+                    match crate::system_audio::get_audio_devices() {
+                        Ok(devices) => {
+                            self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
+                            log::info!("[GUI] Compact audio scan: {} output device(s)", self.audio_devices.len());
+                        }
+                        Err(e) => log::error!("[GUI] Compact audio scan failed: {}", e),
+                    }
+
+                    if self.selected_audio_device.is_none() {
+                        if let Ok(default_id) = crate::system_audio::get_default_output_device() {
+                            if self.audio_devices.iter().any(|d| d.id == default_id) {
+                                self.selected_audio_device = Some(default_id);
+                            }
+                        }
+                    }
+                }
+
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    ui.label("🔊");
+                    if self.audio_devices.is_empty() {
+                        ui.add_enabled(false, egui::Button::new("Аудиоустройства не найдены"));
+                    } else {
+                        let selected_name = self.selected_audio_device.as_ref()
+                            .and_then(|id| self.audio_devices.iter().find(|d| &d.id == id))
+                            .map(|d| d.name.clone())
+                            .unwrap_or_else(|| self.audio_devices[0].name.clone());
+
+                        egui::ComboBox::from_id_salt("compact_audio_output")
+                            .selected_text(selected_name)
+                            .width(185.0)
+                            .show_ui(ui, |ui| {
+                                for device in self.audio_devices.clone() {
+                                    let selected = self.selected_audio_device.as_ref() == Some(&device.id);
+                                    if ui.selectable_label(selected, &device.name).clicked() {
+                                        match crate::system_audio::set_default_output_device(&device.id) {
+                                            Ok(()) => {
+                                                self.selected_audio_device = Some(device.id.clone());
+                                                log::info!("[GUI] Default output changed to: {}", device.name);
+                                            }
+                                            Err(e) => {
+                                                log::error!("[GUI] Failed to change output '{}': {}", device.name, e);
+                                            }
+                                        }
+                                        ui.close_menu();
+                                    }
+                                }
+                            });
+                    }
+
+                    if ui.small_button("↻").on_hover_text("Обновить аудиоустройства").clicked() {
+                        self.audio_devices.clear();
+                        self.selected_audio_device = None;
+                        self.last_audio_device_scan = Instant::now() - Duration::from_secs(1);
+                    }
+                });
+
+                ui.add_space(3.0);
                 let mic_icon = if self.device_state.muted { "🔇" } else { "🎙️" };
                 let mic_text = if self.device_state.muted { self.i18n.t("MUTE") } else { self.i18n.t("MIC ON") };
                 ui.label(format!("{} {}", mic_icon, mic_text));
-                ui.add_space(5.0);
+
+                ui.add_space(2.0);
                 ui.label(self.i18n.t("VOL"));
                 let mut vol = self.volume;
                 ui.add(egui::Slider::new(&mut vol, 0.0..=100.0).show_value(true).text(""));
@@ -415,8 +494,8 @@ impl HyperXApp {
                         controller.set_master_volume(vol);
                     }
                 }
-                ui.add_space(5.0);
-                ui.add_space(4.0);
+
+                ui.add_space(2.0);
                 ui.label(self.i18n.t("MIC"));
                 let mut mic_vol = self.mic_volume;
                 ui.add(egui::Slider::new(&mut mic_vol, 0.0..=100.0).show_value(true).text(""));
@@ -426,7 +505,8 @@ impl HyperXApp {
                         controller.set_microphone_volume(mic_vol);
                     }
                 }
-                ui.add_space(4.0);
+
+                ui.add_space(2.0);
                 if ui.button(format!("⛶ {}", self.i18n.t("Expand"))).clicked() {
                     self.config.compact_mode = false;
                     self.needs_save = true;

@@ -11,6 +11,9 @@ tauri-build = { version = "2.0.0-rc", features = [] }
 [dependencies]
 hyperx-ngenuity-open = { path = ".." }
 tauri = { version = "2.0.0-rc", features = ["tray-icon", "image-png"] }
+tauri-plugin-updater = "2.0.0-rc"
+tauri-plugin-dialog = "2.0.0-rc"
+tauri-plugin-autostart = "2.0.0-rc"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -19,4 +22,8 @@ env_logger = "0.11"
 anyhow = "1.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.58", features = ["Win32_System_Com"] }
+windows = { version = "0.58", features = [
+    "Win32_System_Com",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+] }
