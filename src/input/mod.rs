@@ -51,7 +51,12 @@ impl MuteHandler {
     }
 
     pub fn set_keybind(&self, keybind: Option<String>) {
+        log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
         *self.keybind.lock() = keybind;
+    }
+
+    pub fn get_keybind(&self) -> Option<String> {
+        self.keybind.lock().clone()
     }
 
     pub fn volume_up(&self) {
@@ -74,6 +79,7 @@ impl MuteHandler {
         let mut last = self.last_hotkey.lock();
         if let Some(t) = *last {
             if t.elapsed() < Duration::from_millis(150) {
+                log::warn!("[MuteHandler] Mute throttled (150ms debounce)");
                 return;
             }
         }
@@ -82,6 +88,8 @@ impl MuteHandler {
 
         let mut enigo = self.enigo.lock();
         let keybind = self.keybind.lock().clone();
+
+        log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
 
         let key = match keybind.as_deref() {
             Some("F13") => Key::F13,
@@ -109,7 +117,7 @@ impl MuteHandler {
             Some("Numpad8") => Key::Numpad8,
             Some("Numpad9") => Key::Numpad9,
             Some("NumpadAdd") => Key::Add,
-            Some("NumpadSubtract") => Key::Subtract,
+            Some("NumpadSubtract") | Some("NumpadMinus") => Key::Subtract,
             Some("NumpadMultiply") => Key::Multiply,
             Some("NumpadDivide") => Key::Divide,
             Some("NumpadDecimal") => Key::Decimal,
@@ -117,8 +125,8 @@ impl MuteHandler {
             _ => Key::F20,
         };
 
-        let _ = enigo.key(key, Direction::Click);
-        log::info!("[MuteHandler] Sent key: {:?}", keybind);
+        let result = enigo.key(key, Direction::Click);
+        log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?}), result: {:?}", keybind, key, result);
     }
 
     pub fn on_mute_toggled(&self, _muted: bool) {
@@ -126,8 +134,18 @@ impl MuteHandler {
             MuteButtonMode::Standard => self.do_mute(),
             MuteButtonMode::MediaPlayPause => self.do_media_play_pause(),
             MuteButtonMode::SmartDouble => self.handle_smart_double(),
-            MuteButtonMode::SmartHold => { self.do_mute(); }
-            MuteButtonMode::HoldPlayPause => {}
+            MuteButtonMode::SmartHold => {
+                // SmartHold requires down/up events which Tauri doesn't provide
+                // Fall back to SmartDouble behavior for now
+                log::warn!("[MuteHandler] SmartHold mode requires on_button_down/on_button_up events, using SmartDouble fallback");
+                self.handle_smart_double();
+            }
+            MuteButtonMode::HoldPlayPause => {
+                // HoldPlayPause requires down/up events which Tauri doesn't provide
+                // Fall back to SmartDouble behavior for now
+                log::warn!("[MuteHandler] HoldPlayPause mode requires on_button_down/on_button_up events, using SmartDouble fallback");
+                self.handle_smart_double();
+            }
         }
     }
 
@@ -146,7 +164,8 @@ impl MuteHandler {
     }
 
     pub fn on_button_down(&self) {
-        if self.get_mode() == MuteButtonMode::SmartHold {
+        let mode = self.get_mode();
+        if mode == MuteButtonMode::SmartHold || mode == MuteButtonMode::HoldPlayPause {
             *self.press_start.lock() = Some(Instant::now());
         }
     }

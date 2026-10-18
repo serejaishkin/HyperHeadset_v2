@@ -1,5 +1,6 @@
 pub mod debounce;
 pub mod voice;
+pub mod embedded_voice;
 
 #[cfg(target_os = "linux")]
 pub mod linux;

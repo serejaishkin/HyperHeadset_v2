@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ["main","fix/*","feature/*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: System deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev libhidapi-dev libusb-1.0-0-dev libudev-dev libasound2-dev pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: System deps (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install pkg-config
+      - name: cargo check (all features)
+        run: cargo check --verbose
+      - name: cargo check (no-default)
+        run: cargo check --no-default-features --verbose
+      - name: cargo test
+        run: cargo test --verbose
+      - name: cargo check tauri
+        working-directory: src-tauri
+        run: cargo check --verbose
+
+  tauri-build:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: System deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Build Tauri
+        run: cargo install tauri-cli --locked || true
+      - name: Tauri build (debug)
+        working-directory: src-tauri
+        run: cargo build --verbose

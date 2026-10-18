@@ -1,5 +1,15 @@
 /target
+/src-tauri/target
 /dist
 /node_modules
 *.log
 .DS_Store
+*.key
+*.key.pub
+
+# Reverse engineering - DO NOT commit proprietary files
+REVERSE_ENGINEERING/NGENUITY_COMPONENTS/extracted/
+REVERSE_ENGINEERING/NGENUITY_COMPONENTS/notes/
+REVERSE_ENGINEERING/NGENUITY_COMPONENTS/dll_analysis/
+REVERSE_ENGINEERING/NGENUITY_COMPONENTS/protocol_analysis/
+
