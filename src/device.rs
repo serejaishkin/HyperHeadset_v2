@@ -279,7 +279,16 @@ impl HyperXDevice {
                         Err(e) => log::debug!("[HID] Battery probe write failed: {}", e),
                     }
                 }
-                Err(e) => log::debug!("[HID] open_path failed: {}", e),
+                Err(e) => {
+                    let err_msg = e.to_string();
+                    // Check if device is in use by another application (e.g., NGENUITY)
+                    if err_msg.contains("access") || err_msg.contains("busy") || err_msg.contains("permission") {
+                        log::warn!("[HID] Device appears to be in use by another application: {}", err_msg);
+                        log::warn!("[HID] Close NGENUITY or other HyperX software to allow HyperHeadsetv2 to access the device");
+                    } else {
+                        log::debug!("[HID] open_path failed: {}", e);
+                    }
+                }
             }
         }
 
@@ -296,10 +305,12 @@ impl HyperXDevice {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
 
+        log::debug!("[HID] Starting refresh_state for device {}", self.state.device_id);
         Self::flush_input_buffer(device);
         self.prepare_write();
 
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
+        log::debug!("[HID] Sending battery query: packet={:02X?}", &packet[0..16.min(packet.len())]);
         write_hid_report(device, &packet)
             .map_err(|e| anyhow::anyhow!("battery write failed: {}", e))?;
         thread::sleep(RESPONSE_DELAY);
@@ -307,40 +318,55 @@ impl HyperXDevice {
         let mut buf = [0u8; 256];
         let len = device.read_timeout(&mut buf, 2000)
             .map_err(|e| anyhow::anyhow!("battery read failed: {}", e))?;
+        log::debug!("[HID] Battery response: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
         if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
             return Err(anyhow::anyhow!("invalid battery response: len={} raw={:02X?}", len, &buf[0..16.min(len)]));
         }
         self.state.battery_percent = buf[7].min(100);
+        log::debug!("[HID] Battery level: {}%", self.state.battery_percent);
 
         // Optional telemetry must never turn a healthy HID link into a disconnect.
         self.prepare_write();
         match send_and_read(device, GET_MUTE_CMD_ID, &[]) {
-            Ok(status) => self.state.muted = status == 1,
+            Ok(status) => {
+                self.state.muted = status == 1;
+                log::debug!("[HID] Mute status: {}", self.state.muted);
+            }
             Err(e) => log::debug!("[HID] Mute telemetry unavailable: {}", e),
         }
 
         self.prepare_write();
         match send_and_read_with_raw(device, GET_CHARGING_CMD_ID, &[]) {
-            Ok((status, _)) => self.state.charging = status == 1,
+            Ok((status, _)) => {
+                self.state.charging = status == 1;
+                log::debug!("[HID] Charging status: {}", self.state.charging);
+            }
             Err(e) => log::debug!("[HID] Charging telemetry unavailable: {}", e),
         }
 
         self.prepare_write();
         match send_and_read(device, GET_SIDE_TONE_CMD_ID, &[]) {
-            Ok(status) => self.state.sidetone = status == 1,
+            Ok(status) => {
+                self.state.sidetone = status == 1;
+                log::debug!("[HID] Sidetone status: {}", self.state.sidetone);
+            }
             Err(e) => log::debug!("[HID] Sidetone telemetry unavailable: {}", e),
         }
 
+        log::debug!("[HID] refresh_state completed successfully");
         Ok(())
     }
 
     pub fn toggle_mute(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         let new_mute = !self.state.muted;
+        log::info!("[HID] Toggling mute: {} -> {}", self.state.muted, new_mute);
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
+        log::debug!("[HID] Sending mute command: packet={:02X?}", &packet[0..16.min(packet.len())]);
         write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("mute command failed: {}", e))?;
         self.state.muted = new_mute;
+        log::info!("[HID] Mute toggled successfully to: {}", new_mute);
         Ok(())
     }
 
@@ -392,15 +418,33 @@ fn is_valid_response(buf: &[u8], len: usize, expected_cmd: u8) -> bool {
 }
 
 fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<u8, String> {
-    let packet = build_packet(cmd_id, data);
-    write_hid_report(device, &packet).map_err(|e| e.to_string())?;
-    thread::sleep(RESPONSE_DELAY);
-    let mut buf = [0u8; 256];
-    match device.read_timeout(&mut buf, 2000) {
-        Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => Ok(buf[4]),
-        Ok(len) => Err(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)])),
-        Err(e) => Err(format!("read failed: {}", e)),
+    const MAX_RETRIES: u32 = 2;
+    let mut last_error = None;
+
+    for attempt in 0..MAX_RETRIES {
+        let packet = build_packet(cmd_id, data);
+        if let Err(e) = write_hid_report(device, &packet) {
+            last_error = Some(format!("write failed: {}", e));
+            thread::sleep(Duration::from_millis(50));
+            continue;
+        }
+        thread::sleep(RESPONSE_DELAY);
+        let mut buf = [0u8; 256];
+        match device.read_timeout(&mut buf, 2000) {
+            Ok(len) if len >= 5 && is_valid_response(&buf, len, cmd_id) => return Ok(buf[4]),
+            Ok(len) => {
+                last_error = Some(format!("invalid response: len={} raw={:02X?}", len, &buf[0..8.min(len)]));
+                log::debug!("[HID] Invalid response for cmd {} (attempt {}/{}): len={} raw={:02X?}", cmd_id, attempt + 1, MAX_RETRIES, len, &buf[0..8.min(len)]);
+            }
+            Err(e) => {
+                last_error = Some(format!("read failed: {}", e));
+                log::debug!("[HID] Read error for cmd {} (attempt {}/{}): {}", cmd_id, attempt + 1, MAX_RETRIES, e);
+            }
+        }
+        thread::sleep(Duration::from_millis(50));
     }
+
+    Err(last_error.unwrap_or_else(|| "unknown error".to_string()))
 }
 
 fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<(u8, Vec<u8>), String> {
@@ -417,23 +461,48 @@ fn send_and_read_with_raw(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -
 }
 
 fn write_hid_report(device: &hidapi::HidDevice, packet: &[u8]) -> anyhow::Result<()> {
-    match device.write(packet) {
-        Ok(_) => Ok(()),
-        Err(write_err) => {
-            #[cfg(target_os = "windows")]
-            {
-                if let hidapi::HidError::HidApiError { message } = &write_err {
-                    if message.contains("Incorrect function") || message.contains("(0x00000001)") {
-                        if device.send_feature_report(packet).is_err() {
-                            return Err(write_err.into());
+    const MAX_RETRIES: u32 = 3;
+    let mut last_error = None;
+
+    for attempt in 0..MAX_RETRIES {
+        match device.write(packet) {
+            Ok(_) => return Ok(()),
+            Err(write_err) => {
+                #[cfg(target_os = "windows")]
+                {
+                    if let hidapi::HidError::HidApiError { message } = &write_err {
+                        // Windows-specific: Try send_feature_report for "Incorrect function" errors
+                        if message.contains("Incorrect function") || message.contains("(0x00000001)") {
+                            log::debug!("[HID] Write failed with 'Incorrect function', trying send_feature_report (attempt {}/{})", attempt + 1, MAX_RETRIES);
+                            if device.send_feature_report(packet).is_ok() {
+                                return Ok(());
+                            }
                         }
-                        return Ok(());
+                        // Retry on transient Windows errors
+                        if message.contains("busy") || message.contains("access") || message.contains("timeout") {
+                            log::debug!("[HID] Transient write error (attempt {}/{}): {}", attempt + 1, MAX_RETRIES, message);
+                            last_error = Some(write_err);
+                            thread::sleep(Duration::from_millis(50));
+                            continue;
+                        }
                     }
                 }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    // Cross-platform retry for transient errors
+                    if write_err.to_string().contains("busy") || write_err.to_string().contains("timeout") {
+                        log::debug!("[HID] Transient write error (attempt {}/{}): {}", attempt + 1, MAX_RETRIES, write_err);
+                        last_error = Some(write_err);
+                        thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                }
+                last_error = Some(write_err);
             }
-            Err(write_err.into())
         }
     }
+
+    Err(last_error.map(|e| anyhow::anyhow!("write failed after {} retries: {}", MAX_RETRIES, e)).unwrap_or_else(|| anyhow::anyhow!("write failed")))
 }
 
 pub struct MultiDeviceManager {
