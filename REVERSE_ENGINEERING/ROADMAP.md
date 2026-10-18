@@ -4,6 +4,27 @@
 
 This directory contains reverse engineering analysis of the official HyperX NGENUITY application to understand device protocols and enable cross-platform support.
 
+## Directory Structure
+
+```
+REVERSE_ENGINEERING/
+├── ROADMAP.md                      # This file - overall plan
+├── HID_PROTOCOL.md                 # Current HID protocol documentation
+├── LINUX_HID_CAPTURE.md            # Linux HID capture guide
+├── MACOS_HID_CAPTURE.md            # macOS HID capture guide
+├── hid_capture.py                 # Cross-platform HID capture tool
+├── extract_components.bat          # Windows extraction script
+├── extract_components.ps1          # PowerShell extraction script
+├── NGENUITY_COMPONENTS/            # Component extraction and analysis
+│   ├── README.md                   # Extraction instructions
+│   ├── dll_analysis/               # DLL analysis findings
+│   │   └── TEMPLATE.md             # Analysis template
+│   ├── protocol_analysis/          # Protocol analysis findings
+│   └── notes/                      # Personal analysis notes
+└── ORIGINAL_APP/                   # Original app structure documentation
+    └── [future additions]
+```
+
 ## NGENUITY Version Analyzed
 
 **Version:** 5.38.0.0
@@ -116,6 +137,94 @@ This directory contains reverse engineering analysis of the official HyperX NGEN
 **Expected Outcome:**
 - LED control protocol documentation
 - Cross-platform RGB support
+
+## Component Extraction
+
+### Available Scripts
+
+Two scripts are provided for extracting NGENUITY components:
+
+1. **extract_components.bat** - Windows batch script
+2. **extract_components.ps1** - PowerShell script
+
+**Usage:**
+```bash
+# Windows
+extract_components.bat
+
+# PowerShell
+.\extract_components.ps1
+```
+
+**Extracted Components:**
+- NGenuity2.dll - Main application logic
+- AirohaHidCoreDll.dll - HID communication (SDK 5.7.0.8)
+- AirohaPeqLibrary.dll - Parametric Equalizer
+- DTSAPO.dll - DTS:X Ultra spatial audio
+- NGenuity2Helper.exe - Native helper process
+- All Airoha SDK versions (2.10.2 through 5.7.0.8)
+- DTS configuration files
+- XML manifests
+
+**IMPORTANT:**
+- Extracted files are saved to `REVERSE_ENGINEERING/NGENUITY_COMPONENTS/extracted/`
+- These directories are in `.gitignore` - DO NOT commit to repository
+- Files are proprietary and for personal analysis only
+- Respect HP Inc. copyright
+
+### Analysis Template
+
+A template is provided at `NGENUITY_COMPONENTS/dll_analysis/TEMPLATE.md` for documenting analysis findings.
+
+For each component, document:
+- Key functions found
+- Protocol details
+- Command IDs
+- Device-specific variations
+- Cross-platform relevance
+
+## Legal and Ethical Guidelines
+
+**⚠️ IMPORTANT:**
+
+1. **Personal Use Only:** Extracted components are for personal reverse engineering
+2. **No Redistribution:** Do not share proprietary files publicly
+3. **No Git Commits:** Never commit to repository (already in .gitignore)
+4. **Respect Copyright:** Acknowledge HP Inc. copyright
+5. **Open Source Goal:** Objective is to create open-source alternatives
+
+### Why We Extract
+
+The goal is to:
+- Understand HID protocols for Linux/macOS support
+- Document EQ parameters for cross-platform implementation
+- Identify undocumented features
+- Improve HyperHeadsetv2 stability and functionality
+- Eventually create fully open-source implementation
+
+### What We Do With Findings
+
+1. **Document protocols** in markdown files (commit these)
+2. **Implement improvements** in HyperHeadsetv2 (commit code)
+3. **Share knowledge** in documentation (commit docs)
+4. **Delete proprietary files** after analysis if desired
+
+## Existing Documentation
+
+- **HID_PROTOCOL.md** - Current protocol knowledge from HyperHeadsetv2
+- **LINUX_HID_CAPTURE.md** - Linux HID capture guide
+- **MACOS_HID_CAPTURE.md** - macOS HID capture guide
+- **hid_capture.py** - Cross-platform capture tool
+- **NGENUITY_ANALYSIS.md** - High-level NGENUITY analysis (project root)
+
+## Next Steps
+
+1. **Extract components** using provided scripts
+2. **Analyze with Ghidra/dnSpy**
+3. **Document findings** in markdown files
+4. **Update HID_PROTOCOL.md** with new discoveries
+5. **Implement improvements** in HyperHeadsetv2
+6. **Document cross-platform requirements** for Linux/macOS
 
 ## Platform-Specific Analysis
 
