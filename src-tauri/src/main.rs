@@ -336,6 +336,7 @@ fn main() {
                 let mut was_connected = false; let mut heartbeat_failures = 0u32;
                 let mut last_hid_refresh = Instant::now() - Duration::from_secs(5);
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
+                let mut consecutive_refresh_failures = 0u32;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
                         if idx < manager.devices.len() {
@@ -393,7 +394,14 @@ fn main() {
                             }
                         }
                     }
-                    if last_hid_refresh.elapsed() < Duration::from_secs(5) {
+                    // Adaptive refresh interval based on consecutive failures
+                    let refresh_interval = if consecutive_refresh_failures > 3 {
+                        Duration::from_secs(10) // Slower refresh if device is unstable
+                    } else {
+                        Duration::from_secs(5)
+                    };
+
+                    if last_hid_refresh.elapsed() < refresh_interval {
                         thread::sleep(Duration::from_millis(500));
                         continue;
                     }
@@ -407,6 +415,7 @@ fn main() {
                     }
                     if refresh_ok {
                         heartbeat_failures = 0;
+                        consecutive_refresh_failures = 0;
                         let st = manager.active_state();
                         let needs_sidetone_restore = if let Ok(config) = Config::load() {
                             st.sidetone != config.device.sidetone
@@ -431,6 +440,36 @@ fn main() {
                         if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
                         if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;
+                    } else {
+                        consecutive_refresh_failures += 1;
+                        log::debug!("[Device] Consecutive refresh failures: {}", consecutive_refresh_failures);
+                    }
+                    heartbeat_failures += 1; let enumerated = manager.is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 {
+                        if enumerated {
+                            log::warn!("[HID] Device enumerated but not accessible — retrying HID open without publishing disconnect.");
+                            if let Err(e) = manager.scan_and_connect() {
+                                log::debug!("[HID] Silent HID reopen failed: {}", e);
+                            } else {
+                                let st = manager.active_state();
+                                { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                                let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                                { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
+                                let _ = app_handle_device.emit("device-state", st);
+                                let _ = app_handle_device.emit("devices-list", all);
+                            }
+                            thread::sleep(Duration::from_secs(15));
+                        } else {
+                            for d in manager.devices.iter_mut() { d.disconnect(); }
+                            publish_disconnected(&app_handle_device, &device_state_inner);
+                            { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
+                            let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
+                            thread::sleep(Duration::from_secs(3));
+                        }
+                        heartbeat_failures = 0;
+                    }
+                    // Update tray icon only if refresh was successful
+                    if refresh_ok {
+                        let st = manager.active_state();
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
                             log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
@@ -445,30 +484,6 @@ fn main() {
                             }
                             let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
-                        }
-                    } else {
-                        heartbeat_failures += 1; let enumerated = manager.is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 {
-                            if enumerated {
-                                log::warn!("[HID] Device enumerated but not accessible — retrying HID open without publishing disconnect.");
-                                if let Err(e) = manager.scan_and_connect() {
-                                    log::debug!("[HID] Silent HID reopen failed: {}", e);
-                                } else {
-                                    let st = manager.active_state();
-                                    { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
-                                    let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
-                                    { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
-                                    let _ = app_handle_device.emit("device-state", st);
-                                    let _ = app_handle_device.emit("devices-list", all);
-                                }
-                                thread::sleep(Duration::from_secs(15));
-                            } else {
-                                for d in manager.devices.iter_mut() { d.disconnect(); }
-                                publish_disconnected(&app_handle_device, &device_state_inner);
-                                { let mut a = all_devices_inner.lock().unwrap(); *a = Vec::new(); }
-                                let _ = app_handle_device.emit("devices-list", Vec::<DeviceState>::new());
-                                thread::sleep(Duration::from_secs(3));
-                            }
-                            heartbeat_failures = 0;
                         }
                     }
                     thread::sleep(Duration::from_millis(500));

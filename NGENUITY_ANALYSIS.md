@@ -208,13 +208,120 @@ Analysis of the official HyperX NGENUITY application (version 5.38.0.0) to under
 - No Airoha SDK available
 - Current approach is correct
 
+## Implemented Improvements (2026-10-13)
+
+### 1. SSID Mapping ✅
+- Documented VID/PID for all device implementations
+- Mapped to official NGENUITY SSIDs where possible
+- Added mapping table to this document
+
+### 2. Enhanced HID Error Handling ✅
+**File:** `src/device.rs`
+
+**Improvements:**
+- Added retry logic for write operations (3 retries with 50ms delay)
+- Added retry logic for send_and_read operations (2 retries with 50ms delay)
+- Enhanced Windows-specific error handling for "Incorrect function" errors
+- Added detection of transient errors (busy, access, timeout) with automatic retry
+- Improved error logging with attempt counters
+
+**Benefits:**
+- More robust communication with devices
+- Better handling of temporary device conflicts
+- Reduced false disconnects
+
+### 3. Adaptive Refresh Rate ✅
+**File:** `src-tauri/src/main.rs`
+
+**Improvements:**
+- Added consecutive refresh failure tracking
+- Adaptive refresh interval: 5s normally, 10s when device is unstable
+- Slower polling when device has persistent issues to reduce interference
+
+**Benefits:**
+- Less interference with other applications (NGENUITY)
+- Better coexistence when both apps are running
+- Automatic adaptation to device stability
+
+### 4. Device Conflict Detection ✅
+**File:** `src/device.rs`
+
+**Improvements:**
+- Added detection of "access denied", "busy", and "permission" errors
+- Specific warning when device is in use by another application
+- User-friendly message to close NGENUITY if conflict detected
+
+**Benefits:**
+- Clear user feedback when device is locked by NGENUITY
+- Easier troubleshooting of connection issues
+
+### 5. Enhanced Protocol Logging ✅
+**File:** `src/device.rs`
+
+**Improvements:**
+- Added debug logging for all HID packets sent
+- Added debug logging for all responses received
+- Added logging for battery, mute, charging, and sidetone status
+- Added timing information for refresh operations
+
+**Benefits:**
+- Better visibility into HID communication
+- Easier debugging of protocol issues
+- Can capture traffic for analysis
+
 ## Next Steps
 
-1. **SSID Mapping:** Document device VID/PID and map to NGENUITY SSIDs
-2. **HID Capture:** Capture HID traffic from NGENUITY for protocol analysis
-3. **Protocol Comparison:** Compare HyperHeadsetv2 protocols with NGENUITY behavior
-4. **Error Handling:** Improve Windows HID error handling based on SDK patterns
-5. **Device Sharing:** Implement proper HID device sharing to avoid conflicts
+1. **HID Capture:** Capture HID traffic from NGENUITY for protocol analysis
+2. **Protocol Comparison:** Compare HyperHeadsetv2 protocols with NGENUITY behavior
+3. **User Testing:** Test improvements with various HyperX models
+4. **Performance:** Monitor refresh success rates and adaptive behavior
+
+## Device VID/PID to SSID Mapping
+
+### HyperHeadsetv2 Device Implementations
+
+| Device File | Vendor ID | Product IDs | NGENUITY SSID (Match) |
+|-------------|-----------|-------------|----------------------|
+| cloud_iii_wireless.rs | 0x03F0 (HP) | 0x05B7, 0x0c9d | Unknown |
+| cloud_iii_s_wireless.rs | 0x03F0 (HP) | 0x06BE, 0x02CC | **03F006BE** ✓ |
+| cloud_ii_wireless_dts.rs | 0x03F0 (HP) | 0x1718, 0x018B, 0x0D93, 0x0696 | **03F0018B** ✓, **03F00D93** ✓ |
+| cloud_ii_wireless.rs | 0x0951 (HYPERX) | 0x1718, 0x0b92, 0x16EA, 0x16EB | Unknown |
+| cloud_ii_core_wireless.rs | 0x03F0 (HP) | 0x069F, 0x0995 | **03F00995** ✓ |
+| cloud_flight_wireless.rs | 0x03F0 (HP), 0x0951 (HYPERX) | 0x0e90, 0x1749, 0x16c4 | Unknown |
+| cloud_alpha_wireless.rs | 0x03F0 (HP) | 0x1743, 0x1765, 0x098D | **03F0098D** ✓ |
+
+### Confirmed SSID Mappings
+
+- **03F0018B** → Cloud II Wireless DTS (PID 0x018B)
+- **03F006BE** → Cloud III S Wireless (PID 0x06BE)
+- **03F0098D** → Cloud Alpha Wireless (PID 0x098D)
+- **03F00995** → Cloud II Core Wireless (PID 0x0995)
+- **03F00D93** → Cloud II Wireless DTS (PID 0x0D93)
+
+### Unmatched SSIDs from NGENUITY
+
+- 03F001BF - Unknown model
+- 03F0078A - Unknown model
+- 03F0089D - Unknown model
+- 03F008BE - Unknown model
+- 03F00C9D - Unknown model
+
+### Unmatched PIDs from HyperHeadsetv2
+
+- 0x05B7 - Cloud III Wireless
+- 0x0c9d - Cloud III Wireless
+- 0x02CC - Cloud III S Wireless
+- 0x1718 - Cloud II Wireless / Cloud II Wireless DTS
+- 0x0696 - Cloud II Wireless DTS
+- 0x0b92 - Cloud II Wireless
+- 0x16EA - Cloud II Wireless
+- 0x16EB - Cloud II Wireless
+- 0x069F - Cloud II Core Wireless
+- 0x0e90 - Cloud Flight Wireless
+- 0x1749 - Cloud Flight Wireless
+- 0x16c4 - Cloud Flight Wireless
+- 0x1743 - Cloud Alpha Wireless
+- 0x1765 - Cloud Alpha Wireless
 
 ## Notes
 
