@@ -33,14 +33,14 @@
 </head>
 <body>
   <div class="compact">
-    <div class="top"><span class="title">HyperHeadset</span><span id="connection" class="connection off">ВЫКЛ</span></div>
+    <div class="top"><span class="title">HyperHeadset</span><span id="connection" class="connection off" data-i18n="conn.off">ВЫКЛ</span></div>
     <div class="battery" id="battery-pct">--%</div>
-    <div class="status" id="battery-st">Нет подключения</div>
+    <div class="status" id="battery-st" data-i18n="bat.no_connection">Нет подключения</div>
     <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-    <div class="mic" id="mic-status">🎙️ МИКР НЕАКТИВЕН</div>
+    <div class="mic" id="mic-status" data-i18n="mic.off">🎙️ МИКР НЕАКТИВЕН</div>
     <div class="row"><label class="check-row"><input type="checkbox" id="sidetone-c"><span data-i18n="compact.sidetone">Сайдтон</span></label></div>
-    <div class="row"><label class="device-row">OUT</label><select id="fallback-output-c"><option value="">Нет</option></select></div>
-    <div class="row"><label class="device-row">IN</label><select id="fallback-input-c"><option value="">Нет</option></select></div>
+    <div class="row"><label class="device-row">OUT</label><select id="fallback-output-c"><option value="" data-i18n="audio.none">Нет</option></select></div>
+    <div class="row"><label class="device-row">IN</label><select id="fallback-input-c"><option value="" data-i18n="audio.none">Нет</option></select></div>
     <div class="row"><label class="check-row"><input type="checkbox" id="auto-switch-c"><span data-i18n="compact.auto_switch">Авто-переключение</span></label></div>
     <div class="row"><label>VOL</label><input type="range" id="vol-master" min="0" max="100" value="50"><span id="vol-value">50%</span></div>
     <div class="row"><label>MIC</label><input type="range" id="vol-mic" min="0" max="100" value="50"><span id="mic-value">50%</span></div>
