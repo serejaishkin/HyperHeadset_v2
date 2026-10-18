@@ -76,7 +76,7 @@ async function loadAudioDevices() {
 
     if (outputSelect) {
       const currentOutput = outputSelect.value;
-      outputSelect.innerHTML = '<option value="">Нет</option>';
+      outputSelect.innerHTML = `<option value="">${tr('audio.none')}</option>`;
       devices.filter(d => d.is_output).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -88,7 +88,7 @@ async function loadAudioDevices() {
 
     if (inputSelect) {
       const currentInput = inputSelect.value;
-      inputSelect.innerHTML = '<option value="">Нет</option>';
+      inputSelect.innerHTML = `<option value="">${tr('audio.none')}</option>`;
       devices.filter(d => d.is_input).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -108,7 +108,31 @@ async function loadConfig() {
     const lang = c.language || 'ru';
     window.__currentLang = lang;
     document.documentElement.lang = lang;
-    if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+    if (typeof window.applyLanguage === 'function') {
+      window.applyLanguage(lang);
+    } else {
+      // Fallback: manually apply language if applyLanguage not available
+      const dict = window.I18N?.[lang] || window.I18N?.ru;
+      if (dict) {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (key && dict[key] !== undefined) {
+            if (el.tagName === 'OPTION') {
+              el.textContent = dict[key];
+            } else if (el.children.length > 0) {
+              for (const node of el.childNodes) {
+                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                  node.textContent = ' ' + dict[key] + ' ';
+                  break;
+                }
+              }
+            } else {
+              el.textContent = dict[key];
+            }
+          }
+        });
+      }
+    }
 
     if ($('fallback-output-c')) $('fallback-output-c').value = c.audio?.fallback_output_device ?? '';
     if ($('fallback-input-c')) $('fallback-input-c').value = c.audio?.fallback_input_device ?? '';
