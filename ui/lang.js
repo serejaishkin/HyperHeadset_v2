@@ -163,8 +163,6 @@ window.I18N = {
     'toast.eq_saved': 'Пресет гарнитуры сохранён',
     'toast.eq_removed': 'Пресет гарнитуры удалён',
     'toast.voice_folder_saved': 'Папка голосов сохранена',
-    'debug.test_mute': 'Тест мьюта',
-  },
     'toast.uploaded': 'Загружен',
     'toast.upload_error': 'Ошибка загрузки',
     'toast.battery_voice_played': 'Голосовое уведомление о батарее воспроизведено',
@@ -198,6 +196,7 @@ window.I18N = {
     'compact.main': 'Основное',
     'compact.sidetone': 'Сайдтон',
     'compact.auto_switch': 'Авто-переключение',
+    'debug.test_mute': 'Тест мьюта',
   },
   en: {
     'sidebar.mic_on': 'MIC ON',
@@ -372,8 +371,6 @@ window.I18N = {
     'toast.eq_saved': 'Headset preset saved',
     'toast.eq_removed': 'Headset preset deleted',
     'toast.voice_folder_saved': 'Voice folder saved',
-    'debug.test_mute': 'Test mute',
-  },
     'toast.uploaded': 'Uploaded',
     'toast.upload_error': 'Upload error',
     'toast.battery_voice_played': 'Battery voice notification played',
@@ -398,6 +395,7 @@ window.I18N = {
     'compact.main': 'Main',
     'compact.sidetone': 'Sidetone',
     'compact.auto_switch': 'Auto-switch',
+    'debug.test_mute': 'Test mute',
   },
 };
 
