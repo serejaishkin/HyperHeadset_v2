@@ -305,6 +305,22 @@ impl HyperXDevice {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
 
+        // Quick presence check: if the device is no longer enumerated by the OS,
+        // report disconnect immediately instead of waiting for 4 slow read timeouts.
+        {
+            let api = match HidApi::new() {
+                Ok(a) => a,
+                Err(_) => return Err(anyhow::anyhow!("HID API unavailable")),
+            };
+            let present = api.device_list().any(|info| {
+                info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
+            });
+            if !present {
+                log::warn!("[HID] Device {:#06X}:{:#06X} no longer enumerated", VENDOR_ID, PRODUCT_IDS[0]);
+                return Err(anyhow::anyhow!("Device no longer enumerated — disconnected"));
+            }
+        }
+
         log::debug!("[HID] Starting refresh_state for device {}", self.state.device_id);
         Self::flush_input_buffer(device);
         let mut any_success = false;
