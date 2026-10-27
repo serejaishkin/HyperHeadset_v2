@@ -4,6 +4,8 @@ use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::time::{Duration, Instant};
 use parking_lot::Mutex;
 
+use crate::system_audio;
+
 const DOUBLE_CLICK_MS: u64 = 400;
 const LONG_PRESS_MS: u64 = 500;
 
@@ -127,6 +129,12 @@ impl MuteHandler {
 
         let result = enigo.key(key, Direction::Click);
         log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?}), result: {:?}", keybind, key, result);
+
+        // Also toggle system microphone mute so Discord sees the mic muted directly
+        match system_audio::toggle_mic_mute() {
+            Ok(()) => log::info!("[MuteHandler] System mic mute toggled"),
+            Err(e) => log::warn!("[MuteHandler] System mic mute failed: {}", e),
+        }
     }
 
     pub fn on_mute_toggled(&self, _muted: bool) {

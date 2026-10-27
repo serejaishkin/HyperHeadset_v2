@@ -210,10 +210,10 @@ const BASE_PACKET: [u8; 20] = [
 const GET_BATTERY_CMD_ID: u8 = 2;
 const GET_MUTE_CMD_ID: u8 = 5;
 const SET_MUTE_CMD_ID: u8 = 32;
-const GET_SIDE_TONE_CMD_ID: u8 = 34;
+const GET_SIDE_TONE_CMD_ID: u8 = 6;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
 const GET_CHARGING_CMD_ID: u8 = 3;
-const SET_AUTO_SHUTDOWN_CMD_ID: u8 = 6;
+const SET_AUTO_SHUTDOWN_CMD_ID: u8 = 34;
 
 const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
@@ -326,13 +326,23 @@ impl HyperXDevice {
         log::debug!("[HID] Battery level: {}%", self.state.battery_percent);
 
         // Optional telemetry must never turn a healthy HID link into a disconnect.
+        // Mute status is at buf[7] (same offset as battery), not buf[4].
         self.prepare_write();
-        match send_and_read(device, GET_MUTE_CMD_ID, &[]) {
-            Ok(status) => {
-                self.state.muted = status == 1;
-                log::debug!("[HID] Mute status: {}", self.state.muted);
+        let packet = build_packet(GET_MUTE_CMD_ID, &[]);
+        match write_hid_report(device, &packet) {
+            Ok(_) => {
+                thread::sleep(RESPONSE_DELAY);
+                let mut buf = [0u8; 256];
+                match device.read_timeout(&mut buf, 2000) {
+                    Ok(len) if len >= 8 && is_valid_response(&buf, len, GET_MUTE_CMD_ID) => {
+                        self.state.muted = buf[7] == 1;
+                        log::debug!("[HID] Mute status: {} (raw byte[7]={})", self.state.muted, buf[7]);
+                    }
+                    Ok(len) => log::debug!("[HID] Mute response invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]),
+                    Err(e) => log::debug!("[HID] Mute telemetry read failed: {}", e),
+                }
             }
-            Err(e) => log::debug!("[HID] Mute telemetry unavailable: {}", e),
+            Err(e) => log::debug!("[HID] Mute telemetry write failed: {}", e),
         }
 
         self.prepare_write();

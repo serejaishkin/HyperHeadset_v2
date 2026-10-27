@@ -21,6 +21,7 @@ pub fn toggle_output_mute() -> anyhow::Result<()> { platform::toggle_output_mute
 pub fn play_pause() -> anyhow::Result<()> { use enigo::{Direction, Enigo, Key, Keyboard, Settings}; let mut e=Enigo::new(&Settings::default()).map_err(|x| anyhow::anyhow!(x.to_string()))?; e.key(Key::MediaPlayPause,Direction::Click).map_err(|x| anyhow::anyhow!(x.to_string())) }
 pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> { platform::get_audio_devices() }
 pub fn get_default_output_device() -> anyhow::Result<String> { platform::get_default_output_device() }
+pub fn get_default_input_device() -> anyhow::Result<String> { platform::get_default_input_device() }
 pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> { platform::set_default_output_device(device_id) }
 pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> { platform::set_default_input_device(device_id) }
 
@@ -41,14 +42,23 @@ mod platform {
  pub fn toggle_mic_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eCapture)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
  pub fn toggle_output_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eRender)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
 
- pub fn get_default_output_device() -> anyhow::Result<String> {
+pub fn get_default_output_device() -> anyhow::Result<String> {
    unsafe {
-     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-     let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-     let device = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
-     Ok(device.GetId()?.to_string()?)
-   }
- }
+      let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+      let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+      let device = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
+      Ok(device.GetId()?.to_string()?)
+    }
+  }
+
+pub fn get_default_input_device() -> anyhow::Result<String> {
+    unsafe {
+      let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+      let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+      let device = en.GetDefaultAudioEndpoint(eCapture, eConsole)?;
+      Ok(device.GetId()?.to_string()?)
+    }
+  }
 
  pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> {
    unsafe {
@@ -256,14 +266,25 @@ mod platform {
    Ok(())
  }
 
- pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-   if avail("wpctl") {
-     wp(&["set-default", device_id])?;
-   } else {
-     pa(&["set-default-source", device_id])?;
-   }
-   Ok(())
- }
+pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
+    if avail("wpctl") {
+      wp(&["set-default", device_id])?;
+    } else {
+      pa(&["set-default-source", device_id])?;
+    }
+    Ok(())
+  }
+
+pub fn get_default_input_device() -> anyhow::Result<String> {
+    if avail("wpctl") {
+      let o = wp(&["get-default"])?.lines().find(|l| !l.is_empty()).unwrap_or("").to_string();
+      // wpctl get-default returns sink and source info; filter for source
+      Ok(o)
+    } else {
+      let output = pa(&["get-default-source"])?;
+      Ok(output.trim().to_string())
+    }
+  }
 }
 
 #[cfg(target_os="macos")]
@@ -351,17 +372,27 @@ mod platform {
    Ok(())
  }
 
- pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-   let script = format!(r#"
-     tell application "System Events"
-       set currentDevice to audio input device whose id is "{}"
-       set current input volume of currentDevice to input volume of currentDevice
-     end tell
-   "#, device_id);
-   osa(&script)?;
-   Ok(())
- }
+pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
+    let script = format!(r#"
+      tell application "System Events"
+        set currentDevice to audio input device whose id is "{}"
+        set current input volume of currentDevice to input volume of currentDevice
+      end tell
+    "#, device_id);
+    osa(&script)?;
+    Ok(())
+  }
+
+  pub fn get_default_input_device() -> anyhow::Result<String> {
+    let script = r#"
+      tell application "System Events"
+        set dev to (get current input device)
+        return id of dev
+      end tell
+    "#;
+    osa(script)
+  }
 }
 
 #[cfg(not(any(target_os="windows",target_os="linux",target_os="macos")))]
-mod platform { use super::AudioLevels; pub fn get_levels()->anyhow::Result<AudioLevels>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_output(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_input(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn toggle_mic_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System microphone controls are not implemented for this platform"))} pub fn toggle_output_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System output mute is not implemented for this platform"))} }
+mod platform { use super::AudioLevels; pub fn get_levels()->anyhow::Result<AudioLevels>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_output(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_input(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn toggle_mic_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System microphone controls are not implemented for this platform"))} pub fn toggle_output_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System output mute is not implemented for this platform"))} pub fn get_default_output_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn get_default_input_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_output_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_input_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} }

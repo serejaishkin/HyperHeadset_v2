@@ -41,6 +41,7 @@ use hyperx_ngenuity_open::{
     device::{DeviceState, HyperXDevice},
     gui::HyperXApp,
     input::{self, GLOBAL_MUTE_HANDLER},
+    system_audio,
     DeviceEvent,
 };
 
@@ -121,6 +122,8 @@ fn main() -> anyhow::Result<()> {
 
     let fallback_output = config.audio.fallback_output_device.clone();
     let fallback_input = config.audio.fallback_input_device.clone();
+    let headset_output = config.audio.headset_output_device.clone();
+    let headset_input = config.audio.headset_input_device.clone();
     let auto_switch = config.audio.auto_switch_audio;
 
     std::thread::spawn(move || {
@@ -132,6 +135,8 @@ fn main() -> anyhow::Result<()> {
         let mut last_battery_low = false;
         let mut error_count = 0;
         let mut startup_battery_announced = false;
+        let mut prev_output_device: Option<String> = None;
+        let mut prev_input_device: Option<String> = None;
 
         loop {
             if !device.state.connected {
@@ -147,6 +152,9 @@ fn main() -> anyhow::Result<()> {
 
                     // Auto-switch to fallback audio on disconnect
                     if auto_switch {
+                        // Save current default audio devices before switching away
+                        prev_output_device = system_audio::get_default_output_device().ok();
+                        prev_input_device = system_audio::get_default_input_device().ok();
                         #[cfg(target_os = "windows")]
                         {
                             if let Some(ref output_id) = fallback_output {
@@ -204,6 +212,18 @@ fn main() -> anyhow::Result<()> {
                         if let Err(e) = device.refresh_state() {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
+
+                        // Auto-switch back to headset audio on reconnect
+                        if auto_switch {
+                            if let Some(ref output_id) = headset_output.clone().or_else(|| prev_output_device.take()) {
+                                log::info!("[Audio] Switching back to headset output: {}", output_id);
+                                let _ = system_audio::set_default_output_device(output_id);
+                            }
+                            if let Some(ref input_id) = headset_input.clone().or_else(|| prev_input_device.take()) {
+                                log::info!("[Audio] Switching back to headset input: {}", input_id);
+                                let _ = system_audio::set_default_input_device(input_id);
+                            }
+                        }
                     }
                     Err(e) => {
                         log::debug!("Connection failed: {}", e);
@@ -233,7 +253,12 @@ fn main() -> anyhow::Result<()> {
                         let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
                     }
                     hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(_enabled) => {},
-                    hyperx_ngenuity_open::DeviceCommand::SetAutoShutdown(_) => {}
+                    hyperx_ngenuity_open::DeviceCommand::SetAutoShutdown(minutes) => {
+                        if let Err(e) = device.set_auto_shutdown(minutes) {
+                            log::warn!("Set auto shutdown failed: {}", e);
+                        }
+                        let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+                    }
                 }
             }
 

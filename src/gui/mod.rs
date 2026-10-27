@@ -900,6 +900,28 @@ hold=Play/Pause"));
         
         ui.add_space(10.0);
         
+        ui.separator();
+        ui.label("Headset audio devices (switch back on reconnect):");
+        ui.add_space(10.0);
+        
+        ui.label("Headset output device:");
+        let mut headset_output = self.config.audio.headset_output_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut headset_output).changed() {
+            self.config.audio.headset_output_device = if headset_output.is_empty() { None } else { Some(headset_output) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
+        ui.label("Headset input device:");
+        let mut headset_input = self.config.audio.headset_input_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut headset_input).changed() {
+            self.config.audio.headset_input_device = if headset_input.is_empty() { None } else { Some(headset_input) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
         if ui.checkbox(&mut self.config.audio.auto_switch_audio, "Auto-switch to fallback devices").changed() {
             self.needs_save = true;
         }
