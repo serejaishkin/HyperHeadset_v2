@@ -2,6 +2,7 @@
 
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::time::{Duration, Instant};
+use std::thread;
 use parking_lot::Mutex;
 
 use crate::system_audio;
@@ -129,6 +130,13 @@ impl MuteHandler {
 
         let result = enigo.key(key, Direction::Click);
         log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?}), result: {:?}", keybind, key, result);
+
+        // Fallback: also send VolumeMute media key — Discord commonly picks this up
+        // as a mute hotkey. Discord only responds to one configured hotkey, so no
+        // double-mute risk.
+        thread::sleep(Duration::from_millis(50));
+        let _ = enigo.key(Key::VolumeMute, Direction::Click);
+        log::info!("[MuteHandler] Sent fallback key: VolumeMute");
 
         // Also toggle system microphone mute so Discord sees the mic muted directly
         match system_audio::toggle_mic_mute() {
