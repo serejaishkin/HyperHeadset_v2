@@ -44,6 +44,10 @@ pub struct AudioConfig {
     #[serde(default)]
     pub fallback_input_device: Option<String>,
     #[serde(default)]
+    pub headset_output_device: Option<String>,
+    #[serde(default)]
+    pub headset_input_device: Option<String>,
+    #[serde(default)]
     pub auto_switch_audio: bool,
 }
 
@@ -109,6 +113,8 @@ impl Default for Config {
                 eq_bands: [0.0; 10],
                 fallback_output_device: None,
                 fallback_input_device: None,
+                headset_output_device: None,
+                headset_input_device: None,
                 auto_switch_audio: false,
             },
             device: DeviceConfig {

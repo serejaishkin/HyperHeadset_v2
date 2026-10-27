@@ -52,6 +52,7 @@ pub enum SettingsTab {
     Voice,
     TrayIcon,
     Discord,
+    Audio,
     Debug,
 }
 
@@ -587,6 +588,7 @@ impl HyperXApp {
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Voice, self.i18n.t("Voice"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::TrayIcon, self.i18n.t("Tray Icon"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Discord, self.i18n.t("Discord"));
+            ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Audio, self.i18n.t("Audio"));
             ui.selectable_value(&mut self.selected_settings_tab, SettingsTab::Debug, self.i18n.t("Debug"));
         });
         ui.separator();
@@ -596,6 +598,7 @@ impl HyperXApp {
                 SettingsTab::Voice => self.show_settings_voice(ui),
                 SettingsTab::TrayIcon => self.show_settings_tray_icon(ui),
                 SettingsTab::Discord => self.show_settings_discord(ui),
+                SettingsTab::Audio => self.show_settings_audio(ui),
                 SettingsTab::Debug => self.show_settings_debug(ui),
             }
         });
@@ -870,6 +873,61 @@ hold=Play/Pause"));
 
     fn show_settings_discord(&mut self, ui: &mut egui::Ui) {
         discord_tab::show(ui, &mut self.config.discord, self.discord_connected, &mut self.needs_save, &mut self.recording_keybind, &mut self.keybind_capture);
+    }
+
+    fn show_settings_audio(&mut self, ui: &mut egui::Ui) {
+        ui.heading(self.i18n.t("Audio Settings"));
+        ui.separator();
+        
+        ui.label("Fallback audio devices (auto-switch when headset disconnected):");
+        ui.add_space(10.0);
+        
+        ui.label("Fallback output device:");
+        let mut output_device = self.config.audio.fallback_output_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut output_device).changed() {
+            self.config.audio.fallback_output_device = if output_device.is_empty() { None } else { Some(output_device) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
+        ui.label("Fallback input device:");
+        let mut input_device = self.config.audio.fallback_input_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut input_device).changed() {
+            self.config.audio.fallback_input_device = if input_device.is_empty() { None } else { Some(input_device) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
+        ui.separator();
+        ui.label("Headset audio devices (switch back on reconnect):");
+        ui.add_space(10.0);
+        
+        ui.label("Headset output device:");
+        let mut headset_output = self.config.audio.headset_output_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut headset_output).changed() {
+            self.config.audio.headset_output_device = if headset_output.is_empty() { None } else { Some(headset_output) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
+        ui.label("Headset input device:");
+        let mut headset_input = self.config.audio.headset_input_device.clone().unwrap_or_default();
+        if ui.text_edit_singleline(&mut headset_input).changed() {
+            self.config.audio.headset_input_device = if headset_input.is_empty() { None } else { Some(headset_input) };
+            self.needs_save = true;
+        }
+        
+        ui.add_space(10.0);
+        
+        if ui.checkbox(&mut self.config.audio.auto_switch_audio, "Auto-switch to fallback devices").changed() {
+            self.needs_save = true;
+        }
+        
+        ui.add_space(20.0);
+        ui.label("Note: Enter device ID (Windows PowerShell AudioDevice ID, Linux wpctl ID, macOS device name)");
     }
 
     fn show_settings_debug(&mut self, ui: &mut egui::Ui) {
