@@ -325,7 +325,7 @@ impl HyperXDevice {
         Self::flush_input_buffer(device);
 
         // Read battery — if this fails completely, device is disconnected.
-        // Don't waste time on other reads if the first one already failed.
+        // Use short 500ms timeout for fast disconnect detection.
         self.prepare_write();
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
         if write_hid_report(device, &packet).is_err() {
@@ -333,33 +333,47 @@ impl HyperXDevice {
         }
         thread::sleep(RESPONSE_DELAY);
         let mut buf = [0u8; 256];
-        let len = match device.read_timeout(&mut buf, 2000) {
+        let len = match device.read_timeout(&mut buf, 500) {
             Ok(l) => l,
             Err(_) => return Err(anyhow::anyhow!("Device read failed — disconnected")),
         };
-        if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
+        if len < 5 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
             return Err(anyhow::anyhow!("Invalid battery response — disconnected"));
         }
-        self.state.battery_percent = buf[7].min(100);
-        log::debug!("[HID] Battery level: {}%", self.state.battery_percent);
+        self.state.battery_percent = buf.get(7).copied().unwrap_or(0).min(100);
+        log::debug!("[HID] Battery level: {}% (raw={:02X?})", self.state.battery_percent, &buf[0..16.min(len)]);
 
-        // Read mute — try both buf[4] and buf[7]
-        self.prepare_write();
+        // Read mute — try feature report approach (some HID devices only respond to feature reports).
+        // Log all raw bytes for debugging.
         let mute_packet = build_packet(GET_MUTE_CMD_ID, &[]);
-        if write_hid_report(device, &mute_packet).is_ok() {
+        let mute_read_ok = device.send_feature_report(&mute_packet).is_ok()
+            || device.write(&mute_packet).is_ok();
+        
+        if mute_read_ok {
             thread::sleep(RESPONSE_DELAY);
+            // Try reading as input report first
             let mut buf = [0u8; 256];
-            if let Ok(len) = device.read_timeout(&mut buf, 2000) {
-                if len >= 8 && is_valid_response(&buf, len, GET_MUTE_CMD_ID) {
-                    let byte4 = buf.get(4).copied().unwrap_or(0);
-                    let byte7 = buf.get(7).copied().unwrap_or(0);
-                    // Mute status may be at byte[4] or byte[7] depending on firmware.
-                    // Consider muted if either byte indicates 1.
-                    let detected_mute = byte4 == 1 || byte7 == 1;
-                    self.state.muted = detected_mute;
-                    log::debug!("[HID] Mute status: {} (raw byte[4]={}, byte[7]={})", self.state.muted, byte4, byte7);
-                } else {
-                    log::debug!("[HID] Mute response invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
+            let mut got_response = false;
+            
+            if let Ok(len) = device.read_timeout(&mut buf, 1000) {
+                log::debug!("[HID] Mute input report: len={} bytes={:02X?}", len, &buf[0..16.min(len)]);
+                if len >= 5 && is_valid_response(&buf, len, GET_MUTE_CMD_ID) {
+                    got_response = true;
+                    self.state.muted = scan_mute_bytes(&buf, len);
+                    log::info!("[HID] Mute status (input): {} (raw={:02X?})", self.state.muted, &buf[0..16.min(len)]);
+                }
+            }
+            
+            // If input report didn't work, try feature report read
+            if !got_response {
+                let mut feat_buf = [0u8; 256];
+                feat_buf[0] = GET_MUTE_CMD_ID;
+                if let Ok(len) = device.get_input_report(&mut feat_buf) {
+                    log::debug!("[HID] Mute feature report: len={} bytes={:02X?}", len, &feat_buf[0..16.min(len)]);
+                    if len >= 5 && is_valid_response(&feat_buf, len, GET_MUTE_CMD_ID) {
+                        self.state.muted = scan_mute_bytes(&feat_buf, len);
+                        log::info!("[HID] Mute status (feature): {} (raw={:02X?})", self.state.muted, &feat_buf[0..16.min(len)]);
+                    }
                 }
             }
         }
@@ -446,6 +460,21 @@ fn build_packet(cmd_id: u8, data: &[u8]) -> Vec<u8> {
 
 fn is_valid_response(buf: &[u8], len: usize, expected_cmd: u8) -> bool {
     len >= 5 && buf[0] == 0x06 && buf[1] == 0xFF && buf[2] == 0xBB && buf[3] == expected_cmd
+}
+
+/// Scan response data bytes (positions 4+) for mute status.
+/// Returns true if any data byte equals 1 (muted), false if all are 0.
+fn scan_mute_bytes(buf: &[u8], len: usize) -> bool {
+    for i in 4..len.min(20) {
+        let b = buf[i];
+        if b == 1 {
+            log::debug!("[HID] Mute byte[{}] = 1 (muted)", i);
+            return true;
+        } else if b != 0 {
+            log::debug!("[HID] Mute byte[{}] = {:02X} (non-binary, skipping)", i, b);
+        }
+    }
+    false
 }
 
 fn send_and_read(device: &hidapi::HidDevice, cmd_id: u8, data: &[u8]) -> Result<u8, String> {
