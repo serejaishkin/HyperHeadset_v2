@@ -119,6 +119,10 @@ fn main() -> anyhow::Result<()> {
     #[cfg(not(target_os = "linux"))]
     let tray = PlatformTray::new(tray_tx.clone());
 
+    let fallback_output = config.audio.fallback_output_device.clone();
+    let fallback_input = config.audio.fallback_input_device.clone();
+    let auto_switch = config.audio.auto_switch_audio;
+
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
         let mut last_mute: Option<bool> = None;
@@ -140,6 +144,55 @@ fn main() -> anyhow::Result<()> {
                     startup_battery_announced = false;
                     last_battery_low = false;
                     last_full_charge_announced = false;
+
+                    // Auto-switch to fallback audio on disconnect
+                    if auto_switch {
+                        #[cfg(target_os = "windows")]
+                        {
+                            if let Some(ref output_id) = fallback_output {
+                                log::info!("[Audio] Switching to fallback output: {}", output_id);
+                                let _ = std::process::Command::new("powershell")
+                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", output_id)])
+                                    .output();
+                            }
+                            if let Some(ref input_id) = fallback_input {
+                                log::info!("[Audio] Switching to fallback input: {}", input_id);
+                                let _ = std::process::Command::new("powershell")
+                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", input_id)])
+                                    .output();
+                            }
+                        }
+                        #[cfg(target_os = "linux")]
+                        {
+                            if let Some(ref output_id) = fallback_output {
+                                log::info!("[Audio] Switching to fallback output: {}", output_id);
+                                let _ = std::process::Command::new("wpctl")
+                                    .args(&["set-default", output_id])
+                                    .output();
+                            }
+                            if let Some(ref input_id) = fallback_input {
+                                log::info!("[Audio] Switching to fallback input: {}", input_id);
+                                let _ = std::process::Command::new("wpctl")
+                                    .args(&["set-default", input_id])
+                                    .output();
+                            }
+                        }
+                        #[cfg(target_os = "macos")]
+                        {
+                            if let Some(ref output_id) = fallback_output {
+                                log::info!("[Audio] Switching to fallback output: {}", output_id);
+                                let _ = std::process::Command::new("osascript")
+                                    .args(&["-e", &format!("set volume of output device \"{}\" to 100", output_id)])
+                                    .output();
+                            }
+                            if let Some(ref input_id) = fallback_input {
+                                log::info!("[Audio] Switching to fallback input: {}", input_id);
+                                let _ = std::process::Command::new("osascript")
+                                    .args(&["-e", &format!("set volume of input device \"{}\" to 100", input_id)])
+                                    .output();
+                            }
+                        }
+                    }
                 }
                 match device.connect() {
                     Ok(_) => {
@@ -179,7 +232,8 @@ fn main() -> anyhow::Result<()> {
                         }
                         let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
                     }
-                    hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(_enabled) => {}
+                    hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(_enabled) => {},
+                    hyperx_ngenuity_open::DeviceCommand::SetAutoShutdown(_) => {}
                 }
             }
 
