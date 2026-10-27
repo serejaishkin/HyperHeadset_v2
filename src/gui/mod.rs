@@ -70,6 +70,7 @@ impl Default for Tab {
 impl HyperXApp {
     pub fn new(config: Config, device_state: DeviceState, apo_available: bool, debounced_eq: Arc<DebouncedEQ>, i18n: crate::i18n::I18n) -> Self {
         let eq_bands = config.audio.eq_bands;
+        let saved_audio_device = config.audio.fallback_output_device.clone();
         Self {
             config,
             device_state,
@@ -97,7 +98,7 @@ impl HyperXApp {
             tray_icon_config: TrayIconConfig::load_or_create(),
             i18n,
             audio_devices: Vec::new(),
-            selected_audio_device: None,
+            selected_audio_device: saved_audio_device,
             last_audio_device_scan: Instant::now() - Duration::from_secs(5),
             #[cfg(target_os = "windows")]
             volume_controller: Some(crate::platform::windows::volume::WindowsVolume::new()),
@@ -451,7 +452,7 @@ impl HyperXApp {
                             .map(|d| d.name.clone())
                             .unwrap_or_else(|| self.audio_devices[0].name.clone());
 
-                        egui::ComboBox::from_id_salt("compact_audio_output")
+                                egui::ComboBox::from_id_salt("compact_audio_output")
                             .selected_text(selected_name)
                             .width(185.0)
                             .show_ui(ui, |ui| {
@@ -461,6 +462,8 @@ impl HyperXApp {
                                         match crate::system_audio::set_default_output_device(&device.id) {
                                             Ok(()) => {
                                                 self.selected_audio_device = Some(device.id.clone());
+                                                self.config.audio.fallback_output_device = Some(device.id.clone());
+                                                self.needs_save = true;
                                                 log::info!("[GUI] Default output changed to: {}", device.name);
                                             }
                                             Err(e) => {
