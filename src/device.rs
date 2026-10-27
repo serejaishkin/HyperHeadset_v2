@@ -323,37 +323,41 @@ impl HyperXDevice {
 
         log::debug!("[HID] Starting refresh_state for device {}", self.state.device_id);
         Self::flush_input_buffer(device);
-        let mut any_success = false;
 
-        // Read battery (non-fatal)
+        // Read battery — if this fails completely, device is disconnected.
+        // Don't waste time on other reads if the first one already failed.
         self.prepare_write();
         let packet = build_packet(GET_BATTERY_CMD_ID, &[]);
-        if write_hid_report(device, &packet).is_ok() {
-            thread::sleep(RESPONSE_DELAY);
-            let mut buf = [0u8; 256];
-            if let Ok(len) = device.read_timeout(&mut buf, 2000) {
-                if len >= 8 && is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
-                    self.state.battery_percent = buf[7].min(100);
-                    log::debug!("[HID] Battery level: {}%", self.state.battery_percent);
-                    any_success = true;
-                } else {
-                    log::debug!("[HID] Battery response invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
-                }
-            }
+        if write_hid_report(device, &packet).is_err() {
+            return Err(anyhow::anyhow!("Device write failed — disconnected"));
         }
+        thread::sleep(RESPONSE_DELAY);
+        let mut buf = [0u8; 256];
+        let len = match device.read_timeout(&mut buf, 2000) {
+            Ok(l) => l,
+            Err(_) => return Err(anyhow::anyhow!("Device read failed — disconnected")),
+        };
+        if len < 8 || !is_valid_response(&buf, len, GET_BATTERY_CMD_ID) {
+            return Err(anyhow::anyhow!("Invalid battery response — disconnected"));
+        }
+        self.state.battery_percent = buf[7].min(100);
+        log::debug!("[HID] Battery level: {}%", self.state.battery_percent);
 
-        // Read mute — status byte is at buf[4] per device driver (cloud_ii_wireless_dts.rs)
+        // Read mute — try both buf[4] and buf[7]
         self.prepare_write();
-        let packet = build_packet(GET_MUTE_CMD_ID, &[]);
-        if write_hid_report(device, &packet).is_ok() {
+        let mute_packet = build_packet(GET_MUTE_CMD_ID, &[]);
+        if write_hid_report(device, &mute_packet).is_ok() {
             thread::sleep(RESPONSE_DELAY);
             let mut buf = [0u8; 256];
             if let Ok(len) = device.read_timeout(&mut buf, 2000) {
                 if len >= 8 && is_valid_response(&buf, len, GET_MUTE_CMD_ID) {
-                    let mute_byte = buf.get(4).copied().unwrap_or(0);
-                    self.state.muted = mute_byte == 1;
-                    log::debug!("[HID] Mute status: {} (raw byte[4]={}, byte[7]={})", self.state.muted, mute_byte, buf.get(7).copied().unwrap_or(0));
-                    any_success = true;
+                    let byte4 = buf.get(4).copied().unwrap_or(0);
+                    let byte7 = buf.get(7).copied().unwrap_or(0);
+                    // Mute status may be at byte[4] or byte[7] depending on firmware.
+                    // Consider muted if either byte indicates 1.
+                    let detected_mute = byte4 == 1 || byte7 == 1;
+                    self.state.muted = detected_mute;
+                    log::debug!("[HID] Mute status: {} (raw byte[4]={}, byte[7]={})", self.state.muted, byte4, byte7);
                 } else {
                     log::debug!("[HID] Mute response invalid: len={} raw={:02X?}", len, &buf[0..16.min(len)]);
                 }
@@ -366,7 +370,6 @@ impl HyperXDevice {
             Ok((status, _)) => {
                 self.state.charging = status == 1;
                 log::debug!("[HID] Charging status: {}", self.state.charging);
-                any_success = true;
             }
             Err(e) => log::debug!("[HID] Charging telemetry unavailable: {}", e),
         }
@@ -377,17 +380,12 @@ impl HyperXDevice {
             Ok(status) => {
                 self.state.sidetone = status == 1;
                 log::debug!("[HID] Sidetone status: {}", self.state.sidetone);
-                any_success = true;
             }
             Err(e) => log::debug!("[HID] Sidetone telemetry unavailable: {}", e),
         }
 
-        if any_success {
-            log::debug!("[HID] refresh_state completed successfully");
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("All device reads failed — device likely disconnected"))
-        }
+        log::debug!("[HID] refresh_state completed successfully");
+        Ok(())
     }
 
     pub fn toggle_mute(&mut self) -> anyhow::Result<()> {
