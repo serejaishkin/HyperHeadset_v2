@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="auto" height="auto" viewBox="0 0 24 24">
+    <defs>
+        <path id="a" d="M17.5 27.845a7.495 7.495 0 0 0 3.491-6.706 7.5 7.5 0 0 0 4-6.278A7.5 7.5 0 1 1 17.5 27.846z"/>
+    </defs>
+    <g fill="none" fill-rule="evenodd">
+        <g transform="translate(-6 -6)">
+            <mask id="b" fill="#fff">
+                <use xlink:href="#a"/>
+            </mask>
+            <path stroke="#FFF" stroke-linecap="square" d="M5.263 17.366h27.643" mask="url(#b)" transform="rotate(-30 19 17.366)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M6.263 19.098h27.643" mask="url(#b)" transform="rotate(-30 20 19.098)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M7.263 20.83h27.643" mask="url(#b)" transform="rotate(-30 21 20.83)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M8.263 22.562h27.643" mask="url(#b)" transform="rotate(-30 22 22.562)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M9.263 24.294h27.643" mask="url(#b)" transform="rotate(-30 23 24.294)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M10.263 26.026h27.643" mask="url(#b)" transform="rotate(-30 24 26.026)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M11.263 27.758h27.643" mask="url(#b)" transform="rotate(-30 25 27.758)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M12.263 29.49h27.643" mask="url(#b)" transform="rotate(-30 26 29.49)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M.263 8.706h27.643" mask="url(#b)" transform="rotate(-30 14 8.706)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M1.263 10.438h27.643" mask="url(#b)" transform="rotate(-30 15 10.438)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M2.263 12.17h27.643" mask="url(#b)" transform="rotate(-30 16 12.17)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M3.263 13.902h27.643" mask="url(#b)" transform="rotate(-30 17 13.902)"/>
+            <path stroke="#FFF" stroke-linecap="square" d="M4.263 15.634h27.643" mask="url(#b)" transform="rotate(-30 18 15.634)"/>
+        </g>
+        <g stroke="#FFF" transform="translate(0 1)">
+            <circle cx="11.5" cy="7.5" r="7"/>
+            <circle cx="15.5" cy="14.5" r="7"/>
+            <circle cx="7.5" cy="14.5" r="7"/>
+        </g>
+    </g>
+</svg>

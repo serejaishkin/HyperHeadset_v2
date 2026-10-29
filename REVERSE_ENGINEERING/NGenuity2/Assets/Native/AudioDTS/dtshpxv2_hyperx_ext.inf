@@ -1,0 +1,549 @@
+[Version]
+Signature	= "$WINDOWS NT$"
+Class		= Extension
+ClassGuid	= {e2f84ce7-8efa-411c-aa69-97454ca4cb57}
+Provider	= %OEM%
+ExtensionId = {8543BD9F-97FB-4B28-8316-E0347AF74DEA}
+CatalogFile	= dtshpxv2_hyperx_ext.cat
+DriverVer	= 10/11/2024,1.1.0.18
+
+[SourceDisksNames]
+10811 = %DiskId1%,,,\HyperX03F0018B
+70810 = %DiskId1%,,,\HyperX03F0078A
+130903 = %DiskId1%,,,\HyperX03F00D93
+90813 = %DiskId1%,,,\HyperX03F0098D
+90905 = %DiskId1%,,,\HyperX03F00995
+120913 = %DiskId1%,,,\HyperX03F00C9D
+80913 = %DiskId1%,,,\HyperX03F0089D
+61114 = %DiskId1%,,,\HyperX03F006BE
+81114 = %DiskId1%,,,\HyperX03F008BE
+11115 = %DiskId1%,,,\HyperX03F001BF
+
+[SourceDisksFiles]
+;Cloud II Wireless
+dts_apo4_hpxv2_oem_config_03F0018B.xml=10811
+dts_hpeq_44k_03F0018B.bin=10811
+dts_hpeq_48k_03F0018B.bin=10811
+dts-postprocessing_03F0018B.lic=10811
+;Cloud MIX Buds
+dts_apo4_hpxv2_oem_config_03F0078A.xml=70810
+dts_hpeq_44k_03F0078A.bin=70810
+dts_hpeq_48k_03F0078A.bin=70810
+dts-postprocessing_03F0078A.lic=70810
+;Cloud Stinger 2 Wireless
+dts_apo4_hpxv2_oem_config_03F00D93.xml=130903
+dts_hpeq_44k_03F00D93.bin=130903
+dts_hpeq_48k_03F00D93.bin=130903
+dts-postprocessing_03F00D93.lic=130903
+;Cloud Alpha Wireless
+dts_apo4_hpxv2_oem_config_03F0098D.xml=90813
+dts_hpeq_44k_03F0098D.bin=90813
+dts_hpeq_48k_03F0098D.bin=90813
+dts-postprocessing_03F0098D.lic=90813
+;Cloud II Core Wireless
+dts_apo4_hpxv2_oem_config_03F00995.xml=90905
+dts_hpeq_44k_03F00995.bin=90905
+dts_hpeq_48k_03F00995.bin=90905
+dts-postprocessing_03F00995.lic=90905
+;Cloud III Wireless Bells
+dts_apo4_hpxv2_oem_config_03F00C9D.xml=120913
+dts_hpeq_44k_03F00C9D.bin=120913
+dts_hpeq_48k_03F00C9D.bin=120913
+dts-postprocessing_03F00C9D.lic=120913
+;Cloud III Wired Harvester
+dts_apo4_hpxv2_oem_config_03F0089D.xml=80913
+dts_hpeq_44k_03F0089D.bin=80913
+dts_hpeq_48k_03F0089D.bin=80913
+dts-postprocessing_03F0089D.lic=80913
+;;Cloud III S Wireless Bellforg
+dts-postprocessing_03F006BE.lic=61114
+dts_apo4_hpxv2_oem_config_03F006BE.xml=61114
+dts_hpeq_44k_03F006BE.bin=61114
+dts_hpeq_48k_03F006BE.bin=61114
+;;Cloud Alpha II Wireless Outlaw
+dts-postprocessing_03F008BE.lic=81114
+dts_apo4_hpxv2_oem_config_03F008BE.xml=81114
+dts_hpeq_44k_03F008BE.bin=81114
+dts_hpeq_48k_03F008BE.bin=81114
+;;Cloud III S Wireless Emblems
+dts-postprocessing_03F001BF.lic=11115
+dts_apo4_hpxv2_oem_config_03F001BF.xml=11115
+dts_hpeq_44k_03F001BF.bin=11115
+dts_hpeq_48k_03F001BF.bin=11115
+
+
+[DestinationDirs]
+DefaultDestDir = 11, DTS\HP\APO4x\HyperX ; %windir%\system32\DTS\HP\APO4x
+
+[HyperX03F0018B.CopyList]
+dts_apo4_hpxv2_oem_config_03F0018B.xml
+dts_hpeq_44k_03F0018B.bin
+dts_hpeq_48k_03F0018B.bin
+dts-postprocessing_03F0018B.lic
+
+[HyperX03F0078A.CopyList]
+dts_apo4_hpxv2_oem_config_03F0078A.xml
+dts_hpeq_44k_03F0078A.bin
+dts_hpeq_48k_03F0078A.bin
+dts-postprocessing_03F0078A.lic
+
+[HyperX03F00D93.CopyList]
+dts_apo4_hpxv2_oem_config_03F00D93.xml
+dts_hpeq_44k_03F00D93.bin
+dts_hpeq_48k_03F00D93.bin
+dts-postprocessing_03F00D93.lic
+
+[HyperX03F0098D.CopyList]
+dts_apo4_hpxv2_oem_config_03F0098D.xml
+dts_hpeq_44k_03F0098D.bin
+dts_hpeq_48k_03F0098D.bin
+dts-postprocessing_03F0098D.lic
+
+[HyperX03F00995.CopyList]
+dts_apo4_hpxv2_oem_config_03F00995.xml
+dts_hpeq_44k_03F00995.bin
+dts_hpeq_48k_03F00995.bin
+dts-postprocessing_03F00995.lic
+
+[HyperX03F00C9D.CopyList]
+dts_apo4_hpxv2_oem_config_03F00C9D.xml
+dts_hpeq_44k_03F00C9D.bin
+dts_hpeq_48k_03F00C9D.bin
+dts-postprocessing_03F00C9D.lic
+
+[HyperX03F0089D.CopyList]
+dts_apo4_hpxv2_oem_config_03F0089D.xml
+dts_hpeq_44k_03F0089D.bin
+dts_hpeq_48k_03F0089D.bin
+dts-postprocessing_03F0089D.lic
+
+[HyperX03F006BE.CopyList]
+dts-postprocessing_03F006BE.lic
+dts_apo4_hpxv2_oem_config_03F006BE.xml
+dts_hpeq_44k_03F006BE.bin
+dts_hpeq_48k_03F006BE.bin
+
+[HyperX03F008BE.CopyList]
+dts-postprocessing_03F008BE.lic
+dts_apo4_hpxv2_oem_config_03F008BE.xml
+dts_hpeq_44k_03F008BE.bin
+dts_hpeq_48k_03F008BE.bin
+[HyperX03F001BF.CopyList]
+dts-postprocessing_03F001BF.lic
+dts_apo4_hpxv2_oem_config_03F001BF.xml
+dts_hpeq_44k_03F001BF.bin
+dts_hpeq_48k_03F001BF.bin
+
+[Manufacturer]
+%OEM% = DeviceExtensions,NTamd64
+
+
+[DeviceExtensions.NTamd64]
+;;Cloud II Wireless
+%Device.ExtensionDesc% = HyperX03F0018B,USB\VID_03F0&PID_018B&MI_00
+%Device.ExtensionDesc% = HyperX03F0018B,USB\VID_03F0&PID_0696&MI_00
+;;Cloud MIX Buds
+%Device.ExtensionDesc% = HyperX03F0078A,USB\VID_03F0&PID_078A&MI_00
+;;Cloud Stinger 2 Wireless
+%Device.ExtensionDesc% = HyperX03F00D93,USB\VID_03F0&PID_0D93&MI_00
+;;Cloud Alpha Wireless
+%Device.ExtensionDesc% = HyperX03F0098D,USB\VID_03F0&PID_098D&MI_00
+;;Cloud II Core Wireless
+%Device.ExtensionDesc% = HyperX03F00995,USB\VID_03F0&PID_0995&MI_00
+%Device.ExtensionDesc% = HyperX03F00995,USB\VID_03F0&PID_069F&MI_00
+;;Cloud II Core Wireless (Ralphie)
+%Device.ExtensionDesc% = HyperX03F00AA0,USB\VID_03F0&PID_0AA0&MI_00
+;;Cloud III Wireless Bells
+%Device.ExtensionDesc% = HyperX03F00C9D,USB\VID_03F0&PID_0C9D&MI_00
+;;Cloud III Wired Harvester
+%Device.ExtensionDesc% = HyperX03F0089D,USB\VID_03F0&PID_089D&MI_00
+;;Cloud III Wireless Atlas
+%Device.ExtensionDesc% = HyperX03F00C9D,USB\VID_03F0&PID_05B7&MI_00
+;;Cloud III Wireless Atlas/Ralphie
+%Device.ExtensionDesc% = HyperX03F00C9D,USB\VID_03F0&PID_08B7&MI_00
+;;Cloud III S Wireless Bellforg
+%Device.ExtensionDesc% = HyperX03F006BE,USB\VID_03F0&PID_06BE&MI_00
+;;Cloud Alpha II Wireless Outlaw
+%Device.ExtensionDesc% = HyperX03F008BE,USB\VID_03F0&PID_08BE&MI_00
+%Device.ExtensionDesc% = HyperX03F008BE,USB\VID_03F0&PID_09BE&MI_00
+%Device.ExtensionDesc% = HyperX03F008BE,USB\VID_03F0&PID_0ABE&MI_00
+%Device.ExtensionDesc% = HyperX03F008BE,USB\VID_03F0&PID_0BBE&MI_00
+;;Cloud III S Wireless Emblems
+%Device.ExtensionDesc% = HyperX03F001BF,USB\VID_03F0&PID_01BF&MI_00
+
+;;***************Cloud II Wireless ********************************
+[HyperX03F0018B]
+CopyFiles = HyperX03F0018B.CopyList
+
+[HyperX03F0018B.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F0018B.Interfaces]
+;; ***The topology interface name "global" is a default name.
+;; ***This should be modified and synchronized with audio codec vender.
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F0018B.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F0018B.IntReg
+
+[HyperX03F0018B.IntReg]
+AddReg = DTS.SpkIntPresetAddReg, DTSAPO4.SpkAddReg
+AddReg = HyperX03F0018B.IntPresetAddReg
+
+[HyperX03F0018B.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F0018B.xml"
+
+
+;;***************Cloud MIX Buds ********************************
+[HyperX03F0078A]
+CopyFiles = HyperX03F0078A.CopyList
+
+[HyperX03F0078A.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F0078A.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F0078A.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F0078A.IntReg
+
+[HyperX03F0078A.IntReg]
+AddReg = DTS.SpkIntPresetAddReg, DTSAPO4.SpkAddReg
+AddReg = HyperX03F0078A.IntPresetAddReg
+
+[HyperX03F0078A.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F0078A.xml"
+
+
+;;***************Cloud Stinger 2 Wireless ********************************
+[HyperX03F00D93]
+CopyFiles = HyperX03F00D93.CopyList
+
+[HyperX03F00D93.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F00D93.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F00D93.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F00D93.IntReg
+
+[HyperX03F00D93.IntReg]
+AddReg = DTS.SpkIntPresetAddReg, DTSAPO4.SpkAddReg
+AddReg = HyperX03F00D93.IntPresetAddReg
+
+[HyperX03F00D93.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F00D93.xml"
+
+
+;;***************Cloud Alpha Wireless ********************************
+[HyperX03F0098D]
+CopyFiles = HyperX03F0098D.CopyList
+
+[HyperX03F0098D.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F0098D.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F0098D.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F0098D.IntReg
+
+[HyperX03F0098D.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F0098D.IntPresetAddReg
+
+[HyperX03F0098D.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F0098D.xml"
+
+
+;;***************Cloud II Core Wireless ********************************
+[HyperX03F00995]
+CopyFiles = HyperX03F00995.CopyList
+
+[HyperX03F00995.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F00995.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F00995.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F00995.IntReg
+
+[HyperX03F00995.IntReg]
+AddReg = DTS.SpkIntPresetAddReg, DTSAPO4.SpkAddReg
+AddReg = HyperX03F00995.IntPresetAddReg
+
+[HyperX03F00995.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F00995.xml"
+
+
+;;***************Cloud II Core Wireless (Ralphie) ********************************
+[HyperX03F00AA0]
+CopyFiles = HyperX03F00995.CopyList
+
+[HyperX03F00AA0.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F00AA0.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F00AA0.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F00AA0.IntReg
+
+[HyperX03F00AA0.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F00AA0.IntPresetAddReg
+
+[HyperX03F00AA0.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F00995.xml"
+
+
+;;***************Cloud III Wireless Bells ********************************
+[HyperX03F00C9D]
+CopyFiles = HyperX03F00C9D.CopyList
+
+[HyperX03F00C9D.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F00C9D.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F00C9D.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F00C9D.IntReg
+
+[HyperX03F00C9D.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F00C9D.IntPresetAddReg
+
+[HyperX03F00C9D.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F00C9D.xml"
+
+
+;;***************Cloud III Wired Harvester ********************************
+[HyperX03F0089D]
+CopyFiles = HyperX03F0089D.CopyList
+
+[HyperX03F0089D.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F0089D.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F0089D.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F0089D.IntReg
+
+[HyperX03F0089D.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F0089D.IntPresetAddReg
+
+[HyperX03F0089D.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F0089D.xml"
+
+
+;;***************Cloud III S Wireless Bellforg ********************************
+[HyperX03F006BE]
+CopyFiles = HyperX03F006BE.CopyList
+
+[HyperX03F006BE.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F006BE.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F006BE.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F006BE.IntReg
+
+[HyperX03F006BE.IntReg]
+AddReg = DTS.SpkIntPresetAddReg, DTSAPO4.SpkAddReg
+AddReg = HyperX03F006BE.IntPresetAddReg
+
+[HyperX03F006BE.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F006BE.xml"
+
+
+;;***************Cloud Alpha II Wireless Outlaw ********************************
+[HyperX03F008BE]
+CopyFiles = HyperX03F008BE.CopyList
+
+[HyperX03F008BE.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F008BE.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F008BE.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F008BE.IntReg
+
+[HyperX03F008BE.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F008BE.IntPresetAddReg
+
+[HyperX03F008BE.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F008BE.xml"
+
+;;***************Cloud III S Wireless Emblems ********************************
+[HyperX03F001BF]
+CopyFiles = HyperX03F001BF.CopyList
+
+[HyperX03F001BF.Components]
+AddComponent = DTSAPO,,DTSAPO_Install
+AddComponent = DTSService,,DTSService_Install
+
+[HyperX03F001BF.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,"global",HyperX03F001BF.IntReg
+AddInterface=%KSCATEGORY_TOPOLOGY%,"global",HyperX03F001BF.IntReg
+
+[HyperX03F001BF.IntReg]
+AddReg = DTS.IntPresetAddReg, DTSAPO4.AddReg
+AddReg = HyperX03F001BF.IntPresetAddReg
+
+[HyperX03F001BF.IntPresetAddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,EP\0,"{7A8B74C8-FA66-4460-8542-D6119C59E9D4},4", %REG_DWORD%, 0x0 ;;
+HKR,EP\0,%PKEY_DTS_CONFIG_FILE%,%REG_SZ%,"%%SystemRoot%%\system32\DTS\HP\APO4x\HyperX\dts_apo4_hpxv2_oem_config_03F001BF.xml"
+
+;;If you are using Windows inbox driver, then you can use this AddReg section for reference.
+[DTSAPO4.AddReg]
+HKR,FX\0,%PKEY_ItemNameDisplay%,,%FriendlyName_Headset%
+HKR,FX\0,%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,FX\0,%PKEY_CompositeFX_StreamEffectClsid%,%REG_MULTI_SZ%,%DTS_SFX_CLSID%
+HKR,FX\0,%PKEY_SFX_ProcessingModes_Supported_For_Streaming%,%REG_MULTI_SZ%,%AUDIO_SIGNALPROCESSINGMODE_DEFAULT%,%AUDIO_SIGNALPROCESSINGMODE_MEDIA%,%AUDIO_SIGNALPROCESSINGMODE_MOVIE%,%AUDIO_SIGNALPROCESSINGMODE_COMMUNICATIONS%,%AUDIO_SIGNALPROCESSINGMODE_NOTIFICATION%,%AUDIO_SIGNALPROCESSINGMODE_RAW%
+
+[DTS.IntPresetAddReg]
+;; 21H2 CAPX
+HKR,"FX\\0",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,"FX\\0\\%DTSAPO4XSFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\Volatile,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+
+HKR,"FX\\0\\%DTSAPO4XMFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XEFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XGLOBAL_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XRESERVE_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_HEADPHONES%
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+[DTSAPO4.SpkAddReg]
+HKR,FX\0,%PKEY_ItemNameDisplay%,,%FriendlyName_Headset%
+HKR,FX\0,%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,FX\0,%PKEY_CompositeFX_StreamEffectClsid%,%REG_MULTI_SZ%,%DTS_SFX_CLSID%
+HKR,FX\0,%PKEY_SFX_ProcessingModes_Supported_For_Streaming%,%REG_MULTI_SZ%,%AUDIO_SIGNALPROCESSINGMODE_DEFAULT%,%AUDIO_SIGNALPROCESSINGMODE_MEDIA%,%AUDIO_SIGNALPROCESSINGMODE_MOVIE%,%AUDIO_SIGNALPROCESSINGMODE_COMMUNICATIONS%,%AUDIO_SIGNALPROCESSINGMODE_NOTIFICATION%,%AUDIO_SIGNALPROCESSINGMODE_RAW%
+
+[DTS.SpkIntPresetAddReg]
+;; 21H2 CAPX
+HKR,"FX\\0",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,"FX\\0\\%DTSAPO4XSFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XSFX_PS_CONTEXT%\Volatile,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+
+HKR,"FX\\0\\%DTSAPO4XMFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XMFX_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XEFX_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XEFX_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XGLOBAL_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XGLOBAL_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+HKR,"FX\\0\\%DTSAPO4XRESERVE_PS_CONTEXT%",%PKEY_FX_Association%,,%KSNODETYPE_SPEAKER%
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\User,%PKEY_DTS_APO4X_KEY%,REG_DWORD,0x0
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\Default, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+HKR,FX\0\%DTSAPO4XRESERVE_PS_CONTEXT%\Volatile, %PKEY_DTS_APO4X_KEY%,REG_DWORD,0x1
+
+
+[DTSAPO_Install]
+ComponentIDs = VEN_DTSI&AID_DTSIHPXV2APO
+Description = "DTS HPXV2 Audio Effects Component"
+
+[DTSService_Install]
+ComponentIDs = VEN_DTSI&HID_DTSIHPXV2SERVICE
+Description = "DTS HPXV2 APO4x Service Component"
+
+[Strings]
+OEM                  = "HyperX"
+Device.ExtensionDesc = "HyperX Device Extension"
+DiskId1              = "HyperX Audio Device Extension Installation Disk (DTS)"
+FriendlyName_Headset = "DTS Audio Effects on HyperX Relay Headset"
+
+REG_SZ              = 0x00000000
+REG_BINARY          = 0x00000001
+REG_DWORD           = 0x00010001
+REG_MULTI_SZ        = 0x00010000
+REG_MULTI_SZ_APPEND = 0x00010008
+
+DTS_SFX_CLSID       = "{8B778F49-83A0-4EE9-896A-ED52903EDF1F}"
+DTS_MFX_CLSID       = "{AD1F2B64-646D-43DB-9F29-08324E9A94E8}"
+DTS_OSFX_CLSID      = "{AC080A6E-5953-43D4-843A-A604EDF5771E}"
+DTS_OMFX_CLSID      = "{98977F90-DAFD-4536-82C8-B19CE24BE729}"
+
+DTSAPO4XSFX_PS_CONTEXT     = "{13C6D2E0-9A3D-4808-BD0B-1F50AAD83D99}"
+DTSAPO4XMFX_PS_CONTEXT     = "{13CBF472-DD1D-4055-A74D-6055827B3D91}"
+DTSAPO4XEFX_PS_CONTEXT     = "{0CC8F6D7-FA5E-448B-AA61-01227B03E43F}"
+DTSAPO4XGLOBAL_PS_CONTEXT  = "{20AF49E8-939F-4843-9C6B-1DCCD83B11DC}"
+DTSAPO4XRESERVE_PS_CONTEXT = "{B970A8EF-5733-434D-B624-770402E2500B}"
+
+KSNODETYPE_ANY                    = "{00000000-0000-0000-0000-000000000000}"
+KSNODETYPE_SPEAKER  			  = "{DFF21CE1-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_LINE_CONNECTOR 		  = "{DFF21FE3-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_HEADSET_SPEAKERS       = "{DFF21CE6-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_HEADPHONES             = "{DFF21CE2-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_DESKTOP_SPEAKER        = "{DFF21CE4-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_SPDIF_INTERFACE        = "{DFF21FE5-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_MICROPHONE 			  = "{DFF21BE1-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_DESKTOP_MICROPHONE     = "{DFF21BE2-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_HEADSET                = "{DFF21DE2-F70F-11D0-B917-00A0C9223196}"
+
+KSCATEGORY_AUDIO     = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSCATEGORY_TOPOLOGY  = "{DDA54A40-1E4C-11D1-A050-405705C10000}"
+
+AUDIO_SIGNALPROCESSINGMODE_DEFAULT        = "{C18E2F7E-933D-4965-B7D1-1EEF228D2AF3}"
+AUDIO_SIGNALPROCESSINGMODE_MEDIA          = "{4780004E-7133-41D8-8C74-660DADD2C0EE}"
+AUDIO_SIGNALPROCESSINGMODE_MOVIE          = "{B26FEB0D-EC94-477C-9494-D1AB8E753F6E}"
+AUDIO_SIGNALPROCESSINGMODE_SPEECH 		  = "{FC1CFC9B-B9D6-4CFA-B5E0-4BB2166878B2}"
+AUDIO_SIGNALPROCESSINGMODE_COMMUNICATIONS = "{98951333-B9CD-48B1-A0A3-FF40682D73F7}"
+AUDIO_SIGNALPROCESSINGMODE_NOTIFICATION   = "{9CF2A70B-F377-403B-BD6B-360863E0355C}"
+AUDIO_SIGNALPROCESSINGMODE_RAW 			  = "{9E90EA20-B493-4FD1-A1A8-7E1361A956CF}"
+
+PKEY_DTS_APO4X_KEY              = "{7A8B74C8-FA66-4460-8542-D6119C59E9D4}"
+PKEY_DTS_CONFIG_FILE            = "{7A8B74C8-FA66-4460-8542-D6119C59E9D4},2"
+PKEY_AudioEndpoint_Association  = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},2"
+PKEY_FX_Association	            = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},0"
+PKEY_ItemNameDisplay                 = "{B725F130-47EF-101A-A5F1-02608C9EEBAC},10"
+PKEY_CompositeFX_StreamEffectClsid   = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},13"
+PKEY_CompositeFX_ModeEffectClsid     = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},14"
+PKEY_SFX_ProcessingModes_Supported_For_Streaming = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},5"
+PKEY_MFX_ProcessingModes_Supported_For_Streaming = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},6"

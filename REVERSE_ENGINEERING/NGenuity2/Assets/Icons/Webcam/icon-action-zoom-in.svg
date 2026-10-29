@@ -1,0 +1,7 @@
+<svg width="auto" height="auto" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <g transform="matrix(-1 0 0 1 14.75 1)" stroke="#FFF" stroke-width="1.2" fill="none" fill-rule="evenodd" opacity=".95" stroke-linecap="round">
+        <circle stroke-linejoin="round" cx="5.75" cy="5.75" r="5.75"/>
+        <path stroke-linejoin="round" d="M13.749 13.749 9.985 9.985"/>
+        <path d="M5.75 3.249v5M8.25 5.749h-5"/>
+    </g>
+</svg>

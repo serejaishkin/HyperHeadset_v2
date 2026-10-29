@@ -1,0 +1,31 @@
+<svg width="auto" height="auto" viewBox="0 0 248 104" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter x="-2.9%" y="-5.2%" width="105.8%" height="114.6%" filterUnits="objectBoundingBox" id="nfpjvoslea">
+            <feOffset dy="2" in="SourceAlpha" result="shadowOffsetOuter1"/>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"/>
+            <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0" in="shadowBlurOuter1" result="shadowMatrixOuter1"/>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+    <g filter="url(#nfpjvoslea)" transform="translate(4 2)" fill="none" fill-rule="evenodd">
+        <path d="M95.442 0c.308 0 .558.224.558.5 0 .256-.215.468-.493.497L95.442 1H.558C.25 1 0 .776 0 .5 0 .244.215.032.493.003L.558 0h94.884zM95.442 29c.308 0 .558.224.558.5 0 .256-.215.468-.493.497l-.065.003H.558C.25 30 0 29.776 0 29.5c0-.256.215-.468.493-.497L.558 29h94.884z" fill="#FFF" fill-rule="nonzero"/>
+        <path stroke="#FFF" d="M32.5 9.5h31v10h-31z"/>
+        <path fill="#FFF" d="M36 12h24v3H36z"/>
+        <g transform="translate(170 9)" stroke="#FFF">
+            <path d="m41 11.5.5 22h-39V12l38.5-.5zM7.5.5h29v11h-29z"/>
+            <rect x=".5" y="33.5" width="43" height="4" rx="1"/>
+        </g>
+        <g transform="translate(26 36)" stroke="#FFF">
+            <path d="m41 33.5.5 22h-39V34l38.5-.5zM7.5.5h29v33h-29z"/>
+            <rect x="12.5" y="17.5" width="5" height="3" rx="1"/>
+            <rect x="26.5" y="17.5" width="5" height="3" rx="1"/>
+            <rect x=".5" y="55.5" width="43" height="4" rx="1"/>
+        </g>
+        <g fill="#FFF" fill-rule="nonzero">
+            <path d="M239.442 0c.308 0 .558.224.558.5 0 .256-.215.468-.493.497l-.065.003h-94.884C144.25 1 144 .776 144 .5c0-.256.215-.468.493-.497l.065-.003h94.884zM172.36 29c.354 0 .64.224.64.5 0 .256-.247.468-.565.497l-.074.003h-27.722c-.353 0-.639-.224-.639-.5 0-.256.247-.468.565-.497l.074-.003h27.722zM239.36 29c.353 0 .64.224.64.5 0 .256-.247.468-.566.497l-.075.003h-27.718c-.354 0-.641-.224-.641-.5 0-.256.247-.468.566-.497l.075-.003h27.718zM192 72l10 15.36h-6.316V96h-7.368v-8.64H182z"/>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,6 @@
+<svg width="auto" height="auto" viewBox="0 0 16 18" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#FFF" stroke-width="1.2" fill="none" fill-rule="evenodd" stroke-linecap="round">
+        <path stroke-dasharray="4,2" d="M8 1.5v15"/>
+        <path stroke-linejoin="round" d="M15 13V5l-4 4zM5 9 1 5v8l4-4"/>
+    </g>
+</svg>

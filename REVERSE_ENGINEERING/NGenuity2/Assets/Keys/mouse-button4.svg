@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="auto" height="auto" viewBox="0 0 23 28">
+    <g fill="none" fill-rule="evenodd">
+        <g fill-rule="nonzero" stroke-linejoin="square" stroke-opacity=".6">
+            <path fill="#FFF" fill-opacity=".2" fill-rule="evenodd" stroke="#000" stroke-width="2" d="M7.41 1c-1.881 0-2.62.142-3.38.55-.641.342-1.138.839-1.48 1.48C2.142 3.79 2 4.528 2 6.41V17c0 5.523 4.477 10 10 10s10-4.477 10-10V6.41c0-1.881-.142-2.62-.55-3.38a3.543 3.543 0 0 0-1.48-1.48c-.76-.408-1.499-.55-3.38-.55H7.41z"/>
+            <path stroke="#FFF" d="M7.41.5c-1.957 0-2.773.158-3.616.609a4.043 4.043 0 0 0-1.685 1.685c-.451.843-.609 1.66-.609 3.616V17c0 5.799 4.701 10.5 10.5 10.5S22.5 22.799 22.5 17V6.41c0-1.957-.158-2.773-.609-3.616a4.043 4.043 0 0 0-1.685-1.685C19.363.658 18.546.5 16.59.5H7.41z"/>
+        </g>
+        <g fill="#FFF">
+            <path fill-rule="nonzero" d="M2 8a2 2 0 0 0-2 2v4a2 2 0 1 0 4 0v-4a2 2 0 0 0-2-2z"/>
+            <text font-family="SegoeUI, Segoe UI" font-size="13" transform="translate(1 -2)">
+                <tspan x="7" y="21">4</tspan>
+            </text>
+        </g>
+    </g>
+</svg>

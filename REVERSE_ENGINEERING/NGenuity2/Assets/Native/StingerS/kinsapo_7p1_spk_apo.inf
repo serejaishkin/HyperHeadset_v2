@@ -1,0 +1,88 @@
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = AudioProcessingObject
+ClassGuid   = {5989fce8-9cd0-467d-8a6a-5419e31529d4}
+Provider    = %KINS%
+DriverVer = 05/19/2020,3.7.9.0
+CatalogFile = kinsapo_7p1_spk_apo.cat
+
+[Manufacturer]
+%KINS% = ApoComponents,NTamd64
+
+[ApoComponents.NTamd64]
+%Apo.ComponentDesc% = ApoComponent_Install,SWC\VID_0951&PID_1715&REV_4102
+
+[ApoComponent_Install]
+CopyFiles = Apo_Dll, Apo_Prop
+AddReg = Apo_AddReg
+
+[Apo_Dll]
+kinsapo_7p1_spk.dll
+
+[Apo_Prop]
+kinsapo_7p1_spk.prop
+
+[Apo_AddReg]
+; Mode effect APO COM registration
+HKCR,CLSID\%KINS_7P1_MFX_APO_CLSID%,,,%KINS_7P1_APO_FriendlyName%
+HKCR,CLSID\%KINS_7P1_MFX_APO_CLSID%\InProcServer32,,0x00020000,%13%\kinsapo_7p1_spk.dll
+HKCR,CLSID\%KINS_7P1_MFX_APO_CLSID%\InProcServer32,ThreadingModel,,"Both"
+; Mode effect APO registration
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"FriendlyName",,%KINS_7P1_APO_FriendlyName%
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"Copyright",,%Copyright%
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MajorVersion",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MinorVersion",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"Flags",%REG_DWORD%,%APO_FLAG_DEFAULT%
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MinInputConnections",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MaxInputConnections",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MinOutputConnections",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MaxOutputConnections",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"MaxInstances",%REG_DWORD%,0xffffffff
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"NumAPOInterfaces",%REG_DWORD%,1
+HKCR,AudioEngine\AudioProcessingObjects\%KINS_7P1_MFX_APO_CLSID%,"APOInterface0",,"{FD7F2B29-24D0-4B5C-B177-592C39F9CA10}"
+
+[ApoComponent_Install.HW]
+AddReg = FriendlyName_AddReg
+
+[FriendlyName_AddReg]
+HKR,,FriendlyName,,%Apo.ComponentDesc%
+
+[ApoComponent_Install.Services]
+; no function driver, install a null driver.
+AddService = ,2
+
+[SourceDisksNames]
+1 = %DiskId1%
+
+[SourceDisksFiles]
+kinsapo_7p1_spk.dll = 1
+kinsapo_7p1_spk.prop = 1
+
+[DestinationDirs]
+Apo_Dll  = 13 ; Package's DriverStore directory
+Apo_Prop = 11 ; %windir%\system32
+
+[SignatureAttributes]
+kinsapo_7p1_spk.dll = SignatureAttributes.PETrust
+
+[SignatureAttributes.PETrust]
+PETrust = true
+
+[Strings]
+KINS 		      = "Kingston Technology Corporation"
+Apo.ComponentDesc = "Kingston APO Audio Component"
+DiskId1           = "Kingston Installation Disk"
+Copyright         = "Copyright (c) Kingston Technology Corporation"
+
+APO_FLAG_DEFAULT = 0x0000000e
+
+KINS_7P1_SFX_APO_CLSID    = "{115193ED-8F85-426D-8792-5B1097807A0F}"
+KINS_7P1_MFX_APO_CLSID    = "{115193FF-8F85-426D-8792-5B1097807A0F}"
+KINS_7P1_EFX_APO_CLSID    = "{115193EF-8F85-426D-8792-5B1097807A0F}"
+KINS_7P1_APO_FriendlyName = "Kingston 7.1 Surround Effects"
+
+REG_SZ         = 0x00000000
+REG_MULTI_SZ   = 0x00010000
+REG_EXPAND_SZ  = 0x00020000
+REG_BINARY     = 0x00000001
+REG_DWORD      = 0x00010001

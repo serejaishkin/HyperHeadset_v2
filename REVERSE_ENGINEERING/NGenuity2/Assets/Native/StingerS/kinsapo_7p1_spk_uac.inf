@@ -1,0 +1,226 @@
+[Version]
+Signature   = "$Chicago$"
+Class       = MEDIA
+Provider    = %ProviderName%
+ClassGUID   = {4d36e96c-e325-11ce-bfc1-08002be10318}
+CatalogFile = kinsapo_7p1_spk_uac.cat
+DriverVer = 05/19/2020,3.7.9.0
+pnplockdown = 0
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[SourceDisksNames]
+222 = %DiskDescription%,,,
+
+[SourceDisksFiles]
+kinsapo_7p1_spk_uac.sys = 222
+
+;;
+;; PE Signature
+;;
+[SignatureAttributes]
+kinsapo_7p1_spk_uac.sys=SignatureAttributes.DRM
+
+[SignatureAttributes.DRM]
+DRMLevel=1300
+
+[SignatureAttributes.PETrust]
+PETrust=true
+
+[Manufacturer]
+%MfgName% = StingerUSBDriver, NTamd64.10.0
+
+[StingerUSBDriver.NTamd64.10.0]
+%StingerUSB.DeviceDesc% = StingerUSB.NTamd64.10.0, USB\VID_0951&PID_1715&REV_4102&MI_00
+
+[DestinationDirs]
+StingerUSB.CopyFiles      = 12
+
+;;Windows 10 Device Guard Requirement
+[StingerUSB.CopyFiles]
+kinsapo_7p1_spk_uac.sys
+
+;======================================================
+; StingerUSB.NTamd64.10.0
+;======================================================
+[StingerUSB.NTamd64.10.0]
+Include   = ks.inf,wdmaudio.inf
+Needs     = KS.Registration,WDMAUDIO.Registration,mssysfx.CopyFilesAndRegister
+CopyFiles = StingerUSB.CopyFiles
+AddReg    = StingerUSB.AddReg, AudioParameters.AddReg
+ 
+[StingerUSB.NTamd64.10.0.Interfaces]
+AddInterface = %KSCATEGORY_AUDIO%,   %KSNAME_Wave%,     StingerUSB.I.Wave
+AddInterface = %KSCATEGORY_RENDER%,  %KSNAME_Wave%,     StingerUSB.I.Wave
+AddInterface = %KSCATEGORY_CAPTURE%, %KSNAME_Wave%,     StingerUSB.I.Wave
+AddInterface = %KSCATEGORY_AUDIO%,   %KSNAME_Topology%, StingerUSB.I.Topo
+
+[StingerUSB.NTamd64.10.0.Services]
+AddService = usbaud, 0x00000002, UsbAudio64_Service_Inst_W10
+
+[StingerUSB.NTamd64.10.0.HW]
+AddReg = StingerUSB.HW.AddReg
+
+;;==================================
+;; Add Service for Driver
+;;==================================
+[UsbAudio64_Service_Inst_W10]
+DisplayName   = %StingerUSB.SvcDesc%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 1
+ServiceBinary = %12%\kinsapo_7p1_spk_uac.sys
+
+;;===================================
+;; FriendlyName Modification
+;;===================================
+[StingerUSB.HW.AddReg]
+HKR,,FriendlyName,,%StingerUSB.HW.Name%
+
+;======================================================
+; COMMON
+;======================================================
+[StingerUSB.AddReg]
+HKR,,AssociatedFilters,,"wdmaud,swmidi,redbook"
+HKR,Drivers,SubClasses,,"wave,midi,mixer"
+HKR,Drivers\wave\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\midi\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\mixer\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\wave\wdmaud.drv,Description,,%StingerUSB.DeviceDesc%
+HKR,Drivers\midi\wdmaud.drv,Description,,%StingerUSB.MidiDesc%
+HKR,Drivers\mixer\wdmaud.drv,Description,,%StingerUSB.DeviceDesc%
+HKR,,Driver,,kinsapo_7p1_spk_uac.sys
+HKR,,NTMPDriver,,"kinsapo_7p1_spk_uac.sys,sbemul.sys"
+
+
+[StingerUSB.I.Wave]
+AddReg=StingerUSB.I.Wave.AddReg
+
+[StingerUSB.I.Wave.AddReg]
+HKR,,CLSID,,%Proxy.CLSID%
+HKR,,FriendlyName,,%StingerUSB.Wave.szPname%
+ 
+[StingerUSB.I.Topo]
+AddReg = StingerUSB.I.Topo.AddReg, ESysFx.Main.AddReg, USBAudio.EPProperties.AddReg
+
+[StingerUSB.I.Topo.AddReg]
+HKR,,CLSID,,%Proxy.CLSID%
+HKR,,FriendlyName,,%StingerUSB.Topo.szPname%
+
+     
+;; Note: MSEP\\n is reserved for Microsoft inbox inf use ONLY. 
+;; To avoid undeterminitic result, 3rd party driver INF should use EP\\n instead.	 
+[ESysFx.Main.AddReg]
+HKR,"EP\\0",%PKEY_Endpoint_ID%,%REG_DWORD%,0x0100
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_SPEAKER%
+HKR,"EP\\0",%PKEY_AudioEndpoint_PhysicalSpeakers%,%REG_DWORD%,0x0000063F
+HKR,"EP\\0",%PKEY_AudioEndpoint_FullRangeSpeakers%,%REG_DWORD%,0x0000063F
+HKR,"EP\\0",%PKEY_AudioEngine_OEMFormat%, 1,41,00,8C,70,28,00,00,00,FE,FF,08,00,80,bb,00,00,00,B8,0B,00,10,00,10,00,16,00,10,00,3f,06,00,00,01,00,00,00,00,00,10,00,80,00,00,AA,00,38,9B,71
+
+[USBAudio.EPProperties.AddReg]
+;; Note: MSEP\\n is reserved for Microsoft inbox inf use ONLY.
+;; To avoid undeterminitic result, 3rd party driver INF should use EP\\n instead.
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+HKR,"EP\\0",%PKEY_AudioEndpoint_Supports_EventDriven_Mode%,0x00010001,0x1 ;;enable WaveRT Pull mode
+
+;======================================================
+; Audio settings                                   
+;======================================================
+[AudioParameters.AddReg]
+HKR,,EnableWaveRT,                          1,01,00,00,00
+HKR,GlobalSettings,SelectiveSuspend,        1,00,00,00,00  ;; Support Selective Suspend
+HKR,GlobalSettings,OverrideDeviceVersion,   1,09,00,00,00  ;;
+HKR,GlobalSettings,Customized3D,            1,0D,00,00,00  ;; Enable Custized3D, Enabled 8ch
+
+HKR,GlobalSettings,DisableJackSense,        1,01,00,00,00  ;; NO Jack Sense
+HKR,GlobalSettings, InterfaceID,            1,00,00,00,00  ; For audio device is in MI_00
+
+[Strings]
+ProviderName        = "Kingston Technology Corporation"
+MfgName             = "Kingston Technology Corporation"
+ProductName         = "StingerUSB"
+DiskDescription     = "StingerUSB"
+UIPATH              = "StingerUSB"
+UninstallName       = "StingerUSB"
+
+StingerUSB.DeviceDesc     = "Stinger USB"
+StingerUSB.SvcDesc        = "Stinger USB"
+StingerUSB.MidiDesc       = "Stinger USB"
+StingerUSB.HW.Name        = "Stinger USB"
+StingerUSB.Wave.szPname   = "Stinger USB Wave"
+StingerUSB.Topo.szPname   = "Stinger USB Topology"
+
+;;
+;; PropertyKey GUIDS
+;;
+PKEY_Endpoint_ID = "{A4A2C5A8-D979-4939-B4D5-AA85D6F08162},0"
+PKEY_DisplayName                  = "{B725F130-47EF-101A-A5F1-02608C9EEBAC},10"
+
+;;Win7/Win8 APO
+PKEY_SYSFX_Association            = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},0"
+PKEY_SYSFX_PreMixClsid            = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},1"
+PKEY_SYSFX_PostMixClsid           = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},2"
+PKEY_SYSFX_UiClsid                = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},3"
+PKEY_FriendlyName                 = "{D04E05A6-594B-4FB6-A80D-01AF5EED7D1D},4"
+
+;;Win81/Win10 APO
+PKEY_SYSFX_StreamEffectClsid      = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},5"
+PKEY_SYSFX_ModeEffectClsid        = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},6"
+PKEY_SYSFX_EndpointEffectClsid    = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},7"
+PKEY_FX_Offload_StreamEffectClsid = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},11"
+PKEY_FX_Offload_ModeEffectClsid   = "{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},12"
+PKEY_SFX_ProcessingModes_Supported_For_Streaming   = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},5"
+PKEY_MFX_ProcessingModes_Supported_For_Streaming   = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},6"
+PKEY_EFX_ProcessingModes_Supported_For_Streaming   = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},7"
+PKEY_SFX_Offload_ProcessingModes_Supported_For_Streaming = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},11"
+PKEY_MFX_Offload_ProcessingModes_Supported_For_Streaming = "{D3993A3F-99C2-4402-B5EC-A92A0367664B},12"
+
+
+;;HW setting
+PKEY_AudioEndpoint_Ext_UiClsid    = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},1"
+PKEY_AudioEndpoint_Association    = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},2"
+PKEY_AudioEndpoint_PhysicalSpeakers = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},3"
+PKEY_AudioEndpoint_Disable_SysFx  = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},5"
+PKEY_AudioEndpoint_FullRangeSpeakers = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},6"
+PKEY_AudioEngine_OEMFormat        = "{E4870E26-3CC5-4CD2-BA46-CA0A9A70ED04},3"
+PKEY_AudioEndpoint_Supports_EventDriven_Mode = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},7"
+
+;;FxProperties Value
+SYSFX_NULL_FriendlyName = "No Audio Effects"
+SYSFX_NULL_CLSID = "{00000000-0000-0000-0000-000000000000}"
+SYSFX_NULL_UI_CLSID = "{00000000-0000-0000-0000-000000000000}"
+
+;;Topology
+Proxy.CLSID         = "{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
+KSCATEGORY_AUDIO    = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSCATEGORY_RENDER   = "{65E8773E-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_CAPTURE  = "{65E8773D-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_TOPOLOGY = "{DDA54A40-1E4C-11D1-A050-405705C10000}"
+
+;;Pin Node Type
+KSNODETYPE_ANY      = "{00000000-0000-0000-0000-000000000000}"
+KSNODETYPE_SPEAKER  = "{DFF21CE1-F70F-11D0-B917-00A0C9223196}"
+KSNODETYPE_MICROPHONE = "{DFF21BE1-F70F-11D0-B917-00A0C9223196}"
+
+;;Wave Ports Name
+KSNAME_Wave         = "Wave"
+KSNAME_Topology     = "Topology"
+;;
+;; These are the strings passed to PcRegisterSubdevice for wave ports
+;;
+KSNAME_eLineOutWave = "GLOBAL"
+KSNAME_eLineOutTopo = "GLOBAL"
+
+;;
+;; These are the name strings for the wave miniports displayed in mmsys.cpl
+;;
+PrimarySpeakerWaveDeviceName  = "USB Audio Speaker"
+PrimarySpeakerTopoDeviceName  = "USB Audio Speaker mixer"
+
+;; Registry Type
+REG_SZ        = 0x00000000
+REG_BINARY    = 0x00000001
+REG_MULTI_SZ  = 0x00010000
+REG_DWORD	  = 0x00010001
+REG_EXPAND_SZ = 0x00020000

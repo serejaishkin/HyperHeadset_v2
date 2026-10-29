@@ -1,0 +1,58 @@
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = SoftwareComponent
+ClassGuid   = {5c4c3332-344d-483c-8739-259e934c9cc8}
+Provider    = %OEM%
+DriverVer   = 10/20/2023,1.1.0.17
+CatalogFile = dtshpxv2apo4xservice.cat
+
+[SourceDisksNames]
+222 = %DiskId1%
+
+[SourceDisksFiles]
+DtsHPXV2Apo4Service.exe=222
+
+[DestinationDirs]
+DefaultDestDir = 11, DTS\HP\APO4x ; %windir%\system32\DTS\HP\APO4x
+
+[SignatureAttributes]
+DtsHPXV2Apo4Service.exe=SignatureAttributes.PETrust
+
+[SignatureAttributes.DRM]
+DRMLevel=1300
+
+[SignatureAttributes.PETrust]
+PETrust=true
+
+[Manufacturer]
+%OEM% = DTSService,NTamd64
+
+[DTSService.NTamd64]
+%Service.ComponentDesc% = DTSService_Installx64,SWC\VEN_DTSI&HID_DTSIHPXV2SERVICE
+
+[DTSService_Installx64]
+CopyFiles = CopyList.DTSServiceX64
+
+[DTSService_Installx64.Services]
+AddService = ,2  ; to mask Infverif warning  
+AddService = DtsHPXV2Apo4Service, 0x00000800, DTS_Usersrv_ServiceInstall
+
+[CopyList.DTSServiceX64]
+DtsHPXV2Apo4Service.exe
+
+
+[DTS_Usersrv_ServiceInstall]
+DisplayName    = "DtsHPXV2Apo4Service"
+ServiceType    = 0x00000010      ; SERVICE_WIN32_SHARE_PROCESS
+StartType      = 0x2             ; SERVICE_AUTO_START
+ErrorControl   = 0x1             ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %11%\DTS\HP\APO4x\DtsHPXV2Apo4Service.exe
+
+[Strings]
+OEM                  = "HyperX"
+Service.ComponentDesc	 = "DTS HPXV2 Service for HyperX"
+DiskId1              = "DTS HPXv2 APO4x Service Installation Disk"
+
+REG_BINARY = 0x00000001
+REG_DWORD = 0x00010001
+REG_MULTI_SZ = 0x00010000
