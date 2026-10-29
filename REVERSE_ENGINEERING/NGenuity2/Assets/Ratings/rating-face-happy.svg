@@ -1,0 +1,22 @@
+<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <linearGradient x1="0%" y1="50%" x2="100%" y2="50%" id="mj7qsci9ga">
+            <stop stop-color="#E02020" offset="0%"/>
+            <stop stop-color="#FA6400" offset="16.719%"/>
+            <stop stop-color="#F7B500" offset="33.39%"/>
+            <stop stop-color="#6DD400" offset="50.051%"/>
+            <stop stop-color="#0091FF" offset="66.567%"/>
+            <stop stop-color="#6236FF" offset="83.32%"/>
+            <stop stop-color="#B620E0" offset="100%"/>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="ofg66l00bc">
+            <stop stop-color="#FFF" stop-opacity=".5" offset="0%"/>
+            <stop stop-color="#FFF" stop-opacity="0" offset="100%"/>
+        </linearGradient>
+        <path d="M449 127c-19.882 0-36 16.118-36 36s16.118 36 36 36 36-16.118 36-36c-.021-19.873-16.127-35.979-36-36zm-13.5 21c3.99.096 7.5 2.66 8.805 6.432a3.001 3.001 0 1 1-5.61 2.136A3.621 3.621 0 0 0 435.5 154a3.621 3.621 0 0 0-3.195 2.568 3.001 3.001 0 1 1-5.61-2.136A9.561 9.561 0 0 1 435.5 148zm-1.323 26.127c.234-.408.67-.66 1.14-.66h27.366a1.317 1.317 0 0 1 1.14 1.974 17.118 17.118 0 0 1-29.646 0 1.317 1.317 0 0 1 0-1.314zM468.5 158.5a3 3 0 0 1-2.805-1.932A3.621 3.621 0 0 0 462.5 154a3.621 3.621 0 0 0-3.195 2.568 3.001 3.001 0 1 1-5.61-2.136 9.243 9.243 0 0 1 17.61 0 3 3 0 0 1-2.805 4.068z" id="cel1bu4snb"/>
+    </defs>
+    <g transform="translate(-413 -127)" fill="none" fill-rule="evenodd">
+        <use fill="url(#mj7qsci9ga)" xlink:href="#cel1bu4snb"/>
+        <use fill="url(#ofg66l00bc)" xlink:href="#cel1bu4snb"/>
+    </g>
+</svg>
