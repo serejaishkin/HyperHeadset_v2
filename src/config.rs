@@ -57,7 +57,7 @@ pub struct DeviceConfig {
     pub voice_prompts: bool,
     pub auto_shutdown_minutes: u32,
     /// Headset-originated sidetone event -> media Play/Pause.
-    #[serde(default)]
+    #[serde(rename = "sidetone_playpause", default = "default_true")]
     pub sidetone_play_pause: bool,
 }
 
@@ -124,7 +124,7 @@ impl Default for Config {
                 sidetone: false,
                 voice_prompts: true,
                 auto_shutdown_minutes: 30,
-                sidetone_play_pause: false,
+                sidetone_play_pause: true,
             },
             voice: VoiceConfig {
                 enabled: true,
@@ -183,4 +183,8 @@ impl Config {
     pub fn effective_audio(&self, device_id: &str) -> AudioConfig {
         self.per_device.get(device_id).and_then(|p| p.audio.clone()).unwrap_or_else(|| self.audio.clone())
     }
+}
+
+fn default_true() -> bool {
+    true
 }

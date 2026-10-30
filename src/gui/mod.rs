@@ -37,6 +37,7 @@ pub struct HyperXApp {
     pub tray_cfg_pending_save: bool,
     pub i18n: crate::i18n::I18n,
     pub audio_devices: Vec<crate::system_audio::AudioDevice>,
+    pub audio_inputs: Vec<crate::system_audio::AudioDevice>,
     pub selected_audio_device: Option<String>,
     pub last_audio_device_scan: Instant,
     #[cfg(target_os = "windows")]
@@ -100,6 +101,7 @@ impl HyperXApp {
             tray_cfg_pending_save: false,
             i18n,
             audio_devices: Vec::new(),
+            audio_inputs: Vec::new(),
             selected_audio_device: saved_audio_device,
             last_audio_device_scan: Instant::now() - Duration::from_secs(5),
             #[cfg(target_os = "windows")]
@@ -280,7 +282,7 @@ impl eframe::App for HyperXApp {
         }
 
         if self.config.compact_mode {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([260.0, 300.0].into()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize([260.0, 360.0].into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
             self.show_compact_ui(ctx);
         } else {
@@ -433,6 +435,7 @@ impl HyperXApp {
                     self.last_audio_device_scan = Instant::now();
                     match crate::system_audio::get_audio_devices() {
                         Ok(devices) => {
+                            self.audio_inputs = devices.iter().filter(|d| d.is_input).cloned().collect();
                             self.audio_devices = devices.into_iter().filter(|d| d.is_output).collect();
                             log::info!("[GUI] Compact audio scan: {} output device(s)", self.audio_devices.len());
                         }
@@ -469,8 +472,6 @@ impl HyperXApp {
                                         match crate::system_audio::set_default_output_device(&device.id) {
                                             Ok(()) => {
                                                 self.selected_audio_device = Some(device.id.clone());
-                                                self.config.audio.fallback_output_device = Some(device.id.clone());
-                                                self.needs_save = true;
                                                 log::info!("[GUI] Default output changed to: {}", device.name);
                                             }
                                             Err(e) => {
@@ -489,6 +490,55 @@ impl HyperXApp {
                         self.last_audio_device_scan = Instant::now() - Duration::from_secs(1);
                     }
                 });
+
+                // Fallback (reserve) devices: remembered and saved automatically on change.
+                {
+                    let mut changed = false;
+                    let out_name = self.config.audio.fallback_output_device.as_ref()
+                        .and_then(|id| self.audio_devices.iter().find(|d| &d.id == id))
+                        .map(|d| d.name.clone())
+                        .unwrap_or_else(|| "— не задан —".to_string());
+                    ui.horizontal(|ui| {
+                        ui.label("↩🔊");
+                        egui::ComboBox::from_id_salt("compact_fallback_output")
+                            .selected_text(out_name)
+                            .width(185.0)
+                            .show_ui(ui, |ui| {
+                                for d in self.audio_devices.clone() {
+                                    let sel = self.config.audio.fallback_output_device.as_ref() == Some(&d.id);
+                                    if ui.selectable_label(sel, &d.name).clicked() {
+                                        self.config.audio.fallback_output_device = Some(d.id.clone());
+                                        changed = true;
+                                    }
+                                }
+                            });
+                    });
+                    let in_name = self.config.audio.fallback_input_device.as_ref()
+                        .and_then(|id| self.audio_inputs.iter().find(|d| &d.id == id))
+                        .map(|d| d.name.clone())
+                        .unwrap_or_else(|| "— не задан —".to_string());
+                    ui.horizontal(|ui| {
+                        ui.label("↩🎙");
+                        egui::ComboBox::from_id_salt("compact_fallback_input")
+                            .selected_text(in_name)
+                            .width(185.0)
+                            .show_ui(ui, |ui| {
+                                for d in self.audio_inputs.clone() {
+                                    let sel = self.config.audio.fallback_input_device.as_ref() == Some(&d.id);
+                                    if ui.selectable_label(sel, &d.name).clicked() {
+                                        self.config.audio.fallback_input_device = Some(d.id.clone());
+                                        changed = true;
+                                    }
+                                }
+                            });
+                    });
+                    if changed {
+                        self.config.audio.auto_switch_audio = true;
+                        self.needs_save = true;
+                        log::info!("[GUI] Fallback devices saved: out={:?} in={:?}",
+                            self.config.audio.fallback_output_device, self.config.audio.fallback_input_device);
+                    }
+                }
 
                 ui.add_space(3.0);
                 let mic_icon = if self.device_state.muted { "🔇" } else { "🎙️" };

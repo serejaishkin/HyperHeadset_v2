@@ -73,6 +73,63 @@ fn check_apo_available() -> bool {
     false
 }
 
+fn live_audio_cfg() -> hyperx_ngenuity_open::config::AudioConfig {
+    Config::load().unwrap_or_default().audio
+}
+
+/// Headset went away (off / unplugged): switch default devices to the saved fallback ones.
+fn audio_away(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Option<String>) {
+    if *away {
+        return;
+    }
+    let a = live_audio_cfg();
+    if !a.auto_switch_audio {
+        return;
+    }
+    if a.fallback_output_device.is_none() && a.fallback_input_device.is_none() {
+        log::warn!("[Audio] Auto-switch is on but no fallback devices are saved");
+        return;
+    }
+    if let Some(ref id) = a.fallback_output_device {
+        if prev_out.is_none() {
+            *prev_out = system_audio::get_default_output_device().ok().filter(|c| c != id);
+        }
+        log::info!("[Audio] Headset away -> fallback output {}", id);
+        if let Err(e) = system_audio::set_default_output_device(id) {
+            log::warn!("[Audio] Fallback output failed: {}", e);
+        }
+    }
+    if let Some(ref id) = a.fallback_input_device {
+        if prev_in.is_none() {
+            *prev_in = system_audio::get_default_input_device().ok().filter(|c| c != id);
+        }
+        log::info!("[Audio] Headset away -> fallback input {}", id);
+        if let Err(e) = system_audio::set_default_input_device(id) {
+            log::warn!("[Audio] Fallback input failed: {}", e);
+        }
+    }
+    *away = true;
+}
+
+/// Headset is back: restore headset devices (configured ones, else what was default before).
+fn audio_back(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Option<String>) {
+    if !*away {
+        return;
+    }
+    *away = false;
+    let a = live_audio_cfg();
+    if let Some(id) = a.headset_output_device.clone().or_else(|| prev_out.take()) {
+        log::info!("[Audio] Headset back -> output {}", id);
+        let _ = system_audio::set_default_output_device(&id);
+    }
+    if let Some(id) = a.headset_input_device.clone().or_else(|| prev_in.take()) {
+        log::info!("[Audio] Headset back -> input {}", id);
+        let _ = system_audio::set_default_input_device(&id);
+    }
+    *prev_out = None;
+    *prev_in = None;
+}
+
 fn main() -> anyhow::Result<()> {
     let config = Config::load().unwrap_or_default();
     setup_logging(&config);
@@ -124,11 +181,6 @@ fn main() -> anyhow::Result<()> {
     #[cfg(not(target_os = "linux"))]
     let tray = PlatformTray::new(tray_tx.clone());
 
-    let fallback_output = config.audio.fallback_output_device.clone();
-    let fallback_input = config.audio.fallback_input_device.clone();
-    let headset_output = config.audio.headset_output_device.clone();
-    let headset_input = config.audio.headset_input_device.clone();
-    let auto_switch = config.audio.auto_switch_audio;
 
     std::thread::spawn(move || {
         let mut device = HyperXDevice::new();
@@ -146,6 +198,8 @@ fn main() -> anyhow::Result<()> {
         let mut last_full_refresh = std::time::Instant::now();
         let mut last_mute_poll = std::time::Instant::now();
         let mut seen_sidetone_events: u32 = 0;
+        let mut away = false;
+        let mut last_wireless_query = std::time::Instant::now() - Duration::from_secs(10);
 
         loop {
             if !device.state.connected {
@@ -159,57 +213,7 @@ fn main() -> anyhow::Result<()> {
                     last_battery_low = false;
                     last_full_charge_announced = false;
 
-                    // Auto-switch to fallback audio on disconnect
-                    if auto_switch {
-                        // Save current default audio devices before switching away
-                        prev_output_device = system_audio::get_default_output_device().ok();
-                        prev_input_device = system_audio::get_default_input_device().ok();
-                        #[cfg(target_os = "windows")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("powershell")
-                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", output_id)])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("powershell")
-                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", input_id)])
-                                    .output();
-                            }
-                        }
-                        #[cfg(target_os = "linux")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("wpctl")
-                                    .args(&["set-default", output_id])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("wpctl")
-                                    .args(&["set-default", input_id])
-                                    .output();
-                            }
-                        }
-                        #[cfg(target_os = "macos")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("osascript")
-                                    .args(&["-e", &format!("set volume of output device \"{}\" to 100", output_id)])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("osascript")
-                                    .args(&["-e", &format!("set volume of input device \"{}\" to 100", input_id)])
-                                    .output();
-                            }
-                        }
-                    }
+                    audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
                 }
                 match device.connect() {
                     Ok(_) => {
@@ -221,18 +225,8 @@ fn main() -> anyhow::Result<()> {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
                         last_full_refresh = std::time::Instant::now();
+                        last_wireless_query = std::time::Instant::now() - Duration::from_secs(10);
 
-                        // Auto-switch back to headset audio on reconnect
-                        if auto_switch {
-                            if let Some(ref output_id) = headset_output.clone().or_else(|| prev_output_device.take()) {
-                                log::info!("[Audio] Switching back to headset output: {}", output_id);
-                                let _ = system_audio::set_default_output_device(output_id);
-                            }
-                            if let Some(ref input_id) = headset_input.clone().or_else(|| prev_input_device.take()) {
-                                log::info!("[Audio] Switching back to headset input: {}", input_id);
-                                let _ = system_audio::set_default_input_device(input_id);
-                            }
-                        }
                     }
                     Err(e) => {
                         log::debug!("Connection failed: {}", e);
@@ -305,60 +299,21 @@ fn main() -> anyhow::Result<()> {
                     last_battery_low = false;
                     last_full_charge_announced = false;
 
-                    // Auto-switch to fallback audio on disconnect
-                    if auto_switch {
-                        prev_output_device = system_audio::get_default_output_device().ok();
-                        prev_input_device = system_audio::get_default_input_device().ok();
-                        #[cfg(target_os = "windows")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("powershell")
-                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", output_id)])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("powershell")
-                                    .args(&["-Command", &format!("Set-AudioDevice -Id '{}';", input_id)])
-                                    .output();
-                            }
-                        }
-                        #[cfg(target_os = "linux")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("wpctl")
-                                    .args(&["set-default", output_id])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("wpctl")
-                                    .args(&["set-default", input_id])
-                                    .output();
-                            }
-                        }
-                        #[cfg(target_os = "macos")]
-                        {
-                            if let Some(ref output_id) = fallback_output {
-                                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                                let _ = std::process::Command::new("osascript")
-                                    .args(&["-e", &format!("set volume of output device \"{}\" to 100", output_id)])
-                                    .output();
-                            }
-                            if let Some(ref input_id) = fallback_input {
-                                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                                let _ = std::process::Command::new("osascript")
-                                    .args(&["-e", &format!("set volume of input device \"{}\" to 100", input_id)])
-                                    .output();
-                            }
-                        }
-                    }
+                    audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
                 }
                 device.disconnect();
                 std::thread::sleep(Duration::from_millis(500));
                 continue;
+            }
+
+            if last_wireless_query.elapsed() >= Duration::from_secs(10) {
+                last_wireless_query = std::time::Instant::now();
+                let _ = device.request_wireless_status();
+            }
+            if !device.headset_online {
+                audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
+            } else if away {
+                audio_back(&mut away, &mut prev_output_device, &mut prev_input_device);
             }
 
             if device.sidetone_button_events != seen_sidetone_events {

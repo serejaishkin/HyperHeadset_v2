@@ -202,6 +202,8 @@ pub struct HyperXDevice {
     pub sidetone_button_events: u32,
     /// True once the headset has sent an unsolicited mute event; until then mute is polled.
     pub mute_events_seen: bool,
+    /// False while the headset itself is asleep/off (dongle still enumerated).
+    pub headset_online: bool,
 }
 
 const VENDOR_ID: u16 = 0x03f0;
@@ -229,7 +231,7 @@ const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true }
     }
 
     fn prepare_write(&self) {
@@ -500,12 +502,31 @@ impl HyperXDevice {
                 GET_WIRELESS_STATUS_CMD_ID => {
                     // 1 or 4 = headset connected to dongle; anything else = headset asleep/off.
                     // Dongle stays enumerated, so surface this as a state change only.
+                    let online = buf[4] == 1 || buf[4] == 4;
                     log::debug!("[HID] Wireless status: {}", buf[4]);
+                    if online != self.headset_online {
+                        log::info!("[HID] Headset online: {} (status {})", online, buf[4]);
+                        self.headset_online = online;
+                        changed = true;
+                    }
                 }
                 _ => {}
             }
         }
         Ok(changed)
+    }
+
+    /// Ask the dongle whether the headset is on; the reply is handled by `poll_events`.
+    pub fn request_wireless_status(&mut self) -> anyhow::Result<bool> {
+        let Some(device) = self.device.as_ref() else {
+            return Err(anyhow::anyhow!("Device handle is not connected"));
+        };
+        Self::flush_input_buffer(device);
+        let packet = build_packet(GET_WIRELESS_STATUS_CMD_ID, &[]);
+        if write_hid_report(device, &packet).is_err() {
+            return Err(anyhow::anyhow!("Device write failed — disconnected"));
+        }
+        self.poll_events(300)
     }
 
     /// Lightweight mute-only poll, used until the headset proves it sends mute events itself.
