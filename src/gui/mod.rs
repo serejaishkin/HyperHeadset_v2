@@ -34,6 +34,7 @@ pub struct HyperXApp {
     pub show_discord_panel: bool,
     pub selected_settings_tab: SettingsTab,
     pub tray_icon_config: TrayIconConfig,
+    pub tray_cfg_pending_save: bool,
     pub i18n: crate::i18n::I18n,
     pub audio_devices: Vec<crate::system_audio::AudioDevice>,
     pub selected_audio_device: Option<String>,
@@ -96,6 +97,7 @@ impl HyperXApp {
             show_discord_panel: false,
             selected_settings_tab: SettingsTab::Headset,
             tray_icon_config: TrayIconConfig::load_or_create(),
+            tray_cfg_pending_save: false,
             i18n,
             audio_devices: Vec::new(),
             selected_audio_device: saved_audio_device,
@@ -225,6 +227,11 @@ impl eframe::App for HyperXApp {
         if let Some(keybind) = &self.config.discord.keybind {
             crate::input::GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind.clone()));
         }
+        crate::input::GLOBAL_MUTE_HANDLER.set_keybind_enabled(
+            self.config.discord.mode == crate::config::DiscordMode::Keybind,
+        );
+        crate::input::GLOBAL_MUTE_HANDLER
+            .set_sidetone_play_pause(self.config.device.sidetone_play_pause);
 
         // Device events
         if let Some(rx) = &self.device_rx {
@@ -626,6 +633,15 @@ impl HyperXApp {
                 let _ = tx.send(crate::DeviceCommand::SetVoicePrompts(self.config.device.voice_prompts));
             }
         }
+        if ui
+            .checkbox(
+                &mut self.config.device.sidetone_play_pause,
+                "Sidetone button on headset → Play/Pause",
+            )
+            .changed()
+        {
+            self.needs_save = true;
+        }
         ui.horizontal(|ui| {
             ui.label(self.i18n.t("Auto-shutdown:"));
             ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min"));
@@ -864,6 +880,7 @@ hold=Play/Pause"));
             ui.add(egui::Image::new(&texture2).fit_to_exact_size([64.0, 64.0].into()));
         });
 
+        let tray_cfg_before = self.tray_icon_config.clone();
         if ui.button(self.i18n.t("Save Tray Icon Config")).clicked() {
             log::info!("[GUI] Save Tray Icon Config clicked");
             self.tray_icon_config.sanitize();
@@ -882,9 +899,30 @@ hold=Play/Pause"));
         }
         if ui.button(self.i18n.t("Apply to Tray Now")).clicked() {
             log::info!("[GUI] Apply to Tray Now clicked");
+            self.tray_icon_config.sanitize();
             if let Some(tray) = &mut self.tray {
-                tray.update_battery(self.device_state.battery_percent, self.device_state.charging);
+                // update_battery() is a no-op when percent/charging did not change,
+                // so push the whole config to force the icon to be re-rendered.
+                tray.update_icon_config(self.tray_icon_config.clone());
             }
+            self.tray_cfg_pending_save = true;
+        }
+
+        // Live apply: any slider/colour/reset change re-renders the tray icon immediately
+        // and is written to tray_icon.toml once the mouse is released.
+        if self.tray_icon_config != tray_cfg_before {
+            self.tray_icon_config.sanitize();
+            if let Some(tray) = &mut self.tray {
+                tray.update_icon_config(self.tray_icon_config.clone());
+            }
+            self.tray_cfg_pending_save = true;
+        }
+        if self.tray_cfg_pending_save && !ui.input(|i| i.pointer.any_down()) {
+            match self.tray_icon_config.save(crate::tray::icon::TrayIconConfig::default_path()) {
+                Ok(_) => log::info!("[GUI] Tray icon config saved"),
+                Err(e) => log::warn!("Failed to save tray icon config: {}", e),
+            }
+            self.tray_cfg_pending_save = false;
         }
     }
 

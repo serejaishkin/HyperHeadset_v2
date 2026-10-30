@@ -62,6 +62,17 @@ pub fn show(
                 }
             });
 
+            ui.horizontal(|ui| {
+                if ui.button("▶ Проверить отправку клавиши").clicked() {
+                    // Fires the configured combo immediately, independent of the headset button.
+                    // Open Discord → Settings → Keybinds → record to see whether it arrives.
+                    if let Err(e) = crate::input::GLOBAL_MUTE_HANDLER.send_keybind_now() {
+                        log::warn!("[Discord] test key failed: {}", e);
+                    }
+                }
+                ui.small("Нажмите, затем смотрите, реагирует ли Discord.");
+            });
+
             ui.small("💡 Назначьте эту же клавишу в Discord → Настройки → Горячие клавиши → Переключить мьют");
             ui.small("Доступные: F13-F24, MediaMute, MediaPlayPause, Ctrl+Shift+M, и др.");
         }

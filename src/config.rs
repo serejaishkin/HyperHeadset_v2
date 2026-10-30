@@ -56,6 +56,9 @@ pub struct DeviceConfig {
     pub sidetone: bool,
     pub voice_prompts: bool,
     pub auto_shutdown_minutes: u32,
+    /// Headset-originated sidetone event -> media Play/Pause.
+    #[serde(default)]
+    pub sidetone_play_pause: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -121,6 +124,7 @@ impl Default for Config {
                 sidetone: false,
                 voice_prompts: true,
                 auto_shutdown_minutes: 30,
+                sidetone_play_pause: false,
             },
             voice: VoiceConfig {
                 enabled: true,

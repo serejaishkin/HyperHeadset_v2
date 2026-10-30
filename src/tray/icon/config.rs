@@ -1,15 +1,17 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TrayIconMode {
+    #[default]
     Big,
     Digits,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrayIconConfig {
+    #[serde(default)]
     pub mode: TrayIconMode,
     pub size: u32,
     pub font_scale: u32,
@@ -19,7 +21,7 @@ pub struct TrayIconConfig {
     pub colors: TrayIconColors,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrayIconColors {
     pub charging: IconColors,
     pub high: IconColors,
@@ -27,7 +29,7 @@ pub struct TrayIconColors {
     pub low: IconColors,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IconColors {
     pub bg: [u8; 4],
     pub fg: [u8; 4],

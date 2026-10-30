@@ -3,6 +3,7 @@
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::time::{Duration, Instant};
 use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::system_audio;
 
@@ -30,6 +31,9 @@ pub struct MuteHandler {
     press_start: Mutex<Option<Instant>>,
     keybind: Mutex<Option<String>>,
     last_hotkey: Mutex<Option<Instant>>,
+    keybind_enabled: AtomicBool,
+    sidetone_play_pause: AtomicBool,
+    last_sidetone_btn: Mutex<Option<Instant>>,
 }
 
 impl MuteHandler {
@@ -41,6 +45,9 @@ impl MuteHandler {
             press_start: Mutex::new(None),
             keybind: Mutex::new(None),
             last_hotkey: Mutex::new(None),
+            keybind_enabled: AtomicBool::new(true),
+            sidetone_play_pause: AtomicBool::new(false),
+            last_sidetone_btn: Mutex::new(None),
         }
     }
 
@@ -53,8 +60,48 @@ impl MuteHandler {
     }
 
     pub fn set_keybind(&self, keybind: Option<String>) {
-        log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
-        *self.keybind.lock() = keybind;
+        let mut cur = self.keybind.lock();
+        if *cur != keybind {
+            log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
+            *cur = keybind;
+        }
+    }
+
+    /// Discord mode: only emulate the keybind when the mode is "Keybind".
+    pub fn set_keybind_enabled(&self, enabled: bool) {
+        self.keybind_enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    pub fn set_sidetone_play_pause(&self, enabled: bool) {
+        self.sidetone_play_pause.store(enabled, Ordering::Relaxed);
+    }
+
+    /// Called when the headset itself reports a sidetone toggle (not one we requested).
+    pub fn on_sidetone_button(&self) {
+        if !self.sidetone_play_pause.load(Ordering::Relaxed) {
+            return;
+        }
+        {
+            let mut last = self.last_sidetone_btn.lock();
+            if let Some(t) = *last {
+                if t.elapsed() < Duration::from_millis(300) {
+                    return;
+                }
+            }
+            *last = Some(Instant::now());
+        }
+        log::info!("[MuteHandler] Sidetone button -> Play/Pause");
+        self.do_media_play_pause();
+    }
+
+    /// Send the configured keybind right now (GUI "Test" button).
+    pub fn send_keybind_now(&self) -> Result<(), String> {
+        let keybind = self.keybind.lock().clone();
+        let combo = keybind.as_deref().unwrap_or("F20").to_string();
+        let mut enigo = self.enigo.lock();
+        let r = send_combo(&mut enigo, &combo);
+        log::info!("[MuteHandler] Test combo {:?}: {:?}", combo, r);
+        r
     }
 
     pub fn get_keybind(&self) -> Option<String> {
@@ -88,14 +135,16 @@ impl MuteHandler {
         *last = Some(Instant::now());
         drop(last);
 
-        let mut enigo = self.enigo.lock();
         let keybind = self.keybind.lock().clone();
-
-        log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
-
-        let combo = keybind.as_deref().unwrap_or("F20");
-        let result = send_combo(&mut enigo, combo);
-        log::info!("[MuteHandler] Sent combo {:?}, result: {:?}", combo, result);
+        if self.keybind_enabled.load(Ordering::Relaxed) {
+            let mut enigo = self.enigo.lock();
+            log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
+            let combo = keybind.as_deref().unwrap_or("F20");
+            let result = send_combo(&mut enigo, combo);
+            log::info!("[MuteHandler] Sent combo {:?}, result: {:?}", combo, result);
+        } else {
+            log::info!("[MuteHandler] Discord keybind mode is off, key not sent");
+        }
 
         // Also toggle system microphone mute so Discord sees the mic muted directly
         match system_audio::toggle_mic_mute() {
@@ -309,7 +358,13 @@ fn send_combo(enigo: &mut Enigo, combo: &str) -> Result<(), String> {
     if !modifiers.is_empty() {
         std::thread::sleep(Duration::from_millis(15));
     }
-    let click = enigo.key(main, Direction::Click).map_err(|e| format!("click {:?}: {}", main, e));
+    let click = enigo
+        .key(main, Direction::Press)
+        .map_err(|e| format!("press {:?}: {}", main, e))
+        .and_then(|_| {
+            std::thread::sleep(Duration::from_millis(40));
+            enigo.key(main, Direction::Release).map_err(|e| format!("release {:?}: {}", main, e))
+        });
     if !modifiers.is_empty() {
         std::thread::sleep(Duration::from_millis(15));
     }

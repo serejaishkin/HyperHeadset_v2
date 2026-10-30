@@ -197,6 +197,11 @@ pub struct HyperXDevice {
     device: Option<hidapi::HidDevice>,
     pub state: DeviceState,
     last_presence_check: Option<std::time::Instant>,
+    last_sidetone_set: Option<std::time::Instant>,
+    /// Number of sidetone toggles initiated on the headset itself (not by this app).
+    pub sidetone_button_events: u32,
+    /// True once the headset has sent an unsolicited mute event; until then mute is polled.
+    pub mute_events_seen: bool,
 }
 
 const VENDOR_ID: u16 = 0x03f0;
@@ -224,7 +229,7 @@ const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default(), last_presence_check: None }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false }
     }
 
     fn prepare_write(&self) {
@@ -457,6 +462,8 @@ impl HyperXDevice {
             match buf[3] {
                 SET_MUTE_CMD_ID => {
                     let muted = buf[4] == 1;
+                    self.mute_events_seen = true;
+                    log::info!("[HID] Mute event from headset: muted={}", muted);
                     if self.state.muted != muted {
                         self.state.muted = muted;
                         changed = true;
@@ -464,6 +471,13 @@ impl HyperXDevice {
                 }
                 SET_SIDE_TONE_CMD_ID => {
                     let on = buf[4] == 1;
+                    let ours = self
+                        .last_sidetone_set
+                        .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                    if !ours {
+                        self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
+                        log::info!("[HID] Sidetone event from headset: on={}", on);
+                    }
                     if self.state.sidetone != on {
                         self.state.sidetone = on;
                         changed = true;
@@ -494,6 +508,33 @@ impl HyperXDevice {
         Ok(changed)
     }
 
+    /// Lightweight mute-only poll, used until the headset proves it sends mute events itself.
+    /// Returns Ok(true) if the mute state changed.
+    pub fn poll_mute(&mut self) -> anyhow::Result<bool> {
+        let Some(device) = self.device.as_ref() else {
+            return Err(anyhow::anyhow!("Device handle is not connected"));
+        };
+        Self::flush_input_buffer(device);
+        let packet = build_packet(GET_MUTE_CMD_ID, &[]);
+        if write_hid_report(device, &packet).is_err() {
+            return Err(anyhow::anyhow!("Device write failed — disconnected"));
+        }
+        thread::sleep(Duration::from_millis(60));
+        let mut buf = [0u8; 256];
+        let len = device
+            .read_timeout(&mut buf, 300)
+            .map_err(|e| anyhow::anyhow!("Device read failed — disconnected: {}", e))?;
+        if len >= 5 && is_valid_response(&buf, len, GET_MUTE_CMD_ID) {
+            let muted = scan_mute_bytes(&buf, len);
+            if muted != self.state.muted {
+                log::info!("[HID] Mute changed (poll): {}", muted);
+                self.state.muted = muted;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     /// Discard any stale replies so the next request/response pair is not mismatched.
     fn drain(&self) {
         if let Some(device) = self.device.as_ref() {
@@ -519,6 +560,7 @@ impl HyperXDevice {
         self.drain();
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
+        self.last_sidetone_set = Some(std::time::Instant::now());
         write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
         thread::sleep(RESPONSE_DELAY);
 

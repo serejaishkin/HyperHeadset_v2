@@ -98,6 +98,10 @@ fn main() -> anyhow::Result<()> {
     if let Some(keybind) = config.discord.keybind.clone() {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind));
     }
+    GLOBAL_MUTE_HANDLER.set_keybind_enabled(
+        config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind,
+    );
+    GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
 
     let apo_available = check_apo_available();
     log::info!("[Main] APO available: {}", apo_available);
@@ -140,6 +144,8 @@ fn main() -> anyhow::Result<()> {
         // it "online"; between full refreshes we only listen for events the headset sends itself.
         const FULL_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
         let mut last_full_refresh = std::time::Instant::now();
+        let mut last_mute_poll = std::time::Instant::now();
+        let mut seen_sidetone_events: u32 = 0;
 
         loop {
             if !device.state.connected {
@@ -274,7 +280,18 @@ fn main() -> anyhow::Result<()> {
                 last_full_refresh = std::time::Instant::now();
                 device.refresh_state()
             } else {
-                device.poll_events(500).map(|_| ())
+                let ev = device.poll_events(500).map(|_| ());
+                // Until the headset shows it sends mute events on its own, poll mute once a second
+                // so the mute button always reaches Discord.
+                if ev.is_ok()
+                    && !device.mute_events_seen
+                    && last_mute_poll.elapsed() >= Duration::from_secs(1)
+                {
+                    last_mute_poll = std::time::Instant::now();
+                    device.poll_mute().map(|_| ())
+                } else {
+                    ev
+                }
             };
             if let Err(e) = refresh_result {
                 log::warn!("[Device] Refresh failed: {}", e);
@@ -344,6 +361,11 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
+            if device.sidetone_button_events != seen_sidetone_events {
+                seen_sidetone_events = device.sidetone_button_events;
+                GLOBAL_MUTE_HANDLER.on_sidetone_button();
+            }
+
             if !startup_battery_announced && device.state.battery_percent > 0 {
                 startup_battery_announced = true;
                 if !device.state.charging {
@@ -400,8 +422,11 @@ fn main() -> anyhow::Result<()> {
             last_charging = device.state.charging;
 
             if last_mute != Some(device.state.muted) {
+                let first_observation = last_mute.is_none();
                 last_mute = Some(device.state.muted);
-                GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
+                if !first_observation {
+                    GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
+                }
             }
 
             std::thread::sleep(Duration::from_millis(50));
