@@ -196,10 +196,11 @@ pub enum DeviceCommand {
 pub struct HyperXDevice {
     device: Option<hidapi::HidDevice>,
     pub state: DeviceState,
+    last_presence_check: Option<std::time::Instant>,
 }
 
 const VENDOR_ID: u16 = 0x03f0;
-const PRODUCT_IDS: &[u16] = &[0x018b, 0x0d93, 0x0696, 0x1718];
+const PRODUCT_IDS: &[u16] = &[0x018b, 0x0d93, 0x0696, 0x1718, 0x058b, 0x038b];
 
 const BASE_PACKET: [u8; 20] = [
     0x06, 0xff, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -214,12 +215,16 @@ const GET_SIDE_TONE_CMD_ID: u8 = 6;
 const SET_SIDE_TONE_CMD_ID: u8 = 33;
 const GET_CHARGING_CMD_ID: u8 = 3;
 const SET_AUTO_SHUTDOWN_CMD_ID: u8 = 34;
+const GET_WIRELESS_STATUS_CMD_ID: u8 = 1;
+// Extended (0x21 0xBB <cmd> <val>) commands used by NGenuity for voice prompts.
+const GET_VOICE_PROMPT_CMD_ID: u8 = 9;
+const SET_VOICE_PROMPT_CMD_ID: u8 = 19;
 
 const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default() }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None }
     }
 
     fn prepare_write(&self) {
@@ -256,6 +261,14 @@ impl HyperXDevice {
         if candidates.is_empty() {
             return Err(anyhow::anyhow!("No HyperX HID device enumerated"));
         }
+
+        // NGenuity talks to these headsets on HID MI_03 (Col03 for the 018B/0696 dongles),
+        // so probe that interface first; MI_00 is the USB audio function.
+        candidates.sort_by_key(|i| match i.interface_number() {
+            3 => 0,
+            -1 => 1,
+            _ => 2,
+        });
 
         for info in &candidates {
             match api.open_path(info.path()) {
@@ -402,13 +415,99 @@ impl HyperXDevice {
         Ok(())
     }
 
+    /// Passive listen: no HID writes, so the headset is not kept busy. The headset reports
+    /// button presses / state changes on its own (mute 0x20, sidetone 0x21, charging 0x03,
+    /// battery 0x02), exactly as NGenuity consumes them in OnDeviceInputReportReceived.
+    /// Returns Ok(true) if state changed. Err = device gone.
+    pub fn poll_events(&mut self, timeout_ms: i32) -> anyhow::Result<bool> {
+        // Enumeration is relatively expensive, so check presence only every few seconds.
+        let due = self
+            .last_presence_check
+            .map_or(true, |t| t.elapsed() >= Duration::from_secs(5));
+        if due {
+            self.last_presence_check = Some(std::time::Instant::now());
+            let api = HidApi::new().map_err(|_| anyhow::anyhow!("HID API unavailable"))?;
+            let present = api.device_list().any(|info| {
+                info.vendor_id() == VENDOR_ID && PRODUCT_IDS.contains(&info.product_id())
+            });
+            if !present {
+                return Err(anyhow::anyhow!("Device no longer enumerated — disconnected"));
+            }
+        }
+
+        let Some(device) = self.device.as_ref() else {
+            return Err(anyhow::anyhow!("Device handle is not connected"));
+        };
+
+        let mut changed = false;
+        let mut buf = [0u8; 256];
+        // Drain everything that is queued, then return.
+        let mut wait = timeout_ms;
+        loop {
+            let len = match device.read_timeout(&mut buf, wait) {
+                Ok(0) => break,
+                Ok(l) => l,
+                Err(e) => return Err(anyhow::anyhow!("Device read failed — disconnected: {}", e)),
+            };
+            wait = 0;
+            if len < 5 || buf[0] != 0x06 || buf[1] != 0xFF || buf[2] != 0xBB {
+                continue;
+            }
+            log::debug!("[HID] Event: {:02X?}", &buf[0..16.min(len)]);
+            match buf[3] {
+                SET_MUTE_CMD_ID => {
+                    let muted = buf[4] == 1;
+                    if self.state.muted != muted {
+                        self.state.muted = muted;
+                        changed = true;
+                    }
+                }
+                SET_SIDE_TONE_CMD_ID => {
+                    let on = buf[4] == 1;
+                    if self.state.sidetone != on {
+                        self.state.sidetone = on;
+                        changed = true;
+                    }
+                }
+                GET_CHARGING_CMD_ID => {
+                    let ch = buf[4] == 1;
+                    if self.state.charging != ch {
+                        self.state.charging = ch;
+                        changed = true;
+                    }
+                }
+                GET_BATTERY_CMD_ID if len > 7 => {
+                    let pct = buf[7].min(100);
+                    if pct > 0 && self.state.battery_percent != pct {
+                        self.state.battery_percent = pct;
+                        changed = true;
+                    }
+                }
+                GET_WIRELESS_STATUS_CMD_ID => {
+                    // 1 or 4 = headset connected to dongle; anything else = headset asleep/off.
+                    // Dongle stays enumerated, so surface this as a state change only.
+                    log::debug!("[HID] Wireless status: {}", buf[4]);
+                }
+                _ => {}
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Discard any stale replies so the next request/response pair is not mismatched.
+    fn drain(&self) {
+        if let Some(device) = self.device.as_ref() {
+            Self::flush_input_buffer(device);
+        }
+    }
+
     pub fn toggle_mute(&mut self) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         let new_mute = !self.state.muted;
         log::info!("[HID] Toggling mute: {} -> {}", self.state.muted, new_mute);
+        self.drain();
         self.prepare_write();
         let packet = build_packet(SET_MUTE_CMD_ID, &[new_mute as u8]);
-        log::debug!("[HID] Sending mute command: packet={:02X?}", &packet[0..16.min(packet.len())]);
         write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("mute command failed: {}", e))?;
         self.state.muted = new_mute;
         log::info!("[HID] Mute toggled successfully to: {}", new_mute);
@@ -417,24 +516,56 @@ impl HyperXDevice {
 
     pub fn set_sidetone(&mut self, enabled: bool) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
+        self.drain();
         self.prepare_write();
         let packet = build_packet(SET_SIDE_TONE_CMD_ID, &[enabled as u8]);
         write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("sidetone command failed: {}", e))?;
         thread::sleep(RESPONSE_DELAY);
-        self.state.sidetone = enabled;
+
+        // Consume the ack and read the real state back instead of assuming success.
+        // NGenuity does the same (SetOutputReport followed by GetInputReport).
+        Self::flush_input_buffer(device);
+        match send_and_read(device, GET_SIDE_TONE_CMD_ID, &[]) {
+            Ok(status) => {
+                let actual = status == 1;
+                if actual != enabled {
+                    log::warn!("[HID] Sidetone requested={} but headset reports {}", enabled, actual);
+                }
+                self.state.sidetone = actual;
+            }
+            Err(e) => {
+                log::warn!("[HID] Sidetone readback failed ({}), assuming requested value", e);
+                self.state.sidetone = enabled;
+            }
+        }
         Ok(())
     }
 
-    pub fn set_voice_prompts(&mut self, _enabled: bool) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Voice prompts are not supported by the current HID protocol"))
+    pub fn set_voice_prompts(&mut self, enabled: bool) -> anyhow::Result<()> {
+        let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
+        self.drain();
+        // NGenuity (CMDHSCloudIIWirelessDTSSetVoicePromptStatus): [0]=0x21 [1]=0xBB [2]=0x13 [3]=on
+        let mut packet = [0u8; 20];
+        packet[0] = 0x21;
+        packet[1] = 0xBB;
+        packet[2] = SET_VOICE_PROMPT_CMD_ID;
+        packet[3] = enabled as u8;
+        write_hid_report(device, &packet).map_err(|e| anyhow::anyhow!("voice prompt command failed: {}", e))?;
+        thread::sleep(RESPONSE_DELAY);
+        Self::flush_input_buffer(device);
+        self.state.voice_prompts = enabled;
+        let _ = GET_VOICE_PROMPT_CMD_ID;
+        Ok(())
     }
 
     pub fn set_auto_shutdown(&mut self, minutes: u32) -> anyhow::Result<()> {
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
+        self.drain();
+        self.prepare_write();
 
-        let packet = build_packet(SET_AUTO_SHUTDOWN_CMD_ID, &[minutes as u8]);
+        let packet = build_packet(SET_AUTO_SHUTDOWN_CMD_ID, &[minutes.min(255) as u8]);
         write_hid_report(device, &packet)
             .map_err(|e| anyhow::anyhow!("auto shutdown write failed: {}", e))?;
         thread::sleep(RESPONSE_DELAY);
@@ -445,6 +576,7 @@ impl HyperXDevice {
         if len < 5 || !is_valid_response(&buf, len, SET_AUTO_SHUTDOWN_CMD_ID) {
             return Err(anyhow::anyhow!("invalid auto shutdown response: len={} raw={:02X?}", len, &buf[0..16.min(len)]));
         }
+        log::info!("[HID] Auto-shutdown set to {} min (ack={:02X?})", minutes, &buf[0..8.min(len)]);
         Ok(())
     }
 }

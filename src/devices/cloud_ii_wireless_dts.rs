@@ -6,8 +6,10 @@ use std::time::Duration;
 
 const HP: u16 = 0x03F0;
 pub const VENDOR_IDS: [u16; 1] = [HP];
-// Possible Cloud II Wireless product IDs
-pub const PRODUCT_IDS: [u16; 4] = [0x1718, 0x018B, 0x0D93, 0x0696];
+// Possible Cloud II Wireless product IDs.
+// 018B/0696 = dongles (HID MI_03 Col03), 058B/038B = headset side (HID Col02),
+// per NGenuity2Helper HeadsetCNXTAvneraUpdater / HeadsetCloudIIWirelessDTS.
+pub const PRODUCT_IDS: [u16; 6] = [0x1718, 0x018B, 0x0D93, 0x0696, 0x058B, 0x038B];
 
 const BASE_PACKET: [u8; 20] = {
     let mut packet = [0; 20];
@@ -15,7 +17,8 @@ const BASE_PACKET: [u8; 20] = {
     packet
 };
 
-#[allow(dead_code)]
+// "Extended" command header used by NGenuity for voice prompt / product colour:
+// buf[0]=0x21, buf[1]=0xBB, buf[2]=cmd, buf[3]=payload
 const BASE_PACKET2: [u8; 20] = {
     let mut packet = [0; 20];
     (packet[0], packet[1]) = (33, 187);
@@ -38,7 +41,6 @@ const SET_SIDE_TONE_ON_CMD_ID: u8 = 33;
 const GET_SIDE_TONE_VOLUME_CMD_ID: u8 = 11;
 const SET_SIDE_TONE_VOLUME_CMD_ID: u8 = 35;
 const GET_VOICE_PROMPT_CMD_ID: u8 = 9;
-#[allow(dead_code)]
 const SET_VOICE_PROMPT_CMD_ID: u8 = 19;
 const GET_WIRELESS_STATUS_CMD_ID: u8 = 1;
 
@@ -120,11 +122,11 @@ impl Device for CloudIIWirelessDTS {
     }
 
     fn get_product_color_packet(&self) -> Option<Vec<u8>> {
-        // let mut tmp = BASE_PACKET2.to_vec();
-        // tmp[2] = GET_PRODUCT_COLOR_CMD_ID;
-        // Some(tmp)
-        // Doesn't work
-        None
+        // NGenuity: [0]=0x21 [1]=0xBB [2]=0x0E. Earlier "doesn't work" was most likely the
+        // response parser dropping 0x21/0xBB-headed replies (see get_event_from_device_response).
+        let mut tmp = BASE_PACKET2.to_vec();
+        tmp[2] = GET_PRODUCT_COLOR_CMD_ID;
+        Some(tmp)
     }
 
     fn get_side_tone_packet(&self) -> Option<Vec<u8>> {
@@ -154,19 +156,16 @@ impl Device for CloudIIWirelessDTS {
     }
 
     fn get_voice_prompt_packet(&self) -> Option<Vec<u8>> {
-        // let mut tmp = BASE_PACKET2.to_vec();
-        // tmp[2] = GET_VOICE_PROMPT_CMD_ID;
-        // Some(tmp)
-        // Doesn't work
-        None
+        let mut tmp = BASE_PACKET2.to_vec();
+        tmp[2] = GET_VOICE_PROMPT_CMD_ID;
+        Some(tmp)
     }
 
-    fn set_voice_prompt_packet(&self, _enable: bool) -> Option<Vec<u8>> {
-        // let mut tmp = BASE_PACKET2.to_vec();
-        // tmp[2] = SET_VOICE_PROMPT_CMD_ID;
-        // Some(tmp)
-        // Doesn't work
-        None
+    fn set_voice_prompt_packet(&self, enable: bool) -> Option<Vec<u8>> {
+        let mut tmp = BASE_PACKET2.to_vec();
+        tmp[2] = SET_VOICE_PROMPT_CMD_ID;
+        tmp[3] = enable as u8;
+        Some(tmp)
     }
 
     fn get_wireless_connected_status_packet(&self) -> Option<Vec<u8>> {
@@ -198,6 +197,22 @@ impl Device for CloudIIWirelessDTS {
         if response.len() < 7 {
             return None;
         }
+        // Extended replies: 21 BB <cmd> <status>
+        if response[0] == 0x21 && response[1] == 0xBB {
+            return match (response[2], response[3]) {
+                (GET_VOICE_PROMPT_CMD_ID, status) => {
+                    Some(vec![DeviceEvent::VoicePrompt(status == 1)])
+                }
+                (GET_PRODUCT_COLOR_CMD_ID, status) => {
+                    Some(vec![DeviceEvent::ProductColor(Color::from(status))])
+                }
+                _ => {
+                    debug_println!("Unknown extended device event: {:?}", response);
+                    None
+                }
+            };
+        }
+        // Standard replies: 06 FF BB <cmd> <data...>
         if response[0] != 6 || response[1] != 255 || response[2] != 187 {
             return None;
         }
@@ -228,12 +243,6 @@ impl Device for CloudIIWirelessDTS {
                 Some(vec![DeviceEvent::WirelessConnected(
                     status == 1 || status == 4,
                 )])
-            }
-            (GET_VOICE_PROMPT_CMD_ID, status, _, _) => {
-                Some(vec![DeviceEvent::VoicePrompt(status == 1)])
-            }
-            (GET_PRODUCT_COLOR_CMD_ID, status, _, _) => {
-                Some(vec![DeviceEvent::ProductColor(Color::from(status))])
             }
             _ => {
                 debug_println!("Unknown device event: {:?}", response);

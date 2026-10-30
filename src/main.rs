@@ -136,6 +136,10 @@ fn main() -> anyhow::Result<()> {
         let mut startup_battery_announced = false;
         let mut prev_output_device: Option<String> = None;
         let mut prev_input_device: Option<String> = None;
+        // Active HID polling (battery/mute/charging/sidetone requests) wakes the headset and keeps
+        // it "online"; between full refreshes we only listen for events the headset sends itself.
+        const FULL_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+        let mut last_full_refresh = std::time::Instant::now();
 
         loop {
             if !device.state.connected {
@@ -210,6 +214,7 @@ fn main() -> anyhow::Result<()> {
                         if let Err(e) = device.refresh_state() {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
+                        last_full_refresh = std::time::Instant::now();
 
                         // Auto-switch back to headset audio on reconnect
                         if auto_switch {
@@ -250,7 +255,12 @@ fn main() -> anyhow::Result<()> {
                         }
                         let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
                     }
-                    hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(_enabled) => {},
+                    hyperx_ngenuity_open::DeviceCommand::SetVoicePrompts(enabled) => {
+                        if let Err(e) = device.set_voice_prompts(enabled) {
+                            log::warn!("Set voice prompts failed: {}", e);
+                        }
+                        let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+                    }
                     hyperx_ngenuity_open::DeviceCommand::SetAutoShutdown(minutes) => {
                         if let Err(e) = device.set_auto_shutdown(minutes) {
                             log::warn!("Set auto shutdown failed: {}", e);
@@ -260,7 +270,13 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            if let Err(e) = device.refresh_state() {
+            let refresh_result = if last_full_refresh.elapsed() >= FULL_REFRESH_INTERVAL {
+                last_full_refresh = std::time::Instant::now();
+                device.refresh_state()
+            } else {
+                device.poll_events(500).map(|_| ())
+            };
+            if let Err(e) = refresh_result {
                 log::warn!("[Device] Refresh failed: {}", e);
                 if was_connected {
                     log::warn!("[Device] Headset disconnected");
@@ -345,7 +361,7 @@ fn main() -> anyhow::Result<()> {
                 last_charging = device.state.charging;
             }
 
-            log::info!(
+            log::debug!(
                 "[Device] State: battery={}% charging={} muted={}",
                 device.state.battery_percent,
                 device.state.charging,
@@ -388,7 +404,7 @@ fn main() -> anyhow::Result<()> {
                 GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
             }
 
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(50));
         }
     });
 

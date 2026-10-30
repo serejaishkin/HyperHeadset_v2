@@ -613,14 +613,28 @@ impl HyperXApp {
         ui.heading(self.i18n.t("Headset Settings"));
         ui.separator();
 
-        ui.checkbox(&mut self.config.device.sidetone, self.i18n.t("Sidetone (hear yourself)"));
+        if ui.checkbox(&mut self.config.device.sidetone, self.i18n.t("Sidetone (hear yourself)")).changed() {
+            self.needs_save = true;
+            self.device_state.sidetone = self.config.device.sidetone;
+            if let Some(tx) = &self.device_cmd_tx {
+                let _ = tx.send(crate::DeviceCommand::SetSidetone(self.config.device.sidetone));
+            }
+        }
         if ui.checkbox(&mut self.config.device.voice_prompts, self.i18n.t("Voice prompts")).changed() {
             self.needs_save = true;
+            if let Some(tx) = &self.device_cmd_tx {
+                let _ = tx.send(crate::DeviceCommand::SetVoicePrompts(self.config.device.voice_prompts));
+            }
         }
         ui.horizontal(|ui| {
             ui.label(self.i18n.t("Auto-shutdown:"));
             ui.add(egui::Slider::new(&mut self.config.device.auto_shutdown_minutes, 0..=60).text("min"));
-            if ui.button(self.i18n.t("Apply")).clicked() { self.needs_save = true; }
+            if ui.button(self.i18n.t("Apply")).clicked() {
+                self.needs_save = true;
+                if let Some(tx) = &self.device_cmd_tx {
+                    let _ = tx.send(crate::DeviceCommand::SetAutoShutdown(self.config.device.auto_shutdown_minutes));
+                }
+            }
         });
 
         ui.separator();

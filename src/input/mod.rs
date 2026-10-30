@@ -93,42 +93,9 @@ impl MuteHandler {
 
         log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
 
-        let key = match keybind.as_deref() {
-            Some("F13") => Key::F13,
-            Some("F14") => Key::F14,
-            Some("F15") => Key::F15,
-            Some("F16") => Key::F16,
-            Some("F17") => Key::F17,
-            Some("F18") => Key::F18,
-            Some("F19") => Key::F19,
-            Some("F20") => Key::F20,
-            Some("MediaPlayPause") => Key::MediaPlayPause,
-            Some("MediaVolumeMute") | Some("Mute") => Key::VolumeMute,
-            Some("MediaVolumeDown") => Key::VolumeDown,
-            Some("MediaVolumeUp") => Key::VolumeUp,
-            Some("MediaNextTrack") => Key::MediaNextTrack,
-            Some("MediaPrevTrack") => Key::MediaPrevTrack,
-            Some("Numpad0") => Key::Numpad0,
-            Some("Numpad1") => Key::Numpad1,
-            Some("Numpad2") => Key::Numpad2,
-            Some("Numpad3") => Key::Numpad3,
-            Some("Numpad4") => Key::Numpad4,
-            Some("Numpad5") => Key::Numpad5,
-            Some("Numpad6") => Key::Numpad6,
-            Some("Numpad7") => Key::Numpad7,
-            Some("Numpad8") => Key::Numpad8,
-            Some("Numpad9") => Key::Numpad9,
-            Some("NumpadAdd") => Key::Add,
-            Some("NumpadSubtract") | Some("NumpadMinus") => Key::Subtract,
-            Some("NumpadMultiply") => Key::Multiply,
-            Some("NumpadDivide") => Key::Divide,
-            Some("NumpadDecimal") => Key::Decimal,
-            Some(s) if s.len() == 1 => Key::Unicode(s.chars().next().unwrap()),
-            _ => Key::F20,
-        };
-
-        let result = enigo.key(key, Direction::Click);
-        log::info!("[MuteHandler] Sent key: {:?} (enigo key: {:?}), result: {:?}", keybind, key, result);
+        let combo = keybind.as_deref().unwrap_or("F20");
+        let result = send_combo(&mut enigo, combo);
+        log::info!("[MuteHandler] Sent combo {:?}, result: {:?}", combo, result);
 
         // Also toggle system microphone mute so Discord sees the mic muted directly
         match system_audio::toggle_mic_mute() {
@@ -203,6 +170,156 @@ impl MuteHandler {
         }
     }
 }
+
+/// Parsed element of a keybind string such as "Ctrl+Shift+M" or "LCtrl+RAlt+F13".
+enum Part {
+    Modifier(Key),
+    Main(Key),
+}
+
+#[cfg(target_os = "windows")]
+fn char_key(c: char) -> Key {
+    // Raw virtual-key codes: letters/digits map 1:1 to their upper-case ASCII code.
+    // Using VK codes (instead of Key::Unicode) makes the event a real key press, so
+    // modifiers + letter work as a global hotkey (Discord, OBS, ...).
+    Key::Other(c.to_ascii_uppercase() as u32)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn char_key(c: char) -> Key {
+    Key::Unicode(c.to_ascii_lowercase())
+}
+
+fn parse_part(token: &str) -> Option<Part> {
+    let t = token.trim();
+    let part = match t.to_ascii_lowercase().as_str() {
+        // Modifiers — left/right/generic variants collapse to one (Windows capture reports both
+        // "Ctrl" and "LCtrl" for a single physical key).
+        "ctrl" | "control" | "lctrl" | "rctrl" => Part::Modifier(Key::Control),
+        "shift" | "lshift" | "rshift" => Part::Modifier(Key::Shift),
+        "alt" | "lalt" | "ralt" => Part::Modifier(Key::Alt),
+        "win" | "meta" | "super" | "cmd" | "command" => Part::Modifier(Key::Meta),
+
+        "f1" => Part::Main(Key::F1),
+        "f2" => Part::Main(Key::F2),
+        "f3" => Part::Main(Key::F3),
+        "f4" => Part::Main(Key::F4),
+        "f5" => Part::Main(Key::F5),
+        "f6" => Part::Main(Key::F6),
+        "f7" => Part::Main(Key::F7),
+        "f8" => Part::Main(Key::F8),
+        "f9" => Part::Main(Key::F9),
+        "f10" => Part::Main(Key::F10),
+        "f11" => Part::Main(Key::F11),
+        "f12" => Part::Main(Key::F12),
+        "f13" => Part::Main(Key::F13),
+        "f14" => Part::Main(Key::F14),
+        "f15" => Part::Main(Key::F15),
+        "f16" => Part::Main(Key::F16),
+        "f17" => Part::Main(Key::F17),
+        "f18" => Part::Main(Key::F18),
+        "f19" => Part::Main(Key::F19),
+        "f20" => Part::Main(Key::F20),
+        #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+        "f21" => Part::Main(Key::F21),
+        #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+        "f22" => Part::Main(Key::F22),
+        #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+        "f23" => Part::Main(Key::F23),
+        #[cfg(any(target_os = "windows", all(unix, not(target_os = "macos"))))]
+        "f24" => Part::Main(Key::F24),
+
+        "mediaplaypause" => Part::Main(Key::MediaPlayPause),
+        "mediastop" => Part::Main(Key::MediaStop),
+        "mediavolumemute" | "mute" => Part::Main(Key::VolumeMute),
+        "mediavolumedown" => Part::Main(Key::VolumeDown),
+        "mediavolumeup" => Part::Main(Key::VolumeUp),
+        "medianexttrack" => Part::Main(Key::MediaNextTrack),
+        "mediaprevtrack" => Part::Main(Key::MediaPrevTrack),
+
+        "numpad0" => Part::Main(Key::Numpad0),
+        "numpad1" => Part::Main(Key::Numpad1),
+        "numpad2" => Part::Main(Key::Numpad2),
+        "numpad3" => Part::Main(Key::Numpad3),
+        "numpad4" => Part::Main(Key::Numpad4),
+        "numpad5" => Part::Main(Key::Numpad5),
+        "numpad6" => Part::Main(Key::Numpad6),
+        "numpad7" => Part::Main(Key::Numpad7),
+        "numpad8" => Part::Main(Key::Numpad8),
+        "numpad9" => Part::Main(Key::Numpad9),
+        "numpadadd" => Part::Main(Key::Add),
+        "numpadsubtract" | "numpadminus" => Part::Main(Key::Subtract),
+        "numpadmultiply" => Part::Main(Key::Multiply),
+        "numpaddivide" => Part::Main(Key::Divide),
+        "numpaddecimal" => Part::Main(Key::Decimal),
+
+        "space" => Part::Main(Key::Space),
+        "enter" | "return" => Part::Main(Key::Return),
+        "tab" => Part::Main(Key::Tab),
+        "esc" | "escape" => Part::Main(Key::Escape),
+        "backspace" => Part::Main(Key::Backspace),
+        "insert" => Part::Main(Key::Insert),
+        "delete" | "del" => Part::Main(Key::Delete),
+        "home" => Part::Main(Key::Home),
+        "end" => Part::Main(Key::End),
+        "pageup" => Part::Main(Key::PageUp),
+        "pagedown" => Part::Main(Key::PageDown),
+        "left" => Part::Main(Key::LeftArrow),
+        "right" => Part::Main(Key::RightArrow),
+        "up" => Part::Main(Key::UpArrow),
+        "down" => Part::Main(Key::DownArrow),
+
+        s if s.chars().count() == 1 && s.chars().next().map_or(false, |c| c.is_ascii_alphanumeric()) => {
+            Part::Main(char_key(s.chars().next().unwrap()))
+        }
+        _ => return None,
+    };
+    Some(part)
+}
+
+/// Press `modifiers` (in order), click the main key, release modifiers in reverse order.
+/// Accepts either a single key ("F20") or a combo ("Ctrl+Shift+M").
+fn send_combo(enigo: &mut Enigo, combo: &str) -> Result<(), String> {
+    let mut modifiers: Vec<Key> = Vec::new();
+    let mut main: Option<Key> = None;
+
+    for token in combo.split('+') {
+        match parse_part(token) {
+            Some(Part::Modifier(k)) => {
+                if !modifiers.contains(&k) {
+                    modifiers.push(k);
+                }
+            }
+            Some(Part::Main(k)) => main = Some(k),
+            None => log::warn!("[MuteHandler] Unknown key '{}' in keybind '{}'", token.trim(), combo),
+        }
+    }
+
+    // Only modifiers captured (e.g. user bound plain "Ctrl") — treat the last one as the key.
+    if main.is_none() {
+        main = modifiers.pop();
+    }
+    let Some(main) = main else {
+        return Err(format!("keybind '{}' has no usable key", combo));
+    };
+
+    for m in &modifiers {
+        enigo.key(*m, Direction::Press).map_err(|e| format!("press {:?}: {}", m, e))?;
+    }
+    if !modifiers.is_empty() {
+        std::thread::sleep(Duration::from_millis(15));
+    }
+    let click = enigo.key(main, Direction::Click).map_err(|e| format!("click {:?}: {}", main, e));
+    if !modifiers.is_empty() {
+        std::thread::sleep(Duration::from_millis(15));
+    }
+    // Always release modifiers, even if the click failed, so Ctrl/Shift never stay stuck.
+    for m in modifiers.iter().rev() {
+        let _ = enigo.key(*m, Direction::Release);
+    }
+    click
+}
+
 
 lazy_static::lazy_static! {
     pub static ref GLOBAL_MUTE_HANDLER: MuteHandler = MuteHandler::new();
