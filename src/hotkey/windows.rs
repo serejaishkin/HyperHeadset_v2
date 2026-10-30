@@ -21,6 +21,26 @@ const VK_CODES: &[(u16, &str)] = &[
     (0xA4, "LAlt"),
     (0xA5, "RAlt"),
 
+    // Common keys
+    (0x08, "Backspace"),
+    (0x09, "Tab"),
+    (0x0D, "Enter"),
+    (0x1B, "Esc"),
+    (0x20, "Space"),
+
+    // Punctuation (OEM) keys
+    (0xBA, ";"),
+    (0xBB, "="),
+    (0xBC, ","),
+    (0xBD, "-"),
+    (0xBE, "."),
+    (0xBF, "/"),
+    (0xC0, "`"),
+    (0xDB, "["),
+    (0xDC, "\\"),
+    (0xDD, "]"),
+    (0xDE, "'"),
+
     // Navigation
     (0x21, "PageUp"),
     (0x22, "PageDown"),

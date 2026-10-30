@@ -1,7 +1,7 @@
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use ksni;
-use super::{TrayCommand, icon::{TrayIconConfig, generate_battery_icon_rgba, rgba_to_argb32}};
+use super::{TrayCommand, icon::{TrayIconConfig, generate_tray_icon_rgba, rgba_to_argb32}};
 
 #[derive(Clone)]
 struct TrayState {
@@ -74,7 +74,7 @@ impl ksni::Tray for MyTray {
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
         let icon_config = self.icon_config.lock().unwrap();
-        let (rgba, w, h) = generate_battery_icon_rgba(&*icon_config, s.percent, s.charging);
+        let (rgba, w, h) = generate_tray_icon_rgba(&*icon_config, s.percent, s.charging);
         let argb = rgba_to_argb32(&rgba);
         vec![ksni::Icon {
             width: w as i32,

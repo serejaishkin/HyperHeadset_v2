@@ -727,8 +727,16 @@ hold=Play/Pause"));
     }
 
     fn show_settings_tray_icon(&mut self, ui: &mut egui::Ui) {
-        use crate::tray::icon::generate_battery_icon_rgba;
+        use crate::tray::icon::{generate_tray_icon_rgba, TrayIconMode};
         ui.heading(self.i18n.t("Tray Icon"));
+        ui.horizontal(|ui| {
+            ui.label("Mode:");
+            ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Big, "Big digits (fill the icon, no background)");
+            ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Digits, "Digits on background");
+        });
+        if self.tray_icon_config.mode == TrayIconMode::Big {
+            ui.small("Big mode: digits auto-fit the icon; BG/Border and Font/Gap are not used, FG/Outline are.");
+        }
         ui.horizontal(|ui| {
             ui.label(self.i18n.t("Size:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.size, 16..=512)).changed() { self.needs_save = true; }
@@ -870,11 +878,11 @@ hold=Play/Pause"));
         ui.separator();
         ui.heading(self.i18n.t("Preview"));
         ui.horizontal(|ui| {
-            let (rgba, w, h) = generate_battery_icon_rgba(&self.tray_icon_config, 75, false);
+            let (rgba, w, h) = generate_tray_icon_rgba(&self.tray_icon_config, 75, false);
             let image = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba);
             let texture = ui.ctx().load_texture("preview_75", image, egui::TextureOptions::NEAREST);
             ui.add(egui::Image::new(&texture).fit_to_exact_size([64.0, 64.0].into()));
-            let (rgba2, w2, h2) = generate_battery_icon_rgba(&self.tray_icon_config, 42, true);
+            let (rgba2, w2, h2) = generate_tray_icon_rgba(&self.tray_icon_config, 42, true);
             let image2 = egui::ColorImage::from_rgba_unmultiplied([w2 as usize, h2 as usize], &rgba2);
             let texture2 = ui.ctx().load_texture("preview_chg", image2, egui::TextureOptions::NEAREST);
             ui.add(egui::Image::new(&texture2).fit_to_exact_size([64.0, 64.0].into()));

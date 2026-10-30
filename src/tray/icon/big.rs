@@ -35,14 +35,20 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     let text = format!("{}", percent);
     let chars: Vec<char> = text.chars().collect();
     let n = chars.len() as u32;
-    let gap = config.gap_between_digits.max(2);
-    let scale = config.font_scale.max(1);
+
+    // Auto-fit: the digits fill the icon (a tray icon is shown at ~16-32 px, so tiny digits are
+    // unreadable). Gap between digits is one font cell; the outline never drops below size/32.
+    let outline_px = (config.outline_width.max(1) as u32).max(size / 32) as i32;
+    let margin = outline_px as u32 + 1;
+    let avail = size.saturating_sub(2 * margin).max(1);
+    let units_w = 5 * n + n.saturating_sub(1); // 5 columns per digit + 1 cell gap
+    let scale = (avail / units_w.max(1)).min(avail / 7).max(1);
+    let gap = scale;
     let digit_w = 5 * scale;
     let digit_h = 7 * scale;
     let total_w = n * digit_w + n.saturating_sub(1) * gap;
     let start_x = size.saturating_sub(total_w) / 2;
     let start_y = size.saturating_sub(digit_h) / 2;
-    let outline_px = config.outline_width.max(1);
 
     for (idx, ch) in chars.iter().enumerate() {
         let d = ch.to_digit(10).unwrap_or(0) as usize;

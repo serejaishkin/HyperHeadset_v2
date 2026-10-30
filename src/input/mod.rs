@@ -239,6 +239,38 @@ fn char_key(c: char) -> Key {
     Key::Unicode(c.to_ascii_lowercase())
 }
 
+/// Punctuation keys: raw Windows virtual-key codes (OEM keys) so they behave as real key presses.
+#[cfg(target_os = "windows")]
+fn punct_key(vk: u32, _c: char) -> Key {
+    Key::Other(vk)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn punct_key(_vk: u32, c: char) -> Key {
+    Key::Unicode(c)
+}
+
+/// Split "Ctrl+Shift+M" into tokens, keeping a literal '+' key ("Ctrl++" or just "+").
+fn split_combo(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for c in s.chars() {
+        if c == '+' {
+            if cur.is_empty() {
+                out.push("+".to_string());
+            } else {
+                out.push(std::mem::take(&mut cur));
+            }
+        } else {
+            cur.push(c);
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
 fn parse_part(token: &str) -> Option<Part> {
     let t = token.trim();
     let part = match t.to_ascii_lowercase().as_str() {
@@ -318,6 +350,18 @@ fn parse_part(token: &str) -> Option<Part> {
         "up" => Part::Main(Key::UpArrow),
         "down" => Part::Main(Key::DownArrow),
 
+        "-" | "minus" => Part::Main(punct_key(0xBD, '-')),
+        "=" | "+" | "equals" | "plus" => Part::Main(punct_key(0xBB, '=')),
+        "," | "comma" => Part::Main(punct_key(0xBC, ',')),
+        "." | "period" => Part::Main(punct_key(0xBE, '.')),
+        "/" | "slash" => Part::Main(punct_key(0xBF, '/')),
+        ";" | "semicolon" => Part::Main(punct_key(0xBA, ';')),
+        "'" | "quote" => Part::Main(punct_key(0xDE, '\'')),
+        "[" => Part::Main(punct_key(0xDB, '[')),
+        "]" => Part::Main(punct_key(0xDD, ']')),
+        "\\" | "backslash" => Part::Main(punct_key(0xDC, '\\')),
+        "`" => Part::Main(punct_key(0xC0, '`')),
+
         s if s.chars().count() == 1 && s.chars().next().map_or(false, |c| c.is_ascii_alphanumeric()) => {
             Part::Main(char_key(s.chars().next().unwrap()))
         }
@@ -332,7 +376,8 @@ fn send_combo(enigo: &mut Enigo, combo: &str) -> Result<(), String> {
     let mut modifiers: Vec<Key> = Vec::new();
     let mut main: Option<Key> = None;
 
-    for token in combo.split('+') {
+    for token in split_combo(combo) {
+        let token = token.as_str();
         match parse_part(token) {
             Some(Part::Modifier(k)) => {
                 if !modifiers.contains(&k) {
