@@ -516,6 +516,13 @@ impl HyperXDevice {
         Ok(changed)
     }
 
+    /// State for the UI: `connected` is false while the headset itself is off.
+    pub fn ui_state(&self) -> DeviceState {
+        let mut s = self.state.clone();
+        s.connected = s.connected && self.headset_online;
+        s
+    }
+
     /// Ask the dongle whether the headset is on; the reply is handled by `poll_events`.
     pub fn request_wireless_status(&mut self) -> anyhow::Result<bool> {
         let Some(device) = self.device.as_ref() else {

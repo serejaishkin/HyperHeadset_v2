@@ -347,9 +347,9 @@ fn main() -> anyhow::Result<()> {
 
             {
                 let mut state = device_state_clone.lock().unwrap();
-                *state = device.state.clone();
+                *state = device.ui_state();
             }
-            let _ = device_tx.send(DeviceEvent::StateChanged(device.state.clone()));
+            let _ = device_tx.send(DeviceEvent::StateChanged(device.ui_state()));
 
             if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
                 last_battery_low = true;

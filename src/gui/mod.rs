@@ -242,7 +242,7 @@ impl eframe::App for HyperXApp {
                     crate::DeviceEvent::StateChanged(state) => {
                         self.device_state = state.clone();
                         if let Some(tray) = &mut self.tray {
-                            tray.update_connected(true);
+                            tray.update_connected(state.connected);
                             tray.update_battery(state.battery_percent, state.charging);
                             tray.update_mute(state.muted);
                         }
