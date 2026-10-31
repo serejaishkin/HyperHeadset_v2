@@ -204,6 +204,9 @@ pub struct HyperXDevice {
     pub mute_events_seen: bool,
     /// False while the headset itself is asleep/off (dongle still enumerated).
     pub headset_online: bool,
+    /// Drivers from `devices/` for headsets that do not speak the Cloud II DTS protocol
+    /// (Cloud III / III S / II Core / II Wireless / Alpha / Flight Wireless).
+    legacy: Option<crate::devices::Headset>,
 }
 
 const VENDOR_ID: u16 = 0x03f0;
@@ -231,7 +234,7 @@ const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, legacy: None }
     }
 
     fn prepare_write(&self) {
@@ -252,6 +255,74 @@ impl HyperXDevice {
     }
 
     pub fn connect(&mut self) -> anyhow::Result<()> {
+        match self.connect_dts() {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                // Only fall back to the other drivers when no Cloud II DTS-family dongle is present.
+                if !e.to_string().starts_with("No HyperX HID device enumerated") {
+                    return Err(e);
+                }
+                self.connect_legacy().map_err(|le| {
+                    log::debug!("[HID] legacy connect failed: {}", le);
+                    e
+                })
+            }
+        }
+    }
+
+    fn connect_legacy(&mut self) -> anyhow::Result<()> {
+        let mut headset = crate::devices::connect_compatible_device()
+            .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+        headset
+            .active_refresh_state()
+            .map_err(|e| anyhow::anyhow!("initial refresh: {:?}", e))?;
+        let props = headset.device_properties();
+        log::info!(
+            "[HID] Connected via legacy driver: {:?} {:04X}:{:04X}",
+            props.device_name, props.vendor_id, props.product_id
+        );
+        self.legacy = Some(headset);
+        self.state.connected = true;
+        self.headset_online = true;
+        self.sync_from_legacy();
+        Ok(())
+    }
+
+    /// Copy the legacy driver's cached properties into `state`. Returns true if anything changed.
+    fn sync_from_legacy(&mut self) -> bool {
+        use crate::devices::ChargingStatus;
+        let Some(h) = self.legacy.as_ref() else { return false };
+        let p = h.device_properties();
+        let before = (
+            self.state.battery_percent, self.state.charging, self.state.muted,
+            self.state.sidetone, self.state.voice_prompts, self.headset_online,
+        );
+        if let Some(b) = p.battery_level { if b > 0 { self.state.battery_percent = b.min(100); } }
+        if let Some(c) = p.charging {
+            self.state.charging = matches!(c, ChargingStatus::Charging | ChargingStatus::FullyCharged);
+        }
+        if let Some(m) = p.muted { self.state.muted = m; }
+        if let Some(s) = p.side_tone_on { self.state.sidetone = s; }
+        if let Some(v) = p.voice_prompt_on { self.state.voice_prompts = v; }
+        if let Some(n) = p.device_name.clone() { self.state.name = n; }
+        self.state.device_id = format!("{:04X}:{:04X}", p.vendor_id, p.product_id);
+        if let Some(c) = p.connected { self.headset_online = c; }
+        before != (
+            self.state.battery_percent, self.state.charging, self.state.muted,
+            self.state.sidetone, self.state.voice_prompts, self.headset_online,
+        )
+    }
+
+    fn legacy_apply(&mut self, event: crate::devices::DeviceEvent) -> anyhow::Result<()> {
+        let Some(h) = self.legacy.as_mut() else {
+            return Err(anyhow::anyhow!("Device handle is not connected"));
+        };
+        h.try_apply(event).map_err(|e| anyhow::anyhow!("{} — disconnected?", e))?;
+        self.sync_from_legacy();
+        Ok(())
+    }
+
+    fn connect_dts(&mut self) -> anyhow::Result<()> {
         let api = HidApi::new()?;
         let mut candidates = Vec::new();
         for info in api.device_list() {
@@ -317,10 +388,16 @@ impl HyperXDevice {
 
     pub fn disconnect(&mut self) {
         self.device = None;
+        self.legacy = None;
         self.state = DeviceState::default();
     }
 
     pub fn refresh_state(&mut self) -> anyhow::Result<()> {
+        if let Some(h) = self.legacy.as_mut() {
+            h.active_refresh_state().map_err(|e| anyhow::anyhow!("Device read failed — disconnected: {:?}", e))?;
+            self.sync_from_legacy();
+            return Ok(());
+        }
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
@@ -427,6 +504,9 @@ impl HyperXDevice {
     /// battery 0x02), exactly as NGenuity consumes them in OnDeviceInputReportReceived.
     /// Returns Ok(true) if state changed. Err = device gone.
     pub fn poll_events(&mut self, timeout_ms: i32) -> anyhow::Result<bool> {
+        if self.legacy.is_some() {
+            return self.poll_events_legacy(timeout_ms);
+        }
         // Enumeration is relatively expensive, so check presence only every few seconds.
         let due = self
             .last_presence_check
@@ -523,8 +603,52 @@ impl HyperXDevice {
         s
     }
 
+    fn poll_events_legacy(&mut self, timeout_ms: i32) -> anyhow::Result<bool> {
+        use crate::devices::DeviceEvent as E;
+        let Some(h) = self.legacy.as_mut() else { return Ok(false) };
+        let events = h.listen_events(Duration::from_millis(timeout_ms.max(1) as u64));
+        let mut changed = false;
+        if let Some(events) = events {
+            for ev in events {
+                match ev {
+                    E::SideToneOn(_) => {
+                        let ours = self
+                            .last_sidetone_set
+                            .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                        if !ours {
+                            self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
+                            log::info!("[HID] Sidetone event from headset (legacy)");
+                        }
+                    }
+                    E::Muted(m) => {
+                        self.mute_events_seen = true;
+                        log::info!("[HID] Mute event from headset (legacy): muted={}", m);
+                    }
+                    _ => {}
+                }
+            }
+            changed = self.sync_from_legacy();
+        } else {
+            // Nothing arrived: make sure the dongle is still there.
+            let due = self.last_presence_check.map_or(true, |t| t.elapsed() >= Duration::from_secs(5));
+            if due {
+                self.last_presence_check = Some(std::time::Instant::now());
+                let api = HidApi::new().map_err(|_| anyhow::anyhow!("HID API unavailable"))?;
+                let name = self.state.device_id.clone();
+                let present = api.device_list().any(|i| format!("{:04X}:{:04X}", i.vendor_id(), i.product_id()) == name);
+                if !present {
+                    return Err(anyhow::anyhow!("Device no longer enumerated — disconnected"));
+                }
+            }
+        }
+        Ok(changed)
+    }
+
     /// Ask the dongle whether the headset is on; the reply is handled by `poll_events`.
     pub fn request_wireless_status(&mut self) -> anyhow::Result<bool> {
+        if self.legacy.is_some() {
+            return Ok(false);
+        }
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
@@ -539,6 +663,9 @@ impl HyperXDevice {
     /// Lightweight mute-only poll, used until the headset proves it sends mute events itself.
     /// Returns Ok(true) if the mute state changed.
     pub fn poll_mute(&mut self) -> anyhow::Result<bool> {
+        if self.legacy.is_some() {
+            return Ok(false);
+        }
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };
@@ -571,6 +698,12 @@ impl HyperXDevice {
     }
 
     pub fn toggle_mute(&mut self) -> anyhow::Result<()> {
+        if self.legacy.is_some() {
+            let target = !self.state.muted;
+            self.legacy_apply(crate::devices::DeviceEvent::Muted(target))?;
+            self.state.muted = target;
+            return Ok(());
+        }
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         let new_mute = !self.state.muted;
         log::info!("[HID] Toggling mute: {} -> {}", self.state.muted, new_mute);
@@ -584,6 +717,12 @@ impl HyperXDevice {
     }
 
     pub fn set_sidetone(&mut self, enabled: bool) -> anyhow::Result<()> {
+        if self.legacy.is_some() {
+            self.last_sidetone_set = Some(std::time::Instant::now());
+            self.legacy_apply(crate::devices::DeviceEvent::SideToneOn(enabled))?;
+            self.state.sidetone = enabled;
+            return Ok(());
+        }
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         self.drain();
         self.prepare_write();
@@ -612,6 +751,11 @@ impl HyperXDevice {
     }
 
     pub fn set_voice_prompts(&mut self, enabled: bool) -> anyhow::Result<()> {
+        if self.legacy.is_some() {
+            self.legacy_apply(crate::devices::DeviceEvent::VoicePrompt(enabled))?;
+            self.state.voice_prompts = enabled;
+            return Ok(());
+        }
         let Some(device) = self.device.as_ref() else { return Err(anyhow::anyhow!("Device not connected")); };
         self.drain();
         // NGenuity (CMDHSCloudIIWirelessDTSSetVoicePromptStatus): [0]=0x21 [1]=0xBB [2]=0x13 [3]=on
@@ -629,6 +773,11 @@ impl HyperXDevice {
     }
 
     pub fn set_auto_shutdown(&mut self, minutes: u32) -> anyhow::Result<()> {
+        if self.legacy.is_some() {
+            return self.legacy_apply(crate::devices::DeviceEvent::AutomaticShutdownAfter(
+                Duration::from_secs(minutes as u64 * 60),
+            ));
+        }
         let Some(device) = self.device.as_ref() else {
             return Err(anyhow::anyhow!("Device handle is not connected"));
         };

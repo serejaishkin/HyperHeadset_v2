@@ -116,6 +116,22 @@ impl Headset {
         }
     }
 
+    /// Listen for events the headset sends on its own (no requests are written).
+    /// Returns the events received, already applied to the cached properties.
+    pub fn listen_events(&mut self, timeout: Duration) -> Option<Vec<DeviceEvent>> {
+        match self {
+            Headset::Hid(device) => {
+                let events = device.wait_for_updates(timeout)?;
+                for event in &events {
+                    device.get_device_state_mut().update_self_with_event(event);
+                }
+                Some(events)
+            }
+            #[cfg(target_os = "linux")]
+            Headset::Bluetooth(_) => None,
+        }
+    }
+
     pub fn allow_passive_refresh(&mut self) -> bool {
         match self {
             Headset::Hid(device) => device.allow_passive_refresh(),
