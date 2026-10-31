@@ -2945,6 +2945,7 @@ version = "0.2.10"
 dependencies = [
  "anyhow",
  "clap 4.6.6",
+ "dbus",
  "discord-rich-presence",
  "eframe",
  "egui",
@@ -2956,6 +2957,7 @@ dependencies = [
  "image",
  "ksni",
  "lazy_static",
+ "libc",
  "log",
  "notify-rust",
  "parking_lot",
