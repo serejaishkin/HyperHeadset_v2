@@ -306,7 +306,7 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
-            if last_wireless_query.elapsed() >= Duration::from_secs(10) {
+            if last_wireless_query.elapsed() >= Duration::from_secs(2) {
                 last_wireless_query = std::time::Instant::now();
                 let _ = device.request_wireless_status();
             }
