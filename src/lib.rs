@@ -12,6 +12,7 @@ pub mod gui;
 pub mod notifications;
 pub mod dialog;
 pub mod hotkey;
+pub mod airoha_hid;
 
 pub use device::{DeviceCommand, DeviceEvent};
 
