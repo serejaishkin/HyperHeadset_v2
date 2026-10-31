@@ -8,6 +8,7 @@ struct TrayState {
     percent: u8,
     charging: bool,
     muted: bool,
+    connected: bool,
 }
 
 pub struct LinuxTray {
@@ -18,7 +19,7 @@ pub struct LinuxTray {
 impl LinuxTray {
     pub fn new(tx: Sender<TrayCommand>) -> Self {
         let icon_config = Arc::new(Mutex::new(TrayIconConfig::load_or_create()));
-        let state = Arc::new(Mutex::new(TrayState { percent: 100, charging: false, muted: false }));
+        let state = Arc::new(Mutex::new(TrayState { percent: 100, charging: false, muted: false, connected: true }));
         let service = ksni::TrayService::new(MyTray {
             tx: tx.clone(),
             state: state.clone(),
@@ -39,6 +40,10 @@ impl LinuxTray {
         let mut s = self.state.lock().unwrap();
         s.percent = percent;
         s.charging = charging;
+    }
+
+    pub fn update_connected(&self, connected: bool) {
+        self.state.lock().unwrap().connected = connected;
     }
 
     pub fn update_mute(&self, muted: bool) {

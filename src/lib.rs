@@ -13,6 +13,10 @@ pub mod notifications;
 pub mod dialog;
 pub mod hotkey;
 pub mod airoha_hid;
+#[cfg(target_os = "linux")]
+pub mod airoha_race;
+#[cfg(target_os = "linux")]
+pub mod bluetooth;
 
 pub use device::{DeviceCommand, DeviceEvent};
 

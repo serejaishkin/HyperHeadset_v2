@@ -198,10 +198,10 @@ mod platform {
  fn avail(p:&str)->bool{Command::new(p).arg("--version").output().is_ok()} fn wp(a:&[&str])->anyhow::Result<String>{run("wpctl",a)} fn pa(a:&[&str])->anyhow::Result<String>{run("pactl",a)}
  fn vol(w:bool,s:bool)->anyhow::Result<u8>{if w{let o=wp(&["get-volume",if s{"@DEFAULT_AUDIO_SINK@"}else{"@DEFAULT_AUDIO_SOURCE@"}])?;return Ok((o.split_whitespace().next().ok_or_else(||anyhow::anyhow!("wpctl volume not found"))?.parse::<f32>()?*100.0).round().clamp(0.0,100.0)as u8)}let o=if s{pa(&["get-sink-volume","@DEFAULT_SINK@"]) ?}else{pa(&["get-source-volume","@DEFAULT_SOURCE@"]) ?};let t=o.split_whitespace().find(|x|x.ends_with('%')).ok_or_else(||anyhow::anyhow!("volume not found"))?;Ok(t.trim_end_matches('%').parse::<u8>()?.min(100))}
  pub fn get_levels()->anyhow::Result<AudioLevels>{let w=avail("wpctl");Ok(AudioLevels{output:vol(w,true)?,input:vol(w,false)?})}
- pub fn set_output(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SINK@",&format!("{}%",p)])?}else{pa(&["set-sink-volume","@DEFAULT_SINK@",&format!("{}%",p)])?}Ok(())}
- pub fn set_input(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SOURCE@",&format!("{}%",p)])?}else{pa(&["set-source-volume","@DEFAULT_SOURCE@",&format!("{}%",p)])?}Ok(())}
- pub fn toggle_mic_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SOURCE@","toggle"])?}else{pa(&["set-source-mute","@DEFAULT_SOURCE@","toggle"])?}Ok(())}
- pub fn toggle_output_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SINK@","toggle"])?}else{pa(&["set-sink-mute","@DEFAULT_SINK@","toggle"])?}Ok(())}
+ pub fn set_output(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SINK@",&format!("{}%",p)])?;}else{pa(&["set-sink-volume","@DEFAULT_SINK@",&format!("{}%",p)])?;}Ok(())}
+ pub fn set_input(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SOURCE@",&format!("{}%",p)])?;}else{pa(&["set-source-volume","@DEFAULT_SOURCE@",&format!("{}%",p)])?;}Ok(())}
+ pub fn toggle_mic_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SOURCE@","toggle"])?;}else{pa(&["set-source-mute","@DEFAULT_SOURCE@","toggle"])?;}Ok(())}
+ pub fn toggle_output_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SINK@","toggle"])?;}else{pa(&["set-sink-mute","@DEFAULT_SINK@","toggle"])?;}Ok(())}
 
  pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> {
    let mut devices = Vec::new();
@@ -273,6 +273,23 @@ pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
       pa(&["set-default-source", device_id])?;
     }
     Ok(())
+  }
+
+pub fn get_default_output_device() -> anyhow::Result<String> {
+    if avail("wpctl") {
+      Ok(wp(&["inspect", "@DEFAULT_AUDIO_SINK@"])?
+        .lines()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .trim_start_matches("id ")
+        .split(',')
+        .next()
+        .unwrap_or("")
+        .to_string())
+    } else {
+      Ok(pa(&["get-default-sink"])?.trim().to_string())
+    }
   }
 
 pub fn get_default_input_device() -> anyhow::Result<String> {
@@ -361,37 +378,15 @@ mod platform {
  pub fn toggle_mic_mute()->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
  pub fn toggle_output_mute()->anyhow::Result<()>{osa("set volume output volume to (output volume of (get volume settings))")?;Ok(())}
 
- pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
-   let script = format!(r#"
-     tell application "System Events"
-       set currentDevice to audio output device whose id is "{}"
-       set current output volume of currentDevice to output volume of currentDevice
-     end tell
-   "#, device_id);
-   osa(&script)?;
-   Ok(())
+ fn sas(args:&[&str])->anyhow::Result<String>{
+   let o=Command::new("SwitchAudioSource").args(args).output().map_err(|_|anyhow::anyhow!("SwitchAudioSource not found (brew install switchaudio-osx)"))?;
+   if !o.status.success(){return Err(anyhow::anyhow!(String::from_utf8_lossy(&o.stderr).trim().to_string()))}
+   Ok(String::from_utf8_lossy(&o.stdout).trim().to_string())
  }
-
-pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-    let script = format!(r#"
-      tell application "System Events"
-        set currentDevice to audio input device whose id is "{}"
-        set current input volume of currentDevice to input volume of currentDevice
-      end tell
-    "#, device_id);
-    osa(&script)?;
-    Ok(())
-  }
-
-  pub fn get_default_input_device() -> anyhow::Result<String> {
-    let script = r#"
-      tell application "System Events"
-        set dev to (get current input device)
-        return id of dev
-      end tell
-    "#;
-    osa(script)
-  }
+ pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> { sas(&["-t","output","-s",device_id])?; Ok(()) }
+ pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> { sas(&["-t","input","-s",device_id])?; Ok(()) }
+ pub fn get_default_output_device() -> anyhow::Result<String> { sas(&["-t","output","-c"]) }
+ pub fn get_default_input_device() -> anyhow::Result<String> { sas(&["-t","input","-c"]) }
 }
 
 #[cfg(not(any(target_os="windows",target_os="linux",target_os="macos")))]

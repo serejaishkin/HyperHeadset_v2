@@ -52,6 +52,8 @@ windows = { version = "0.58", features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2"
+dbus = "0.9"
+libc = "0.2"
 
 [features]
 default = ["embedded-voice"]

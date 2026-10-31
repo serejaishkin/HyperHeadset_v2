@@ -38,3 +38,22 @@ pub fn apply_eq_bands(bands: &[f32; 10]) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+/// Save a named EasyEffects equalizer preset without activating it.
+pub fn save_preset(name: &str, bands: &[f32; 10]) -> anyhow::Result<()> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| String::from("/root"));
+    let dir = PathBuf::from(home).join(".config/easyeffects/equalizer");
+    fs::create_dir_all(&dir)?;
+    let file = format!("{}.json", name.to_lowercase().replace(' ', "_"));
+    let mut bands_json = String::new();
+    for (i, (freq, gain)) in BAND_FREQUENCIES.iter().zip(bands.iter()).enumerate() {
+        bands_json.push_str(&format!(
+            "    \"band {}\": {{\n      \"enabled\": true,\n      \"frequency\": {:.1},\n      \"gain\": {:.1},\n      \"q\": 1.41\n    }}{}\n",
+            i, freq, gain, if i == 9 { "" } else { "," }
+        ));
+    }
+    let json = format!("{{\n  \"input-gain\": 0.0,\n  \"output-gain\": 0.0,\n  \"bands\": {{\n{}}}\n}}\n", bands_json);
+    fs::write(dir.join(&file), json)?;
+    log::info!("[LinuxEQ] Saved preset {}", file);
+    Ok(())
+}

@@ -32,3 +32,12 @@ pub fn generate_battery_icon_png(
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)?;
     Ok(buf)
 }
+
+/// Convert RGBA8 to the ARGB32 (network byte order: A,R,G,B) layout used by StatusNotifierItem.
+pub fn rgba_to_argb32(rgba: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(rgba.len());
+    for px in rgba.chunks_exact(4) {
+        out.extend_from_slice(&[px[3], px[0], px[1], px[2]]);
+    }
+    out
+}
