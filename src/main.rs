@@ -306,7 +306,8 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
-            if last_wireless_query.elapsed() >= Duration::from_secs(2) {
+            // NGenuity2 (HeadsetCloudIIWirelessDTS) ticks every 30 s; everything else is event-driven.
+            if last_wireless_query.elapsed() >= FULL_REFRESH_INTERVAL {
                 last_wireless_query = std::time::Instant::now();
                 let _ = device.request_wireless_status();
             }
