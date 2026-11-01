@@ -249,7 +249,7 @@ def main():
     print("  1. Скачай AppImage — запусти на Alt Linux")
     print("  2. Для macOS: распакуй zip, замени бинарник в .app/Contents/MacOS/")
     print("     на собранный локально через 'cargo build --release'")
-    print("  3. Или запусти CI: git tag v0.2.12 && git push origin v0.2.10")
+    print("  3. Или запусти CI: git tag v0.2.13 && git push origin v0.2.10")
 
 if __name__ == "__main__":
     main()

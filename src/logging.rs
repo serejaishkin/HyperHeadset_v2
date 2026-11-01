@@ -5,22 +5,28 @@ use crate::config::Config;
 /// Initialise env_logger. The log goes to `hyperx-ngenuity-open.log` next to the exe (falling back
 /// to the temp dir) regardless of the saved `log_to_file` setting; panics are written there too.
 #[cfg(target_os = "windows")]
-fn attach_parent_console() -> Option<std::fs::File> {
+fn attach_parent_console(open_new_window: bool) -> Option<std::fs::File> {
     // GUI-subsystem exes have no console; when started from a terminal, attach to it so that
     // log output (and println!) shows up there.
     #[link(name = "kernel32")]
     extern "system" {
         fn AttachConsole(pid: u32) -> i32;
+        fn AllocConsole() -> i32;
     }
     if unsafe { AttachConsole(0xFFFF_FFFF) } == 0 {
-        return None; // ATTACH_PARENT_PROCESS failed: not started from a console
+        // Not started from a terminal: open our own console window if one was asked for.
+        if !open_new_window || unsafe { AllocConsole() } == 0 {
+            return None;
+        }
     }
     std::fs::OpenOptions::new().write(true).open("CONOUT$").ok()
 }
 
 pub fn init(config: &Config) {
+    #[cfg_attr(not(windows), allow(unused_variables))]
+    let want_window = config.debug_logging || std::env::args().any(|a| a == "--console" || a == "--debug");
     #[cfg(target_os = "windows")]
-    let console = attach_parent_console().map(std::sync::Mutex::new);
+    let console = attach_parent_console(want_window).map(std::sync::Mutex::new);
     #[cfg(not(target_os = "windows"))]
     let console: Option<std::sync::Mutex<std::fs::File>> = None;
     let mut builder = env_logger::Builder::from_default_env();
