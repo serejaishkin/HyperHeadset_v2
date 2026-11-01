@@ -122,6 +122,15 @@ impl MuteHandler {
     }
 
     pub fn do_media_play_pause(&self) {
+        #[cfg(target_os = "windows")]
+        {
+            // Native media key (VK_MEDIA_PLAY_PAUSE) so players/browsers/Spotify all receive it.
+            let r = win_send::send_keys(&[], 0xB3);
+            log::info!("[MuteHandler] MediaPlayPause (native): {:?}", r);
+            if r.is_ok() {
+                return;
+            }
+        }
         let mut enigo = self.enigo.lock();
         let _ = enigo.key(Key::MediaPlayPause, Direction::Click);
         log::info!("[MuteHandler] MediaPlayPause");
