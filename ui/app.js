@@ -644,3 +644,26 @@ async function refreshDiscordStatus() {
 }
 setInterval(refreshDiscordStatus, 2000);
 refreshDiscordStatus();
+
+// Connection code "ID:secret" — move the Discord setup between computers/OSes.
+if ($('discord-code-copy')) {
+  $('discord-code-copy').addEventListener('click', async () => {
+    const id = $('discord-app-id').value.trim(), secret = $('discord-client-secret').value.trim();
+    if (!id || !secret) { toast('Сначала заполните ID приложения и Client Secret'); return; }
+    const code = `${id}:${secret}`;
+    $('discord-code').value = code;
+    $('discord-code').type = 'text';
+    try { await navigator.clipboard.writeText(code); toast('Код скопирован'); } catch (e) { $('discord-code').select(); toast('Выделено — нажмите Ctrl+C'); }
+  });
+}
+if ($('discord-code-apply')) {
+  $('discord-code-apply').addEventListener('click', () => {
+    const m = $('discord-code').value.trim().match(/^(\d{15,25}):(.+)$/);
+    if (!m) { toast('Неверный код: нужен формат ID:секрет'); return; }
+    $('discord-app-id').value = m[1];
+    $('discord-client-secret').value = m[2];
+    $('discord-code').value = '';
+    $('discord-code').type = 'password';
+    toast('Подставлено. Выберите режим «Прямой» и нажмите «Сохранить»');
+  });
+}
