@@ -112,22 +112,34 @@ fn audio_away(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Opti
 }
 
 /// Headset is back: restore headset devices (configured ones, else what was default before).
-fn audio_back(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Option<String>) {
+/// Returns true when finished. The headset's audio endpoint can show up a few seconds after the
+/// dongle reports it online, so a failed switch keeps `away` set and the caller retries.
+fn audio_back(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Option<String>) -> bool {
     if !*away {
-        return;
+        return true;
     }
-    *away = false;
     let a = live_audio_cfg();
-    if let Some(id) = a.headset_output_device.clone().or_else(|| prev_out.take()) {
+    let mut ok = true;
+    if let Some(id) = a.headset_output_device.clone().or_else(|| prev_out.clone()) {
         log::info!("[Audio] Headset back -> output {}", id);
-        let _ = system_audio::set_default_output_device(&id);
+        if let Err(e) = system_audio::set_default_output_device(&id) {
+            log::warn!("[Audio] Restore output failed: {}", e);
+            ok = false;
+        }
     }
-    if let Some(id) = a.headset_input_device.clone().or_else(|| prev_in.take()) {
+    if let Some(id) = a.headset_input_device.clone().or_else(|| prev_in.clone()) {
         log::info!("[Audio] Headset back -> input {}", id);
-        let _ = system_audio::set_default_input_device(&id);
+        if let Err(e) = system_audio::set_default_input_device(&id) {
+            log::warn!("[Audio] Restore input failed: {}", e);
+            ok = false;
+        }
     }
-    *prev_out = None;
-    *prev_in = None;
+    if ok {
+        *away = false;
+        *prev_out = None;
+        *prev_in = None;
+    }
+    ok
 }
 
 fn main() -> anyhow::Result<()> {
@@ -199,6 +211,9 @@ fn main() -> anyhow::Result<()> {
         let mut last_mute_poll = std::time::Instant::now();
         let mut seen_sidetone_events: u32 = 0;
         let mut away = false;
+        let mut offline_since: Option<std::time::Instant> = None;
+        let mut back_attempts: u32 = 0;
+        let mut last_back_try = std::time::Instant::now();
         let mut last_wireless_query = std::time::Instant::now() - Duration::from_secs(10);
 
         loop {
@@ -312,9 +327,22 @@ fn main() -> anyhow::Result<()> {
                 let _ = device.request_wireless_status();
             }
             if !device.headset_online {
-                audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
-            } else if away {
-                audio_back(&mut away, &mut prev_output_device, &mut prev_input_device);
+                back_attempts = 0;
+                // Debounce: status flickers while the headset (re)connects; only treat it as gone
+                // after it has been offline for 5 s, so audio never bounces between devices.
+                let since = *offline_since.get_or_insert_with(std::time::Instant::now);
+                if since.elapsed() >= Duration::from_secs(5) {
+                    audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
+                }
+            } else {
+                offline_since = None;
+                if away && back_attempts < 10 && last_back_try.elapsed() >= Duration::from_secs(2) {
+                    last_back_try = std::time::Instant::now();
+                    back_attempts += 1;
+                    if audio_back(&mut away, &mut prev_output_device, &mut prev_input_device) {
+                        back_attempts = 0;
+                    }
+                }
             }
 
             if device.sidetone_button_events != seen_sidetone_events {
