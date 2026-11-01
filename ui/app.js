@@ -280,6 +280,25 @@ $('sidetone').addEventListener('change', async (e) => {
 });
 
 // Discord keybind capture
+function keyFromEvent(e) {
+  const c = e.code || '';
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^Numpad\d$/.test(c) || /^F\d{1,2}$/.test(c)) return c;
+  const map = {
+    Minus: '-', Equal: '=', Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'",
+    BracketLeft: '[', BracketRight: ']', Backslash: '\\', Backquote: '`', Space: 'Space',
+    Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace',
+    Delete: 'Delete', Insert: 'Insert', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown',
+    ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight',
+    NumpadAdd: 'NumpadAdd', NumpadSubtract: 'NumpadSubtract', NumpadMultiply: 'NumpadMultiply',
+    NumpadDivide: 'NumpadDivide', NumpadDecimal: 'NumpadDecimal',
+    MediaPlayPause: 'MediaPlayPause', MediaTrackNext: 'MediaNextTrack', MediaTrackPrevious: 'MediaPrevTrack',
+    MediaStop: 'MediaStop',
+  };
+  return map[c] || null;
+}
+
 const discordKeybindInput = $('discord-keybind');
 if (discordKeybindInput) {
   discordKeybindInput.addEventListener('focus', () => {
@@ -289,41 +308,11 @@ if (discordKeybindInput) {
 
   discordKeybindInput.addEventListener('keydown', (e) => {
     e.preventDefault();
-    let key = e.key;
-
-    // Handle special keys
-    if (e.key === ' ') key = 'Space';
-    else if (e.key === 'Control') key = 'Ctrl';
-    else if (e.key === 'Alt') key = 'Alt';
-    else if (e.key === 'Shift') key = 'Shift';
-    else if (e.key === 'Meta') key = 'Win';
-    else if (e.key === 'Escape') key = 'Escape';
-    else if (e.key === 'Tab') key = 'Tab';
-    else if (e.key === 'Enter') key = 'Enter';
-    else if (e.key === 'Backspace') key = 'Backspace';
-    else if (e.key === 'Delete') key = 'Delete';
-    else if (e.key === 'Insert') key = 'Insert';
-    else if (e.key === 'Home') key = 'Home';
-    else if (e.key === 'End') key = 'End';
-    else if (e.key === 'PageUp') key = 'PageUp';
-    else if (e.key === 'PageDown') key = 'PageDown';
-    else if (e.key === 'ArrowUp') key = 'ArrowUp';
-    else if (e.key === 'ArrowDown') key = 'ArrowDown';
-    else if (e.key === 'ArrowLeft') key = 'ArrowLeft';
-    else if (e.key === 'ArrowRight') key = 'ArrowRight';
-    else if (e.key === 'F1') key = 'F1';
-    else if (e.key === 'F2') key = 'F2';
-    else if (e.key === 'F3') key = 'F3';
-    else if (e.key === 'F4') key = 'F4';
-    else if (e.key === 'F5') key = 'F5';
-    else if (e.key === 'F6') key = 'F6';
-    else if (e.key === 'F7') key = 'F7';
-    else if (e.key === 'F8') key = 'F8';
-    else if (e.key === 'F9') key = 'F9';
-    else if (e.key === 'F10') key = 'F10';
-    else if (e.key === 'F11') key = 'F11';
-    else if (e.key === 'F12') key = 'F12';
-    else if (e.key.startsWith('F') && e.key.length > 1) key = e.key;
+    // Layout-independent key name from e.code (e.key is wrong on the Russian layout and
+    // with Shift held, e.g. Shift+'-' gives '_').
+    if (['Control', 'Shift', 'Alt', 'Meta', 'AltGraph'].includes(e.key)) return; // wait for the main key
+    const key = keyFromEvent(e);
+    if (!key) return;
 
     // Build modifiers string
     let keyStr = '';

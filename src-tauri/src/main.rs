@@ -8,6 +8,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri_plugin_autostart::MacosLauncher;
 use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, MultiDeviceManager, DeviceCommand};
+use hyperx_ngenuity_open::audio_switch::AUDIO_SWITCH;
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
 use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
 use hyperx_ngenuity_open::input::MuteButtonMode as InputMuteButtonMode;
@@ -88,6 +89,7 @@ fn save_config(config: Config) -> Result<(), String> {
         MuteButtonMode::SmartHold => InputMuteButtonMode::SmartHold,
         MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
+    apply_input_config(&config);
     config.save().map_err(|e| e.to_string())
 }
 #[tauri::command]
@@ -240,23 +242,29 @@ fn show_main_window(app: &tauri::AppHandle) {
     if let Some(compact) = app.get_webview_window("compact") { let _ = compact.hide(); }
     if let Some(window) = app.get_webview_window("main") { let _ = window.show(); let _ = window.unminimize(); let _ = window.set_focus(); }
 }
+fn apply_input_config(config: &Config) {
+    let kb = config.discord.keybind.clone().filter(|k| !k.trim().is_empty()).unwrap_or_else(|| config.keybind.clone());
+    GLOBAL_MUTE_HANDLER.set_keybind(Some(kb.clone()));
+    GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind);
+    GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
+    log::info!("[Main] keybind={:?} discord.mode={:?} mute_button_mode={:?} sidetone_play_pause={}", kb, config.discord.mode, config.input.mute_button_mode, config.device.sidetone_play_pause);
+}
+
+/// State for the UI: `connected` is false while the headset itself is off (dongle still present).
+fn ui_state(m: &MultiDeviceManager) -> DeviceState {
+    let mut s = m.active_state();
+    if let Some(d) = m.devices.get(m.active_index) {
+        s.connected = s.connected && d.headset_online;
+    }
+    s
+}
+
 fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>) {
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
 
-    // Switch to fallback audio devices if configured
-    if let Ok(config) = Config::load() {
-        if config.audio.auto_switch_audio {
-            if let Some(ref output_id) = config.audio.fallback_output_device {
-                log::info!("[Audio] Switching to fallback output: {}", output_id);
-                let _ = hyperx_ngenuity_open::system_audio::set_default_output_device(output_id);
-            }
-            if let Some(ref input_id) = config.audio.fallback_input_device {
-                log::info!("[Audio] Switching to fallback input: {}", input_id);
-                let _ = hyperx_ngenuity_open::system_audio::set_default_input_device(input_id);
-            }
-        }
-    }
+    // Switch to the saved fallback audio devices (restored automatically when the headset returns)
+    AUDIO_SWITCH.lock().force_away();
 
     if let Some(tray) = app.tray_by_id("main") {
         let icon_config = TrayIconConfig::load_or_create();
@@ -272,8 +280,8 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
 }
 
 fn main() {
-    env_logger::init();
     let config = Config::load().unwrap_or_default();
+    hyperx_ngenuity_open::logging::init(&config);
     GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
     if let Some(discord_keybind) = config.discord.keybind.clone() {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));
@@ -285,6 +293,7 @@ fn main() {
         MuteButtonMode::SmartHold => InputMuteButtonMode::SmartHold,
         MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
+    apply_input_config(&config);
     hyperx_ngenuity_open::audio::voice::update_config(config.voice);
     let device_state = Arc::new(Mutex::new(DeviceState::default())); let device_state_clone = device_state.clone();
     let all_devices = Arc::new(Mutex::new(Vec::<DeviceState>::new())); let all_devices_clone = all_devices.clone();
@@ -334,7 +343,9 @@ fn main() {
                     }
                 };
                 let mut was_connected = false; let mut heartbeat_failures = 0u32;
-                let mut last_hid_refresh = Instant::now() - Duration::from_secs(5);
+                let mut last_hid_refresh = Instant::now() - Duration::from_secs(60);
+                let mut last_mute: Option<bool> = None; let mut seen_sidetone_events = 0u32;
+                let mut last_mute_poll = Instant::now(); let mut last_wireless_query = Instant::now() - Duration::from_secs(10);
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 let mut consecutive_refresh_failures = 0u32;
                 loop {
@@ -354,7 +365,7 @@ fn main() {
                         log::info!("[Device] Devices empty or disconnected, calling scan_and_connect...");
                         match manager.scan_and_connect() {
                             Ok(_) => {
-                                was_connected = true; heartbeat_failures = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false;
+                                was_connected = true; heartbeat_failures = 0; last_mute = None; seen_sidetone_events = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false;
                                 let st = manager.active_state();
                                 { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
                                 let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
@@ -374,6 +385,7 @@ fn main() {
                             let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
                             { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st.clone());
                             { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); } let _ = app_handle_device.emit("devices-list", all);
+                            last_mute = Some(st.muted);
                             // Trigger Discord mute on device mute change
                             if prev_muted != st.muted {
                                 // Check if sidetone changed (indicates long press)
@@ -394,15 +406,53 @@ fn main() {
                             }
                         }
                     }
+                    // Event-driven part (like NGenuity): listen for what the headset sends by itself —
+                    // mute button, sidetone button, wireless on/off — between the slow full refreshes.
+                    {
+                        let mut event_changed = false;
+                        let mut muted_now: Option<bool> = None;
+                        let mut side_events = 0u32;
+                        if let Some(dev) = manager.active_device() {
+                            if dev.poll_events(100).unwrap_or(false) { event_changed = true; }
+                            if !dev.mute_events_seen && last_mute_poll.elapsed() >= Duration::from_secs(1) {
+                                last_mute_poll = Instant::now();
+                                if dev.poll_mute().unwrap_or(false) { event_changed = true; }
+                            }
+                            if last_wireless_query.elapsed() >= Duration::from_secs(30) {
+                                last_wireless_query = Instant::now();
+                                if dev.request_wireless_status().unwrap_or(false) { event_changed = true; }
+                            }
+                            muted_now = Some(dev.state.muted);
+                            side_events = dev.sidetone_button_events;
+                            AUDIO_SWITCH.lock().update(dev.headset_online);
+                        }
+                        if let Some(m) = muted_now {
+                            if last_mute != Some(m) {
+                                let first = last_mute.is_none();
+                                last_mute = Some(m);
+                                if !first { GLOBAL_MUTE_HANDLER.on_mute_toggled(m); }
+                            }
+                        }
+                        if side_events < seen_sidetone_events { seen_sidetone_events = side_events; }
+                        if side_events != seen_sidetone_events {
+                            seen_sidetone_events = side_events;
+                            GLOBAL_MUTE_HANDLER.on_sidetone_button();
+                        }
+                        if event_changed {
+                            let st = ui_state(&manager);
+                            { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                            let _ = app_handle_device.emit("device-state", st);
+                        }
+                    }
                     // Adaptive refresh interval based on consecutive failures
                     let refresh_interval = if consecutive_refresh_failures > 3 {
-                        Duration::from_secs(10) // Slower refresh if device is unstable
+                        Duration::from_secs(60) // Slower refresh if device is unstable
                     } else {
-                        Duration::from_secs(5)
+                        Duration::from_secs(30) // same cadence as NGenuity's timer
                     };
 
                     if last_hid_refresh.elapsed() < refresh_interval {
-                        thread::sleep(Duration::from_millis(500));
+                        thread::sleep(Duration::from_millis(30));
                         continue;
                     }
                     last_hid_refresh = Instant::now();
@@ -416,7 +466,7 @@ fn main() {
                     if refresh_ok {
                         heartbeat_failures = 0;
                         consecutive_refresh_failures = 0;
-                        let st = manager.active_state();
+                        let st = ui_state(&manager);
                         let needs_sidetone_restore = if let Ok(config) = Config::load() {
                             st.sidetone != config.device.sidetone
                         } else { false };
@@ -469,7 +519,7 @@ fn main() {
                     }
                     // Update tray icon only if refresh was successful
                     if refresh_ok {
-                        let st = manager.active_state();
+                        let st = ui_state(&manager);
                         if let Some(tray) = app_handle_device.tray_by_id("main") {
                             let icon_config = TrayIconConfig::load_or_create();
                             log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
@@ -482,7 +532,7 @@ fn main() {
                             if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
                                 log::warn!("[Tray] set_icon failed: {}", e);
                             }
-                            let tooltip = if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
+                            let tooltip = if !st.connected { "HyperHeadsetv2\nгарнитура выключена".to_string() } else if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
                     }

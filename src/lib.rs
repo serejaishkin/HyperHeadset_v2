@@ -13,6 +13,8 @@ pub mod notifications;
 pub mod dialog;
 pub mod hotkey;
 pub mod airoha_hid;
+pub mod audio_switch;
+pub mod logging;
 #[cfg(target_os = "linux")]
 pub mod airoha_race;
 #[cfg(target_os = "linux")]
