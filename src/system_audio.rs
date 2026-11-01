@@ -18,6 +18,8 @@ pub fn set_output(percent: u8) -> anyhow::Result<()> { platform::set_output(perc
 pub fn set_input(percent: u8) -> anyhow::Result<()> { platform::set_input(percent.min(100)) }
 pub fn toggle_mic_mute() -> anyhow::Result<()> { platform::toggle_mic_mute() }
 pub fn toggle_output_mute() -> anyhow::Result<()> { platform::toggle_output_mute() }
+/// Set the system microphone mute to an explicit state (so it can follow the headset's own mute).
+pub fn set_mic_mute(muted: bool) -> anyhow::Result<()> { platform::set_mic_mute(muted) }
 pub fn play_pause() -> anyhow::Result<()> { use enigo::{Direction, Enigo, Key, Keyboard, Settings}; let mut e=Enigo::new(&Settings::default()).map_err(|x| anyhow::anyhow!(x.to_string()))?; e.key(Key::MediaPlayPause,Direction::Click).map_err(|x| anyhow::anyhow!(x.to_string())) }
 pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> { platform::get_audio_devices() }
 pub fn get_default_output_device() -> anyhow::Result<String> { platform::get_default_output_device() }
@@ -40,6 +42,7 @@ mod platform {
  pub fn get_levels()->anyhow::Result<AudioLevels>{Ok(AudioLevels{output:read(eRender)?,input:read(eCapture)?})}
  pub fn set_output(p:u8)->anyhow::Result<()>{set(eRender,p)} pub fn set_input(p:u8)->anyhow::Result<()>{set(eCapture,p)}
  pub fn toggle_mic_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eCapture)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
+ pub fn set_mic_mute(m:bool)->anyhow::Result<()>{unsafe{endpoint(eCapture)?.SetMute(m,std::ptr::null())?;}Ok(())}
  pub fn toggle_output_mute()->anyhow::Result<()>{unsafe{let e=endpoint(eRender)?;let m=e.GetMute()?.as_bool();e.SetMute(!m,std::ptr::null())?;}Ok(())}
 
 pub fn get_default_output_device() -> anyhow::Result<String> {
@@ -201,6 +204,7 @@ mod platform {
  pub fn set_output(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SINK@",&format!("{}%",p)])?;}else{pa(&["set-sink-volume","@DEFAULT_SINK@",&format!("{}%",p)])?;}Ok(())}
  pub fn set_input(p:u8)->anyhow::Result<()>{if avail("wpctl"){wp(&["set-volume","@DEFAULT_AUDIO_SOURCE@",&format!("{}%",p)])?;}else{pa(&["set-source-volume","@DEFAULT_SOURCE@",&format!("{}%",p)])?;}Ok(())}
  pub fn toggle_mic_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SOURCE@","toggle"])?;}else{pa(&["set-source-mute","@DEFAULT_SOURCE@","toggle"])?;}Ok(())}
+ pub fn set_mic_mute(m:bool)->anyhow::Result<()>{let v=if m{"1"}else{"0"};if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SOURCE@",v])?;}else{pa(&["set-source-mute","@DEFAULT_SOURCE@",v])?;}Ok(())}
  pub fn toggle_output_mute()->anyhow::Result<()>{if avail("wpctl"){wp(&["set-mute","@DEFAULT_AUDIO_SINK@","toggle"])?;}else{pa(&["set-sink-mute","@DEFAULT_SINK@","toggle"])?;}Ok(())}
 
  pub fn get_audio_devices() -> anyhow::Result<Vec<AudioDevice>> {
@@ -376,6 +380,7 @@ mod platform {
  }
 
  pub fn toggle_mic_mute()->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
+ pub fn set_mic_mute(_m:bool)->anyhow::Result<()>{coreaudio_mute::toggle_input_mute()}
  pub fn toggle_output_mute()->anyhow::Result<()>{osa("set volume output volume to (output volume of (get volume settings))")?;Ok(())}
 
  fn sas(args:&[&str])->anyhow::Result<String>{
@@ -390,4 +395,4 @@ mod platform {
 }
 
 #[cfg(not(any(target_os="windows",target_os="linux",target_os="macos")))]
-mod platform { use super::AudioLevels; pub fn get_levels()->anyhow::Result<AudioLevels>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_output(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_input(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn toggle_mic_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System microphone controls are not implemented for this platform"))} pub fn toggle_output_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System output mute is not implemented for this platform"))} pub fn get_default_output_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn get_default_input_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_output_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_input_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} }
+mod platform { use super::AudioLevels; pub fn get_levels()->anyhow::Result<AudioLevels>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_output(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn set_input(_:u8)->anyhow::Result<()>{Err(anyhow::anyhow!("System audio controls are not implemented for this platform"))} pub fn toggle_mic_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System microphone controls are not implemented for this platform"))} pub fn toggle_output_mute()->anyhow::Result<()>{Err(anyhow::anyhow!("System output mute is not implemented for this platform"))} pub fn set_mic_mute(_:bool)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} pub fn get_default_output_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn get_default_input_device()->anyhow::Result<String>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_output_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} pub fn set_default_input_device(_:&str)->anyhow::Result<()>{Err(anyhow::anyhow!("not implemented"))} }

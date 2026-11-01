@@ -124,7 +124,9 @@ impl MuteHandler {
         log::info!("[MuteHandler] MediaPlayPause");
     }
 
-    pub fn do_mute(&self) {
+    /// `muted`: the headset's new mute state; the system mic is set to match it (not toggled), so the
+    /// two can never drift apart. `None` = toggle (no headset state available).
+    pub fn do_mute(&self, muted: Option<bool>) {
         let mut last = self.last_hotkey.lock();
         if let Some(t) = *last {
             if t.elapsed() < Duration::from_millis(150) {
@@ -147,43 +149,67 @@ impl MuteHandler {
         }
 
         // Also toggle system microphone mute so Discord sees the mic muted directly
-        match system_audio::toggle_mic_mute() {
-            Ok(()) => log::info!("[MuteHandler] System mic mute toggled"),
+        self.sync_system_mic(muted);
+    }
+
+    fn sync_system_mic(&self, muted: Option<bool>) {
+        let r = match muted {
+            Some(m) => system_audio::set_mic_mute(m),
+            None => system_audio::toggle_mic_mute(),
+        };
+        match r {
+            Ok(()) => log::info!("[MuteHandler] System mic mute -> {:?}", muted),
             Err(e) => log::warn!("[MuteHandler] System mic mute failed: {}", e),
         }
     }
 
-    pub fn on_mute_toggled(&self, _muted: bool) {
+    /// Send only the Discord keybind (no debounce / no system mic change).
+    fn send_discord_key(&self) {
+        if !self.keybind_enabled.load(Ordering::Relaxed) {
+            return;
+        }
+        let combo = self.keybind.lock().clone().unwrap_or_else(|| "F20".to_string());
+        let mut enigo = self.enigo.lock();
+        let r = send_combo(&mut enigo, &combo);
+        log::info!("[MuteHandler] Re-sent combo {:?}, result: {:?}", combo, r);
+    }
+
+    pub fn on_mute_toggled(&self, muted: bool) {
+        let _muted = muted;
         match self.get_mode() {
-            MuteButtonMode::Standard => self.do_mute(),
+            MuteButtonMode::Standard => self.do_mute(Some(_muted)),
             MuteButtonMode::MediaPlayPause => self.do_media_play_pause(),
-            MuteButtonMode::SmartDouble => self.handle_smart_double(),
+            MuteButtonMode::SmartDouble => self.handle_smart_double(muted),
             MuteButtonMode::SmartHold => {
                 // SmartHold requires down/up events which Tauri doesn't provide
                 // Fall back to SmartDouble behavior for now
                 log::warn!("[MuteHandler] SmartHold mode requires on_button_down/on_button_up events, using SmartDouble fallback");
-                self.handle_smart_double();
+                self.handle_smart_double(muted);
             }
             MuteButtonMode::HoldPlayPause => {
                 // HoldPlayPause requires down/up events which Tauri doesn't provide
                 // Fall back to SmartDouble behavior for now
                 log::warn!("[MuteHandler] HoldPlayPause mode requires on_button_down/on_button_up events, using SmartDouble fallback");
-                self.handle_smart_double();
+                self.handle_smart_double(muted);
             }
         }
     }
 
-    fn handle_smart_double(&self) {
+    fn handle_smart_double(&self, muted: bool) {
         let now = Instant::now();
         let mut last = self.last_toggle.lock();
         if let Some(t) = *last {
             if now.duration_since(t) < Duration::from_millis(DOUBLE_CLICK_MS) {
+                // Second click of a double click: the headset toggled mute twice, so undo the first
+                // click's Discord key and bring the system mic back in line with the headset.
                 self.do_media_play_pause();
+                self.send_discord_key();
+                self.sync_system_mic(Some(muted));
                 *last = None;
                 return;
             }
         }
-        self.do_mute();
+        self.do_mute(Some(muted));
         *last = Some(now);
     }
 
@@ -206,11 +232,11 @@ impl MuteHandler {
                 if held < Duration::from_millis(LONG_PRESS_MS) {
                     self.do_media_play_pause();
                 } else {
-                    self.do_mute();
+                    self.do_mute(None);
                 }
             } else if mode == MuteButtonMode::HoldPlayPause {
                 if held < Duration::from_millis(LONG_PRESS_MS) {
-                    self.do_mute();
+                    self.do_mute(None);
                 } else {
                     self.do_media_play_pause();
                 }
