@@ -444,7 +444,7 @@ fn main() {
                             if last_mute != Some(m) {
                                 let first = last_mute.is_none();
                                 last_mute = Some(m);
-                                if !first { GLOBAL_MUTE_HANDLER.on_mute_toggled(m); }
+                                if first { GLOBAL_MUTE_HANDLER.sync_discord_mute(m); } else { GLOBAL_MUTE_HANDLER.on_mute_toggled(m); }
                             }
                         }
                         if side_events < seen_sidetone_events { seen_sidetone_events = side_events; }

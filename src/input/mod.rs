@@ -80,6 +80,13 @@ impl MuteHandler {
         }
     }
 
+    /// Make Discord's mute match the headset's mute state (Direct mode only; no-op otherwise).
+    pub fn sync_discord_mute(&self, muted: bool) {
+        if self.discord_direct.load(Ordering::Relaxed) {
+            crate::discord::voice::set_mute(muted);
+        }
+    }
+
     /// Discord mode: only emulate the keybind when the mode is "Keybind".
     pub fn set_keybind_enabled(&self, enabled: bool) {
         self.keybind_enabled.store(enabled, Ordering::Relaxed);
@@ -180,6 +187,11 @@ impl MuteHandler {
     }
 
     fn sync_system_mic(&self, muted: Option<bool>) {
+        // Direct Discord mode only changes Discord's own mute; the system microphone is left alone
+        // so it stays possible to mute just the mic in Discord.
+        if self.discord_direct.load(Ordering::Relaxed) {
+            return;
+        }
         let r = match muted {
             Some(m) => system_audio::set_mic_mute(m),
             None => system_audio::toggle_mic_mute(),

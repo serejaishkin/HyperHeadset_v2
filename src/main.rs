@@ -420,7 +420,9 @@ fn main() -> anyhow::Result<()> {
             if last_mute != Some(device.state.muted) {
                 let first_observation = last_mute.is_none();
                 last_mute = Some(device.state.muted);
-                if !first_observation {
+                if first_observation {
+                    GLOBAL_MUTE_HANDLER.sync_discord_mute(device.state.muted);
+                } else {
                     GLOBAL_MUTE_HANDLER.on_mute_toggled(device.state.muted);
                 }
             }

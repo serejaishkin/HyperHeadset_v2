@@ -354,7 +354,7 @@ fn session(client_id: &str, secret: &str) -> anyhow::Result<()> {
     }
     set_status("подключено");
 
-    let mut applied = 0u64;
+    let mut applied = u64::MAX; // forces one sync of the headset's current mute state on connect
     let mut last_ping = Instant::now();
     loop {
         // Mode switched away from Direct (or credentials removed): drop the connection.
