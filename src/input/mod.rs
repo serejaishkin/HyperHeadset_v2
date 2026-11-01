@@ -188,6 +188,7 @@ impl MuteHandler {
 
     pub fn on_mute_toggled(&self, muted: bool) {
         let _muted = muted;
+        log::info!("[MuteHandler] Mute event: muted={} mode={:?}", muted, self.get_mode());
         match self.get_mode() {
             MuteButtonMode::Standard => self.do_mute(Some(_muted)),
             MuteButtonMode::MediaPlayPause => self.do_media_play_pause(),

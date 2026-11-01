@@ -4,30 +4,39 @@ fn setup_logging(config: &hyperx_ngenuity_open::config::Config) {
     let mut builder = env_logger::Builder::from_default_env();
     builder.filter_level(if config.debug_logging { log::LevelFilter::Debug } else { log::LevelFilter::Info });
 
+    // The Windows build has no console, so the log file is always written (next to the exe,
+    // falling back to the temp dir) regardless of the saved `log_to_file` setting.
     let log_to_console = config.log_to_console;
-    let log_to_file = config.log_to_file;
-
-    if log_to_file {
-        let log_path = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
-            .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
-        let _ = std::fs::OpenOptions::new().create(true).append(true).open(&log_path);
-        builder.format(move |buf, record| {
-            let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
-            if log_to_console {
-                let _ = std::io::Write::write_all(buf, line.as_bytes());
-            }
-            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
-                let _ = std::io::Write::write_all(&mut file, line.as_bytes());
-            }
-            Ok(())
-        });
-    } else if !log_to_console {
-        builder.filter_level(log::LevelFilter::Off);
+    let mut log_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join("hyperx-ngenuity-open.log")))
+        .unwrap_or_else(|| std::path::PathBuf::from("hyperx-ngenuity-open.log"));
+    if std::fs::OpenOptions::new().create(true).append(true).open(&log_path).is_err() {
+        log_path = std::env::temp_dir().join("hyperx-ngenuity-open.log");
     }
+    // Keep the file small: start fresh when it grows past 5 MB.
+    if std::fs::metadata(&log_path).map(|m| m.len() > 5_000_000).unwrap_or(false) {
+        let _ = std::fs::remove_file(&log_path);
+    }
+    let panic_path = log_path.clone();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&panic_path) {
+            let _ = std::io::Write::write_all(&mut f, format!("[PANIC] {}\n", info).as_bytes());
+        }
+    }));
+    builder.format(move |buf, record| {
+        let line = format!("[{}] {} - {}\n", record.level(), record.target(), record.args());
+        if log_to_console {
+            let _ = std::io::Write::write_all(buf, line.as_bytes());
+        }
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+            let _ = std::io::Write::write_all(&mut file, line.as_bytes());
+        }
+        Ok(())
+    });
 
     builder.init();
+    log::info!("[Main] Log started (v{})", env!("CARGO_PKG_VERSION"));
 }
 
 use anyhow::anyhow;
@@ -171,6 +180,7 @@ fn main() -> anyhow::Result<()> {
         config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind,
     );
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
+    log::info!("[Main] mute_button_mode={:?} discord.mode={:?} keybind={:?} sidetone_play_pause={}", config.input.mute_button_mode, config.discord.mode, config.discord.keybind, config.device.sidetone_play_pause);
 
     let apo_available = check_apo_available();
     log::info!("[Main] APO available: {}", apo_available);
