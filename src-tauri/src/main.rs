@@ -282,6 +282,7 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
 fn main() {
     let config = Config::load().unwrap_or_default();
     hyperx_ngenuity_open::logging::init(&config);
+    hyperx_ngenuity_open::single_instance::kill_duplicates();
     GLOBAL_MUTE_HANDLER.set_keybind(Some(config.keybind.clone()));
     if let Some(discord_keybind) = config.discord.keybind.clone() {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(discord_keybind));

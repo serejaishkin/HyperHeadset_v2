@@ -154,6 +154,7 @@ fn audio_back(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Opti
 fn main() -> anyhow::Result<()> {
     let config = Config::load().unwrap_or_default();
     setup_logging(&config);
+    hyperx_ngenuity_open::single_instance::kill_duplicates();
 
     let lang_dir = std::env::current_exe()
         .ok()

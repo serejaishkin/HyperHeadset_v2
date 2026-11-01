@@ -15,6 +15,7 @@ pub mod hotkey;
 pub mod airoha_hid;
 pub mod audio_switch;
 pub mod logging;
+pub mod single_instance;
 #[cfg(target_os = "linux")]
 pub mod airoha_race;
 #[cfg(target_os = "linux")]
