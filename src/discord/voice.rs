@@ -18,8 +18,12 @@ const SCOPES: [&str; 2] = ["rpc", "rpc.voice.write"];
 
 static STARTED: AtomicBool = AtomicBool::new(false);
 static GEN: AtomicU64 = AtomicU64::new(0);
+static DISCORD_GEN: AtomicU64 = AtomicU64::new(0);
+static DISCORD_TAKEN: AtomicU64 = AtomicU64::new(0);
 lazy_static::lazy_static! {
     static ref DESIRED: Mutex<Option<bool>> = Mutex::new(None);
+    static ref DISCORD_MUTE: Mutex<Option<bool>> = Mutex::new(None);
+    static ref LAST_OWN_SET: Mutex<Option<Instant>> = Mutex::new(None);
     static ref STATUS: Mutex<String> = Mutex::new(String::from("выключено"));
 }
 
@@ -37,7 +41,17 @@ fn set_status(s: &str) {
 }
 
 /// Ask Discord to mute/unmute the microphone (applied by the background worker).
+/// Mute change made inside Discord itself since the last call (ignores echoes of our own changes).
+pub fn take_discord_change() -> Option<bool> {
+    let g = DISCORD_GEN.load(Ordering::SeqCst);
+    if g == DISCORD_TAKEN.swap(g, Ordering::SeqCst) {
+        return None;
+    }
+    *DISCORD_MUTE.lock()
+}
+
 pub fn set_mute(muted: bool) {
+    *LAST_OWN_SET.lock() = Some(Instant::now());
     *DESIRED.lock() = Some(muted);
     GEN.fetch_add(1, Ordering::SeqCst);
 }
@@ -353,6 +367,8 @@ fn session(client_id: &str, secret: &str) -> anyhow::Result<()> {
         anyhow::bail!("Discord не принял токен");
     }
     set_status("подключено");
+    // Hear about mute changes made inside Discord (for the optional Discord -> headset sync).
+    conn.send(1, &json!({"cmd": "SUBSCRIBE", "evt": "VOICE_SETTINGS_UPDATE", "nonce": "sub", "args": {}}))?;
 
     let mut applied = u64::MAX; // forces one sync of the headset's current mute state on connect
     let mut last_ping = Instant::now();
@@ -381,6 +397,15 @@ fn session(client_id: &str, secret: &str) -> anyhow::Result<()> {
                 _ => {
                     if v["evt"] == "ERROR" {
                         log::warn!("[DiscordRPC] error: {}", v["data"]);
+                    } else if v["evt"] == "VOICE_SETTINGS_UPDATE" {
+                        if let Some(m) = v["data"]["mute"].as_bool() {
+                            let own = LAST_OWN_SET.lock().map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                            if !own {
+                                log::info!("[DiscordRPC] Discord mute changed in Discord: {}", m);
+                                *DISCORD_MUTE.lock() = Some(m);
+                                DISCORD_GEN.fetch_add(1, Ordering::SeqCst);
+                            }
+                        }
                     }
                 }
             }

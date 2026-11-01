@@ -259,6 +259,7 @@ fn apply_input_config(config: &Config) {
     GLOBAL_MUTE_HANDLER.set_keybind(Some(kb.clone()));
     GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind);
     GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
+    GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] keybind={:?} discord.mode={:?} mute_button_mode={:?} sidetone_play_pause={}", kb, config.discord.mode, config.input.mute_button_mode, config.device.sidetone_play_pause);
 }
@@ -445,6 +446,20 @@ fn main() {
                                 let first = last_mute.is_none();
                                 last_mute = Some(m);
                                 if first { GLOBAL_MUTE_HANDLER.sync_discord_mute(m); } else { GLOBAL_MUTE_HANDLER.on_mute_toggled(m); }
+                            }
+                        }
+                        if GLOBAL_MUTE_HANDLER.discord_to_headset() {
+                            if let Some(dm) = hyperx_ngenuity_open::discord::voice::take_discord_change() {
+                                if let Some(dev) = manager.active_device() {
+                                    if dev.state.muted != dm {
+                                        log::info!("[Discord] Discord mute -> headset mute {}", dm);
+                                        let _ = dev.toggle_mute();
+                                        if dev.state.muted == dm {
+                                            last_mute = Some(dm);
+                                            event_changed = true;
+                                        }
+                                    }
+                                }
                             }
                         }
                         if side_events < seen_sidetone_events { seen_sidetone_events = side_events; }

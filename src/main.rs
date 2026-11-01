@@ -181,6 +181,7 @@ fn main() -> anyhow::Result<()> {
         config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind,
     );
     GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
+    GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] mute_button_mode={:?} discord.mode={:?} keybind={:?} sidetone_play_pause={}", config.input.mute_button_mode, config.discord.mode, config.discord.keybind, config.device.sidetone_play_pause);
 
@@ -353,6 +354,18 @@ fn main() -> anyhow::Result<()> {
                     back_attempts += 1;
                     if audio_back(&mut away, &mut prev_output_device, &mut prev_input_device) {
                         back_attempts = 0;
+                    }
+                }
+            }
+
+            if GLOBAL_MUTE_HANDLER.discord_to_headset() {
+                if let Some(dm) = hyperx_ngenuity_open::discord::voice::take_discord_change() {
+                    if device.state.muted != dm {
+                        log::info!("[Discord] Discord mute -> headset mute {}", dm);
+                        let _ = device.toggle_mute();
+                        if device.state.muted == dm {
+                            last_mute = Some(dm);
+                        }
                     }
                 }
             }

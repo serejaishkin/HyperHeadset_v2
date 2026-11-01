@@ -36,6 +36,7 @@ pub struct MuteHandler {
     last_hotkey: Mutex<Option<Instant>>,
     keybind_enabled: AtomicBool,
     discord_direct: AtomicBool,
+    discord_to_headset: AtomicBool,
     sidetone_play_pause: AtomicBool,
     last_sidetone_btn: Mutex<Option<Instant>>,
 }
@@ -51,6 +52,7 @@ impl MuteHandler {
             last_hotkey: Mutex::new(None),
             keybind_enabled: AtomicBool::new(true),
             discord_direct: AtomicBool::new(false),
+            discord_to_headset: AtomicBool::new(false),
             sidetone_play_pause: AtomicBool::new(false),
             last_sidetone_btn: Mutex::new(None),
         }
@@ -78,6 +80,15 @@ impl MuteHandler {
         if direct {
             crate::discord::voice::ensure_started();
         }
+    }
+
+    /// Optional: let mute changes made in Discord drive the headset's mute (Direct mode).
+    pub fn set_discord_to_headset(&self, enabled: bool) {
+        self.discord_to_headset.store(enabled, Ordering::Relaxed);
+    }
+
+    pub fn discord_to_headset(&self) -> bool {
+        self.discord_direct.load(Ordering::Relaxed) && self.discord_to_headset.load(Ordering::Relaxed)
     }
 
     /// Make Discord's mute match the headset's mute state (Direct mode only; no-op otherwise).

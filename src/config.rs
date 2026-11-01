@@ -83,6 +83,9 @@ pub enum DiscordMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
     pub mode: DiscordMode,
+    /// Direct mode: when Discord's mic mute changes, make the headset's mute follow it.
+    #[serde(default)]
+    pub sync_from_discord: bool,
     pub keybind: Option<String>,
     pub direct: DirectDiscordConfig,
 }
@@ -141,6 +144,7 @@ impl Default for Config {
             },
             discord: DiscordConfig {
                 mode: DiscordMode::Keybind,
+                sync_from_discord: false,
                 keybind: Some("F20".to_string()),
                 direct: DirectDiscordConfig {
                     app_id: "1234567890123456789".to_string(),

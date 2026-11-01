@@ -233,6 +233,7 @@ impl eframe::App for HyperXApp {
             self.config.discord.mode == crate::config::DiscordMode::Keybind,
         );
         crate::input::GLOBAL_MUTE_HANDLER.set_discord_direct(self.config.discord.mode == crate::config::DiscordMode::Direct);
+        crate::input::GLOBAL_MUTE_HANDLER.set_discord_to_headset(self.config.discord.sync_from_discord);
         crate::input::GLOBAL_MUTE_HANDLER
             .set_sidetone_play_pause(self.config.device.sidetone_play_pause);
 
