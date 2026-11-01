@@ -35,6 +35,7 @@ pub struct MuteHandler {
     keybind: Mutex<Option<String>>,
     last_hotkey: Mutex<Option<Instant>>,
     keybind_enabled: AtomicBool,
+    discord_direct: AtomicBool,
     sidetone_play_pause: AtomicBool,
     last_sidetone_btn: Mutex<Option<Instant>>,
 }
@@ -49,6 +50,7 @@ impl MuteHandler {
             keybind: Mutex::new(None),
             last_hotkey: Mutex::new(None),
             keybind_enabled: AtomicBool::new(true),
+            discord_direct: AtomicBool::new(false),
             sidetone_play_pause: AtomicBool::new(false),
             last_sidetone_btn: Mutex::new(None),
         }
@@ -67,6 +69,14 @@ impl MuteHandler {
         if *cur != keybind {
             log::info!("[MuteHandler] Keybind set to: {:?}", keybind);
             *cur = keybind;
+        }
+    }
+
+    /// Discord "Direct" mode: set Discord's mic mute over its local IPC instead of sending a key.
+    pub fn set_discord_direct(&self, direct: bool) {
+        self.discord_direct.store(direct, Ordering::Relaxed);
+        if direct {
+            crate::discord::voice::ensure_started();
         }
     }
 
@@ -150,7 +160,12 @@ impl MuteHandler {
         drop(last);
 
         let keybind = self.keybind.lock().clone();
-        if self.keybind_enabled.load(Ordering::Relaxed) {
+        if self.discord_direct.load(Ordering::Relaxed) {
+            if let Some(m) = muted {
+                log::info!("[MuteHandler] Discord direct mute -> {}", m);
+                crate::discord::voice::set_mute(m);
+            }
+        } else if self.keybind_enabled.load(Ordering::Relaxed) {
             let mut enigo = self.enigo.lock();
             log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
             let combo = keybind.as_deref().unwrap_or("F20");
@@ -175,8 +190,12 @@ impl MuteHandler {
         }
     }
 
-    /// Send only the Discord keybind (no debounce / no system mic change).
-    fn send_discord_key(&self) {
+    /// Re-sync Discord after a double click (no debounce / no system mic change).
+    fn send_discord_key(&self, muted: bool) {
+        if self.discord_direct.load(Ordering::Relaxed) {
+            crate::discord::voice::set_mute(muted);
+            return;
+        }
         if !self.keybind_enabled.load(Ordering::Relaxed) {
             return;
         }
@@ -216,7 +235,7 @@ impl MuteHandler {
                 // Second click of a double click: the headset toggled mute twice, so undo the first
                 // click's Discord key and bring the system mic back in line with the headset.
                 self.do_media_play_pause();
-                self.send_discord_key();
+                self.send_discord_key(muted);
                 self.sync_system_mic(Some(muted));
                 *last = None;
                 return;

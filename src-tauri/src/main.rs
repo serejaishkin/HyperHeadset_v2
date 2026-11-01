@@ -219,6 +219,18 @@ fn set_mute_button_mode(mode: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_discord_status() -> String { hyperx_ngenuity_open::discord::voice::status() }
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) { return Err("bad url".into()); }
+    #[cfg(windows)]
+    { std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", &url]).spawn().map(|_| ()).map_err(|e| e.to_string()) }
+    #[cfg(target_os = "macos")]
+    { std::process::Command::new("open").arg(&url).spawn().map(|_| ()).map_err(|e| e.to_string()) }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    { std::process::Command::new("xdg-open").arg(&url).spawn().map(|_| ()).map_err(|e| e.to_string()) }
+}
+#[tauri::command]
 fn get_current_keybind() -> Option<String> {
     GLOBAL_MUTE_HANDLER.get_keybind()
 }
@@ -246,6 +258,7 @@ fn apply_input_config(config: &Config) {
     let kb = config.discord.keybind.clone().filter(|k| !k.trim().is_empty()).unwrap_or_else(|| config.keybind.clone());
     GLOBAL_MUTE_HANDLER.set_keybind(Some(kb.clone()));
     GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind);
+    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] keybind={:?} discord.mode={:?} mute_button_mode={:?} sidetone_play_pause={}", kb, config.discord.mode, config.input.mute_button_mode, config.device.sidetone_play_pause);
 }
@@ -542,7 +555,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, get_discord_status, open_url, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

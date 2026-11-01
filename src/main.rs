@@ -180,6 +180,7 @@ fn main() -> anyhow::Result<()> {
     GLOBAL_MUTE_HANDLER.set_keybind_enabled(
         config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind,
     );
+    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] mute_button_mode={:?} discord.mode={:?} keybind={:?} sidetone_play_pause={}", config.input.mute_button_mode, config.discord.mode, config.discord.keybind, config.device.sidetone_play_pause);
 

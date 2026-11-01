@@ -232,6 +232,7 @@ impl eframe::App for HyperXApp {
         crate::input::GLOBAL_MUTE_HANDLER.set_keybind_enabled(
             self.config.discord.mode == crate::config::DiscordMode::Keybind,
         );
+        crate::input::GLOBAL_MUTE_HANDLER.set_discord_direct(self.config.discord.mode == crate::config::DiscordMode::Direct);
         crate::input::GLOBAL_MUTE_HANDLER
             .set_sidetone_play_pause(self.config.device.sidetone_play_pause);
 

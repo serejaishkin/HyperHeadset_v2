@@ -1,4 +1,5 @@
 pub mod rpc_ws;
+pub mod voice;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

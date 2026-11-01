@@ -90,6 +90,9 @@ pub struct DiscordConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectDiscordConfig {
     pub app_id: String,
+    /// OAuth client secret of the user's Discord application (needed for the RPC authorization).
+    #[serde(default)]
+    pub client_secret: String,
     pub show_battery: bool,
     pub show_mute_status: bool,
 }
@@ -141,6 +144,7 @@ impl Default for Config {
                 keybind: Some("F20".to_string()),
                 direct: DirectDiscordConfig {
                     app_id: "1234567890123456789".to_string(),
+                    client_secret: String::new(),
                     show_battery: false,
                     show_mute_status: false,
                 },
