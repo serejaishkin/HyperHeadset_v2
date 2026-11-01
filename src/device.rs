@@ -1000,7 +1000,13 @@ impl MultiDeviceManager {
 
             log::info!("[HID] scan: {} candidates, {} connected", candidates.len(), new_devices.len());
             if new_devices.is_empty() {
-                anyhow::bail!("No HyperX device accessible (NGENUITY may be holding it)");
+                // No Cloud II DTS-family dongle: try the other headset families.
+                let mut hx = HyperXDevice::new();
+                if candidates.is_empty() && hx.connect_legacy().is_ok() {
+                    new_devices.push(hx);
+                } else {
+                    anyhow::bail!("No HyperX device accessible (NGENUITY may be holding it)");
+                }
             }
             self.devices = new_devices;
         }
@@ -1047,6 +1053,12 @@ impl MultiDeviceManager {
             }
 
             log::info!("[HID] scan: {} candidates found, {} connected", candidates_seen, new_devices.len());
+            if new_devices.is_empty() && candidates_seen == 0 {
+                let mut hx = HyperXDevice::new();
+                if hx.connect_legacy().is_ok() {
+                    new_devices.push(hx);
+                }
+            }
             self.devices = new_devices;
         }
 
