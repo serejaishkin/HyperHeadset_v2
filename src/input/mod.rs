@@ -7,6 +7,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::system_audio;
 
+#[cfg(target_os = "windows")]
+mod win_send;
+
 const DOUBLE_CLICK_MS: u64 = 400;
 const LONG_PRESS_MS: u64 = 500;
 
@@ -399,6 +402,33 @@ fn parse_part(token: &str) -> Option<Part> {
 /// Press `modifiers` (in order), click the main key, release modifiers in reverse order.
 /// Accepts either a single key ("F20") or a combo ("Ctrl+Shift+M").
 fn send_combo(enigo: &mut Enigo, combo: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Native SendInput with scan codes; falls through to enigo only for unknown tokens.
+        let mut mods: Vec<u16> = Vec::new();
+        let mut main: Option<u16> = None;
+        let mut all_known = true;
+        for token in split_combo(combo) {
+            match win_send::vk_for(&token) {
+                Some((vk, true)) => {
+                    if !mods.contains(&vk) {
+                        mods.push(vk)
+                    }
+                }
+                Some((vk, false)) => main = Some(vk),
+                None => all_known = false,
+            }
+        }
+        if all_known {
+            if main.is_none() {
+                main = mods.pop();
+            }
+            if let Some(main) = main {
+                return win_send::send_keys(&mods, main);
+            }
+        }
+        log::warn!("[MuteHandler] Falling back to enigo for keybind '{}'", combo);
+    }
     let mut modifiers: Vec<Key> = Vec::new();
     let mut main: Option<Key> = None;
 
