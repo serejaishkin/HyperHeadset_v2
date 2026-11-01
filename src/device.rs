@@ -556,7 +556,7 @@ impl HyperXDevice {
                     let ours = self
                         .last_sidetone_set
                         .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
-                    if !ours && on != self.state.sidetone {
+                    if !ours {
                         self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
                         log::info!("[HID] Sidetone event from headset: on={}", on);
                     }
@@ -611,11 +611,11 @@ impl HyperXDevice {
         if let Some(events) = events {
             for ev in events {
                 match ev {
-                    E::SideToneOn(on) => {
+                    E::SideToneOn(_) => {
                         let ours = self
                             .last_sidetone_set
                             .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
-                        if !ours && on != self.state.sidetone {
+                        if !ours {
                             self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
                             log::info!("[HID] Sidetone event from headset (legacy)");
                         }
