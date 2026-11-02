@@ -343,6 +343,10 @@ fn main() -> anyhow::Result<()> {
                 next_wireless_query = std::time::Instant::now() + Duration::from_secs(secs as u64);
                 let _ = device.request_wireless_status();
             }
+            if device.headset_online && device.offline_readings > 0 {
+                let soon = std::time::Instant::now() + Duration::from_secs(1);
+                if next_wireless_query > soon { next_wireless_query = soon; }
+            }
             if !device.headset_online {
                 back_attempts = 0;
                 // Debounce: status flickers while the headset (re)connects; only treat it as gone

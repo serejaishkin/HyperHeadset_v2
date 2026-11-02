@@ -446,6 +446,11 @@ fn main() {
                                 if d.request_wireless_status().unwrap_or(false) && i == active { event_changed = true; }
                             }
                         }
+                        // First odd status reading: re-ask in 1 s to confirm quickly instead of waiting a full poll.
+                        if manager.devices.get(manager.active_index).map_or(false, |d| d.headset_online && d.offline_readings > 0) {
+                            let soon = Instant::now() + Duration::from_secs(1);
+                            if next_wireless_query > soon { next_wireless_query = soon; }
+                        }
                         // The active headset went off/away while another one is on: follow it.
                         let active_ok = manager.devices.get(manager.active_index).map_or(false, |d| d.headset_online && d.state.connected);
                         if !active_ok {

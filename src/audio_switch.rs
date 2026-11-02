@@ -22,6 +22,11 @@ pub struct AudioSwitch {
     offline_since: Option<Instant>,
     back_attempts: u32,
     last_back_try: Option<Instant>,
+    /// Defaults seen while the headset was on (Windows may already have moved them when it left).
+    last_online_out: Option<String>,
+    last_online_in: Option<String>,
+    last_remember: Option<Instant>,
+    logged_off: bool,
 }
 
 lazy_static::lazy_static! {
@@ -34,12 +39,29 @@ impl AudioSwitch {
     pub fn update(&mut self, online: bool) {
         if !online {
             self.back_attempts = 0;
+            if !self.logged_off && !self.away {
+                self.logged_off = true;
+                log::info!("[Audio] Headset offline seen, switching in {} s", DEBOUNCE_SECS.load(Ordering::Relaxed));
+            }
             let since = *self.offline_since.get_or_insert_with(Instant::now);
             if since.elapsed() >= Duration::from_secs(DEBOUNCE_SECS.load(Ordering::Relaxed) as u64) {
                 self.go_away();
             }
         } else {
             self.offline_since = None;
+            self.logged_off = false;
+            if !self.away && self.last_remember.map_or(true, |t| t.elapsed() >= Duration::from_secs(30)) {
+                self.last_remember = Some(Instant::now());
+                let a = Config::load().unwrap_or_default().audio;
+                if a.auto_switch_audio {
+                    if let Ok(o) = system_audio::get_default_output_device() {
+                        if Some(&o) != a.fallback_output_device.as_ref() { self.last_online_out = Some(o); }
+                    }
+                    if let Ok(i) = system_audio::get_default_input_device() {
+                        if Some(&i) != a.fallback_input_device.as_ref() { self.last_online_in = Some(i); }
+                    }
+                }
+            }
             if self.away
                 && self.back_attempts < 10
                 && self.last_back_try.map_or(true, |t| t.elapsed() >= Duration::from_secs(2))
@@ -64,6 +86,7 @@ impl AudioSwitch {
         }
         let a = Config::load().unwrap_or_default().audio;
         if !a.auto_switch_audio {
+            log::warn!("[Audio] Headset is off but 'auto switch audio' is disabled in settings");
             return;
         }
         if a.fallback_output_device.is_none() && a.fallback_input_device.is_none() {
@@ -72,7 +95,7 @@ impl AudioSwitch {
         }
         if let Some(ref id) = a.fallback_output_device {
             if self.prev_out.is_none() {
-                self.prev_out = system_audio::get_default_output_device().ok().filter(|c| c != id);
+                self.prev_out = system_audio::get_default_output_device().ok().filter(|c| c != id).or_else(|| self.last_online_out.clone());
             }
             if system_audio::get_default_output_device().map_or(false, |c| &c == id) {
                 log::info!("[Audio] Fallback output already default, not touching it");
@@ -82,7 +105,7 @@ impl AudioSwitch {
         }
         if let Some(ref id) = a.fallback_input_device {
             if self.prev_in.is_none() {
-                self.prev_in = system_audio::get_default_input_device().ok().filter(|c| c != id);
+                self.prev_in = system_audio::get_default_input_device().ok().filter(|c| c != id).or_else(|| self.last_online_in.clone());
             }
             if system_audio::get_default_input_device().map_or(false, |c| &c == id) {
                 log::info!("[Audio] Fallback input already default, not touching it");
