@@ -2941,7 +2941,7 @@ dependencies = [
 
 [[package]]
 name = "hyperx-ngenuity-open"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "anyhow",
  "clap 4.6.6",
@@ -2977,7 +2977,7 @@ dependencies = [
 
 [[package]]
 name = "hyperx-ngenuity-open-tauri"
-version = "0.2.21"
+version = "0.2.22"
 dependencies = [
  "anyhow",
  "env_logger",

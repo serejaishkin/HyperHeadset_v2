@@ -4,7 +4,7 @@ use super::config::TrayIconConfig;
 
 /// Seven-segment masks, bit order: a(top) b(upper right) c(lower right) d(bottom) e(lower left)
 /// f(upper left) g(middle).
-const SEGMENTS: [u8; 10] = [
+const SEGMENTS: [u8; 11] = [
     0b0111111, // 0: a b c d e f
     0b0000110, // 1: b c
     0b1011011, // 2: a b d e g
@@ -15,6 +15,7 @@ const SEGMENTS: [u8; 10] = [
     0b0000111, // 7: a b c
     0b1111111, // 8: all
     0b1101111, // 9: a b c d f g
+    0b1000000, // 10: dash (offline)
 ];
 
 fn fill(img: &mut RgbaImage, x: i32, y: i32, w: i32, h: i32, color: Rgba<u8>) {
@@ -48,19 +49,15 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     let size = config.size;
     let mut img = RgbaImage::new(size, size);
 
-    let scheme = if charging {
-        &config.colors.charging
-    } else if percent > 50 {
-        &config.colors.high
-    } else if percent > 20 {
-        &config.colors.medium
-    } else {
-        &config.colors.low
-    };
+    let scheme = config.scheme_for(percent, charging);
     let fg = Rgba(scheme.fg);
     let outline = Rgba(scheme.outline);
 
-    let chars: Vec<usize> = percent.min(100).to_string().chars().map(|c| c.to_digit(10).unwrap_or(0) as usize).collect();
+    let chars: Vec<usize> = if percent == super::config::OFFLINE_PERCENT {
+        vec![10, 10]
+    } else {
+        percent.min(100).to_string().chars().map(|c| c.to_digit(10).unwrap_or(0) as usize).collect()
+    };
     let n = chars.len() as i32;
     let s = size as i32;
 

@@ -18,7 +18,28 @@ pub struct TrayIconConfig {
     pub outline_width: i32,
     pub border_width: u32,
     pub gap_between_digits: u32,
+    /// Charge above this percent uses the "high" colors.
+    #[serde(default = "default_high_threshold")]
+    pub high_threshold: u8,
+    /// Charge above this percent (and not above high) uses "medium"; at or below it uses "low".
+    #[serde(default = "default_low_threshold")]
+    pub low_threshold: u8,
     pub colors: TrayIconColors,
+}
+
+fn default_high_threshold() -> u8 { 50 }
+fn default_low_threshold() -> u8 { 20 }
+
+/// Pass this as the percent to draw the "headset off / not connected" icon ("--").
+pub const OFFLINE_PERCENT: u8 = 255;
+
+fn default_offline_colors() -> IconColors {
+    IconColors {
+        bg: [90, 90, 90, 255],
+        fg: [210, 210, 210, 255],
+        outline: [20, 20, 20, 255],
+        border: [60, 60, 60, 255],
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -27,6 +48,8 @@ pub struct TrayIconColors {
     pub high: IconColors,
     pub medium: IconColors,
     pub low: IconColors,
+    #[serde(default = "default_offline_colors")]
+    pub offline: IconColors,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -46,6 +69,8 @@ impl Default for TrayIconConfig {
             outline_width: 2,
             border_width: 0,
             gap_between_digits: 4,
+            high_threshold: 50,
+            low_threshold: 20,
             colors: TrayIconColors {
                 charging: IconColors {
                     bg: [255, 200, 0, 255],
@@ -71,6 +96,7 @@ impl Default for TrayIconConfig {
                     outline: [10, 10, 10, 255],
                     border: [150, 20, 20, 255],
                 },
+                offline: default_offline_colors(),
             },
         }
     }
@@ -100,7 +126,24 @@ impl TrayIconConfig {
         c
     }
 
+    /// Color scheme for a status: offline, charging, or by charge level using the thresholds.
+    pub fn scheme_for(&self, percent: u8, charging: bool) -> &IconColors {
+        if percent == OFFLINE_PERCENT {
+            &self.colors.offline
+        } else if charging {
+            &self.colors.charging
+        } else if percent > self.high_threshold {
+            &self.colors.high
+        } else if percent > self.low_threshold {
+            &self.colors.medium
+        } else {
+            &self.colors.low
+        }
+    }
+
     pub fn sanitize(&mut self) {
+        self.high_threshold = self.high_threshold.clamp(1, 100);
+        self.low_threshold = self.low_threshold.min(self.high_threshold.saturating_sub(1));
         self.size = self.size.clamp(16, 512);
         self.font_scale = self.font_scale.clamp(1, 20);
         self.outline_width = self.outline_width.clamp(0, 10);
@@ -111,6 +154,7 @@ impl TrayIconConfig {
             &mut self.colors.high,
             &mut self.colors.medium,
             &mut self.colors.low,
+            &mut self.colors.offline,
         ];
         for c in all_colors {
             for arr in [&mut c.bg, &mut c.fg, &mut c.outline, &mut c.border] {

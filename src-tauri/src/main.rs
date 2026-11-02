@@ -10,7 +10,7 @@ use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::audio_switch::AUDIO_SWITCH;
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
-use hyperx_ngenuity_open::tray::icon::{TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
+use hyperx_ngenuity_open::tray::icon::{OFFLINE_PERCENT, TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
 use hyperx_ngenuity_open::input::MuteButtonMode as InputMuteButtonMode;
 use hyperx_ngenuity_open::config::MuteButtonMode;
 
@@ -288,8 +288,8 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
     if let Some(tray) = app.tray_by_id("main") {
         let icon_config = TrayIconConfig::load_or_create();
         let (rgba, w, h) = match icon_config.mode {
-            TrayIconMode::Big => generate_big_digits_rgba(0, false, &icon_config.for_tray()),
-            TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config.for_tray(), 0, false),
+            TrayIconMode::Big => generate_big_digits_rgba(OFFLINE_PERCENT, false, &icon_config.for_tray()),
+            TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config.for_tray(), OFFLINE_PERCENT, false),
         };
         if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             log::warn!("[Tray] disconnected set_icon failed: {}", e);

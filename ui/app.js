@@ -125,21 +125,41 @@ function hexToRgba(hex, alpha = 255) { const h = String(hex || '#000000').replac
 function setColor(id, value) { const el = $(id); if (el) el.value = rgbaToHex(value); }
 function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', fallback?.[3] ?? 255); }
 
+const TRAY_STATES = ['charging','high','medium','low','offline'];
+const OFFLINE_DEFAULT = { bg:[90,90,90,255], fg:[210,210,210,255], outline:[20,20,20,255], border:[60,60,60,255] };
+function updateTrayLabels() {
+  const h = Number($('tray-high-th').value) || 50, l = Number($('tray-low-th').value);
+  const lo = Number.isFinite(l) ? l : 20;
+  const names = {
+    charging: 'Зарядка (подключён кабель)',
+    high: `Высокий (> ${h}%)`,
+    medium: `Средний (${lo + 1}–${h}%)`,
+    low: `Низкий (0–${lo}%)`,
+    offline: 'Гарнитура выключена / нет связи'
+  };
+  for (const n of TRAY_STATES) { const e = $('tray-lbl-' + n); if (e) e.textContent = names[n]; }
+}
 function trayToUi(t) {
+  if (t.colors && !t.colors.offline) t.colors.offline = structuredClone(OFFLINE_DEFAULT);
+  $('tray-high-th').value = t.high_threshold ?? 50; $('tray-low-th').value = t.low_threshold ?? 20;
+  updateTrayLabels();
   trayConfig = structuredClone(t);
   $('tray-mode').value = t.mode || 'big';
   const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'big' ? 'block' : '';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
-  for (const name of ['charging','high','medium','low']) {
+  for (const name of TRAY_STATES) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);
   }
 }
 function uiToTray() {
   const t = structuredClone(trayConfig || {});
+  t.high_threshold = Math.min(100, Math.max(1, Number($('tray-high-th').value) || 50));
+  t.low_threshold = Math.min(t.high_threshold - 1, Math.max(0, Number($('tray-low-th').value) || 0));
+  if (t.colors && !t.colors.offline) t.colors.offline = structuredClone(OFFLINE_DEFAULT);
   t.mode = $('tray-mode').value || 'big';
   t.size = Number($('tray-size').value) || 256; t.font_scale = Number($('tray-font-scale').value) || 8; t.outline_width = Number($('tray-outline').value) || 0; t.border_width = Number($('tray-border').value) || 0; t.gap_between_digits = Number($('tray-gap').value) || 0;
   if (!t.colors) return t;
-  for (const name of ['charging','high','medium','low']) {
+  for (const name of TRAY_STATES) {
     t.colors[name].bg = colorValue(`tray-${name}-bg`, t.colors[name].bg); t.colors[name].fg = colorValue(`tray-${name}-fg`, t.colors[name].fg); t.colors[name].outline = colorValue(`tray-${name}-outline`, t.colors[name].outline); t.colors[name].border = colorValue(`tray-${name}-border`, t.colors[name].border);
   }
   return t;
@@ -156,6 +176,7 @@ const DIGITS = [
   [0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000],
   [0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110],
   [0b01110,0b10001,0b10001,0b01111,0b00001,0b10001,0b01110],
+  [0,0,0,0b11111,0,0,0],
 ];
 
 function rgbaToRgbStr(a) { return `rgb(${a[0]},${a[1]},${a[2]})`; }
@@ -165,11 +186,21 @@ function renderTrayPreview() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const t = uiToTray();
-  const pct = currentBattery;
-  let schemeKey = pct <= 20 ? 'low' : pct <= 50 ? 'medium' : 'high';
+  updateTrayLabels();
+  const sel = $('tray-preview-status') ? $('tray-preview-status').value : 'auto';
+  let pct = currentBattery;
+  let schemeKey = pct <= t.low_threshold ? 'low' : pct <= t.high_threshold ? 'medium' : 'high';
   if (currentCharging) schemeKey = 'charging';
+  if (sel !== 'auto') {
+    schemeKey = sel;
+    if (sel === 'high') pct = Math.min(100, t.high_threshold + 1);
+    else if (sel === 'medium') pct = Math.min(t.high_threshold, t.low_threshold + 1);
+    else if (sel === 'low') pct = t.low_threshold;
+    else if (sel === 'charging' && pct > 99) pct = 80;
+  }
   const scheme = t.colors?.[schemeKey] || t.colors?.high || { bg:[0,180,80,255], fg:[255,255,255,255], outline:[10,10,10,255], border:[0,110,50,255] };
-  const percent = pct;
+  const offline = schemeKey === 'offline';
+  const percent = offline ? '--' : pct;
   const sz = 64;
   canvas.width = sz; canvas.height = sz;
   ctx.clearRect(0, 0, sz, sz);
@@ -189,7 +220,7 @@ function renderTrayPreview() {
     const opx = Math.max(1, Math.floor(scale / 3));
 
     for (let ci = 0; ci < n; ci++) {
-      const d = parseInt(text[ci]);
+      const d = text[ci] === '-' ? 10 : parseInt(text[ci]);
       const digit = DIGITS[d];
       const ox = sx + ci * (dw + gap);
       for (let row = 0; row < 7; row++) {
@@ -227,7 +258,7 @@ function renderTrayPreview() {
     const sy = Math.floor((sz - dh) / 2);
 
     for (let ci = 0; ci < n; ci++) {
-      const d = parseInt(text[ci]);
+      const d = text[ci] === '-' ? 10 : parseInt(text[ci]);
       const digit = DIGITS[d];
       const ox = sx + ci * (dw + gap);
       if (opx > 0) {
@@ -258,7 +289,8 @@ function renderTrayPreview() {
  'tray-charging-bg','tray-charging-fg','tray-charging-outline','tray-charging-border',
  'tray-high-bg','tray-high-fg','tray-high-outline','tray-high-border',
  'tray-medium-bg','tray-medium-fg','tray-medium-outline','tray-medium-border',
- 'tray-low-bg','tray-low-fg','tray-low-outline','tray-low-border'].forEach(id => {
+ 'tray-low-bg','tray-low-fg','tray-low-outline','tray-low-border',
+ 'tray-offline-bg','tray-offline-fg','tray-offline-outline','tray-offline-border','tray-high-th','tray-low-th','tray-preview-status'].forEach(id => {
   const el = $(id); if (el) { el.addEventListener('input', renderTrayPreview); el.addEventListener('change', renderTrayPreview); }
 });
 

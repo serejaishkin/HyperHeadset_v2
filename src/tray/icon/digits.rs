@@ -2,7 +2,7 @@ use image::{RgbaImage, Rgba};
 
 use super::config::TrayIconConfig;
 
-const DIGITS: [[u8; 7]; 10] = [
+const DIGITS: [[u8; 7]; 11] = [
     [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110],
     [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
     [0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111],
@@ -13,6 +13,7 @@ const DIGITS: [[u8; 7]; 10] = [
     [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000],
     [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],
     [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b10001, 0b01110],
+    [0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000],
 ];
 
 pub fn generate_battery_icon_rgba(
@@ -23,15 +24,7 @@ pub fn generate_battery_icon_rgba(
     let size = config.size;
     let mut img = RgbaImage::new(size, size);
 
-    let scheme = if charging {
-        &config.colors.charging
-    } else if percent > 50 {
-        &config.colors.high
-    } else if percent > 20 {
-        &config.colors.medium
-    } else {
-        &config.colors.low
-    };
+    let scheme = config.scheme_for(percent, charging);
 
     let bg = Rgba(scheme.bg);
     let fg = Rgba(scheme.fg);
@@ -57,7 +50,7 @@ pub fn generate_battery_icon_rgba(
     let digit_h = 7 * scale;
     let gap = config.gap_between_digits;
 
-    let text = format!("{}", percent);
+    let text = if percent == super::config::OFFLINE_PERCENT { "--".to_string() } else { format!("{}", percent) };
     let chars: Vec<char> = text.chars().collect();
     let total_w = chars.len() as u32 * digit_w + chars.len().saturating_sub(1) as u32 * gap;
     let start_x = size.saturating_sub(total_w) / 2;
@@ -65,7 +58,7 @@ pub fn generate_battery_icon_rgba(
 
     if outline_px > 0 {
         for (idx, ch) in chars.iter().enumerate() {
-            let d = ch.to_digit(10).unwrap_or(0) as usize;
+            let d = if *ch == '-' { 10 } else { ch.to_digit(10).unwrap_or(0) as usize };
             let digit = DIGITS[d];
             let off_x = start_x + idx as u32 * (digit_w + gap);
             for row in 0..7u32 {
@@ -88,7 +81,7 @@ pub fn generate_battery_icon_rgba(
     }
 
     for (idx, ch) in chars.iter().enumerate() {
-        let d = ch.to_digit(10).unwrap_or(0) as usize;
+        let d = if *ch == '-' { 10 } else { ch.to_digit(10).unwrap_or(0) as usize };
         let digit = DIGITS[d];
         let off_x = start_x + idx as u32 * (digit_w + gap);
         for row in 0..7u32 {

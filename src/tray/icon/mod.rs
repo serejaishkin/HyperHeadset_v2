@@ -2,7 +2,7 @@ mod config;
 mod big;
 mod digits;
 
-pub use config::{TrayIconConfig, TrayIconColors, IconColors, TrayIconMode};
+pub use config::{OFFLINE_PERCENT, TrayIconConfig, TrayIconColors, IconColors, TrayIconMode};
 pub use big::generate_big_digits_rgba;
 pub use digits::generate_battery_icon_rgba;
 
