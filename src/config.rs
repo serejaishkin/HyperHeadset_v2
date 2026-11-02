@@ -77,6 +77,13 @@ pub struct VoiceConfig {
     pub on_disconnected: bool,
     pub on_button_check: bool,
     pub exact_percent: bool,
+    /// Pause between two queued voice announcements, in milliseconds.
+    #[serde(default = "default_announce_gap_ms")]
+    pub announce_gap_ms: u32,
+}
+
+fn default_announce_gap_ms() -> u32 {
+    700
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -175,6 +182,7 @@ impl Default for Config {
                 on_disconnected: true,
                 on_button_check: true,
                 exact_percent: false,
+                announce_gap_ms: default_announce_gap_ms(),
             },
             discord: DiscordConfig {
                 mode: DiscordMode::Keybind,
