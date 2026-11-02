@@ -55,7 +55,11 @@ pub struct AudioConfig {
     pub headset_input_device: Option<String>,
     #[serde(default)]
     pub auto_switch_audio: bool,
+    /// After a default-device switch, also move apps' running streams to the new output.
+    #[serde(default = "default_true")]
+    pub move_app_streams: bool,
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceConfig {
@@ -166,6 +170,7 @@ impl Default for Config {
                 headset_output_device: None,
                 headset_input_device: None,
                 auto_switch_audio: false,
+                move_app_streams: true,
             },
             device: DeviceConfig {
                 sidetone: false,

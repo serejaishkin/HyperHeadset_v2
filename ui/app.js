@@ -477,7 +477,7 @@ function configToUi(c) {
   $('discord-mode').value = c.discord?.mode ?? 'Keybind'; $('discord-keybind').value = c.discord?.keybind ?? 'F20'; $('discord-app-id').value = c.discord?.direct?.app_id ?? ''; $('discord-battery').checked = !!c.discord?.direct?.show_battery; $('discord-mute').checked = !!c.discord?.direct?.show_mute_status; if ($('discord-client-secret')) $('discord-client-secret').value = c.discord?.direct?.client_secret ?? ''; if ($('discord-sync-from')) $('discord-sync-from').checked = !!c.discord?.sync_from_discord;
   $('cfg-debug').checked = !!c.debug_logging; $('cfg-console').checked = !!c.log_to_console; $('cfg-file').checked = !!c.log_to_file; $('cfg-start-os').checked = !!c.start_with_os; $('cfg-start-compact').checked = !!c.start_in_compact_mode; $('cfg-compact').checked = !!c.compact_mode; $('cfg-language').value = c.language ?? 'ru';
   const bands = c.audio?.eq_bands ?? Array(10).fill(0); document.querySelectorAll('.eq-band input').forEach((input, i) => input.value = Number(bands[i] ?? 0));
-  $('fallback-output').value = c.audio?.fallback_output_device ?? ''; $('fallback-input').value = c.audio?.fallback_input_device ?? ''; $('auto-switch-audio').checked = !!c.audio?.auto_switch_audio;
+  $('fallback-output').value = c.audio?.fallback_output_device ?? ''; $('fallback-input').value = c.audio?.fallback_input_device ?? ''; $('auto-switch-audio').checked = !!c.audio?.auto_switch_audio; if ($('cfg-move-streams')) $('cfg-move-streams').checked = c.audio?.move_app_streams !== false;
   $('sidetone').checked = !!c.device?.sidetone; markSaved();
 }
 
@@ -492,6 +492,7 @@ function uiToConfig() {
   c.audio.fallback_output_device = $('fallback-output').value || null;
   c.audio.fallback_input_device = $('fallback-input').value || null;
   c.audio.auto_switch_audio = $('auto-switch-audio').checked;
+  c.audio.move_app_streams = $('cfg-move-streams') ? $('cfg-move-streams').checked : true;
   // Ensure sidetone state is preserved
   c.device.sidetone = $('sidetone').checked;
   return c;

@@ -14,6 +14,27 @@ pub fn set_debounce_secs(secs: u32) {
     DEBOUNCE_SECS.store(secs.min(60), Ordering::Relaxed);
 }
 
+/// After the default output changed, move apps' running streams that stayed on another device
+/// (runs in the background: apps often open/close streams a moment after the switch).
+pub fn move_streams_after_switch() {
+    if !Config::load().unwrap_or_default().audio.move_app_streams {
+        return;
+    }
+    std::thread::spawn(|| {
+        for delay in [1500u64, 3500] {
+            std::thread::sleep(Duration::from_millis(delay));
+            match system_audio::get_default_output_device() {
+                Ok(id) => match crate::audio_route::move_streams_to(&id) {
+                    Ok(0) => {}
+                    Ok(n) => log::info!("[Audio] Moved {} app stream(s) to the current output", n),
+                    Err(e) => { log::warn!("[Audio] Moving app streams failed: {}", e); return; }
+                },
+                Err(_) => return,
+            }
+        }
+    });
+}
+
 #[derive(Default)]
 pub struct AudioSwitch {
     away: bool,
@@ -114,6 +135,7 @@ impl AudioSwitch {
             }
         }
         self.away = true;
+        move_streams_after_switch();
     }
 
     fn come_back(&mut self) -> bool {
@@ -137,6 +159,7 @@ impl AudioSwitch {
         }
         if ok {
             self.away = false;
+            move_streams_after_switch();
             self.prev_out = None;
             self.prev_in = None;
         }
