@@ -81,24 +81,55 @@ pub fn play(_event: VoiceEvent) { vlog("play() called but feature DISABLED"); }
 #[cfg(not(feature = "embedded-voice"))]
 pub fn play_test() { vlog("play_test() called but feature DISABLED"); }
 
+/// Pause between two queued announcements so they never overlap or run into each other.
+#[cfg(feature = "embedded-voice")]
+const VOICE_GAP: std::time::Duration = std::time::Duration::from_millis(700);
+
+#[cfg(feature = "embedded-voice")]
+enum Clip {
+    Static(&'static [u8]),
+    Owned(Vec<u8>),
+}
+
+/// All announcements go through one queue: they play one after another with a pause in between.
+#[cfg(feature = "embedded-voice")]
+fn queue() -> &'static std::sync::mpsc::Sender<Clip> {
+    use std::sync::{mpsc, OnceLock};
+    static REF: OnceLock<&'static mpsc::Sender<Clip>> = OnceLock::new();
+    REF.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<Clip>();
+        std::thread::Builder::new()
+            .name("voice-queue".into())
+            .spawn(move || {
+                while let Ok(clip) = rx.recv() {
+                    let r = match clip {
+                        Clip::Static(b) => play_blocking(b),
+                        Clip::Owned(d) => play_blocking_owned(d),
+                    };
+                    match r {
+                        Ok(()) => vlog("playback OK"),
+                        Err(e) => vlog(&format!("playback ERROR: {}", e)),
+                    }
+                    std::thread::sleep(VOICE_GAP);
+                }
+            })
+            .ok();
+        Box::leak(Box::new(tx))
+    })
+}
+
 #[cfg(feature = "embedded-voice")]
 fn play_bytes(bytes: &'static [u8]) {
     if bytes.len() < 44 { log::warn!("[Voice] WAV is too small ({} bytes)", bytes.len()); return; }
-    vlog(&format!("playback start, len={}", bytes.len()));
-    std::thread::spawn(move || {
-        if let Err(e) = play_blocking(bytes) { vlog(&format!("playback ERROR: {}", e)); }
-        else { vlog("playback OK"); }
-    });
+    vlog(&format!("playback queued, len={}", bytes.len()));
+    let _ = queue().send(Clip::Static(bytes));
 }
 
 #[cfg(feature = "embedded-voice")]
 fn play_bytes_owned(data: Vec<u8>) {
     if data.len() < 44 { log::warn!("[Voice] WAV is too small ({} bytes)", data.len()); return; }
-    vlog(&format!("playback start custom, len={}", data.len()));
-    std::thread::spawn(move || {
-        if let Err(e) = play_blocking_owned(data) { vlog(&format!("playback ERROR: {}", e)); }
-        else { vlog("playback OK"); }
-    });
+    vlog(&format!("playback queued custom, len={}", data.len()));
+    let _ = queue().send(Clip::Owned(data));
 }
 
 #[cfg(feature = "embedded-voice")]

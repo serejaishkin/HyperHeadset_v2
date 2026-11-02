@@ -6,7 +6,7 @@
 //! redirect `http://localhost`. The first connection asks for approval inside the Discord client;
 //! the tokens are stored next to the config (`discord_auth.json`) and refreshed automatically.
 
-use crate::config::{Config, DiscordMode};
+use crate::config::Config;
 use parking_lot::Mutex;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
