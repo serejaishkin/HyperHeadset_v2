@@ -261,8 +261,8 @@ fn show_main_window(app: &tauri::AppHandle) {
 fn apply_input_config(config: &Config) {
     let kb = config.discord.keybind.clone().filter(|k| !k.trim().is_empty()).unwrap_or_else(|| config.keybind.clone());
     GLOBAL_MUTE_HANDLER.set_keybind(Some(kb.clone()));
-    GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind);
-    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
+    GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode.uses_keybind());
+    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode.uses_direct());
     GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] keybind={:?} discord.mode={:?} mute_button_mode={:?} sidetone_play_pause={}", kb, config.discord.mode, config.input.mute_button_mode, config.device.sidetone_play_pause);
@@ -434,15 +434,35 @@ fn main() {
                         let mut event_changed = false;
                         let mut muted_now: Option<bool> = None;
                         let mut side_events = 0u32;
+                        // Every 30 s ask every connected headset whether it is switched on.
+                        if last_wireless_query.elapsed() >= Duration::from_secs(30) {
+                            last_wireless_query = Instant::now();
+                            let active = manager.active_index;
+                            for (i, d) in manager.devices.iter_mut().enumerate() {
+                                if d.request_wireless_status().unwrap_or(false) && i == active { event_changed = true; }
+                            }
+                        }
+                        // The active headset went off/away while another one is on: follow it.
+                        let active_ok = manager.devices.get(manager.active_index).map_or(false, |d| d.headset_online && d.state.connected);
+                        if !active_ok {
+                            if let Some(i) = manager.devices.iter().position(|d| d.headset_online && d.state.connected) {
+                                if i != manager.active_index {
+                                    log::info!("[Device] Active headset is off, switching to device {}", i);
+                                    manager.active_index = i;
+                                    last_mute = None;
+                                    seen_sidetone_events = manager.devices[i].sidetone_button_events;
+                                    event_changed = true;
+                                    let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
+                                    { let mut a = all_devices_inner.lock().unwrap(); *a = all.clone(); }
+                                    let _ = app_handle_device.emit("devices-list", all);
+                                }
+                            }
+                        }
                         if let Some(dev) = manager.active_device() {
                             if dev.poll_events(100).unwrap_or(false) { event_changed = true; }
                             if !dev.mute_events_seen && last_mute_poll.elapsed() >= Duration::from_secs(1) {
                                 last_mute_poll = Instant::now();
                                 if dev.poll_mute().unwrap_or(false) { event_changed = true; }
-                            }
-                            if last_wireless_query.elapsed() >= Duration::from_secs(30) {
-                                last_wireless_query = Instant::now();
-                                if dev.request_wireless_status().unwrap_or(false) { event_changed = true; }
                             }
                             muted_now = Some(dev.state.muted);
                             side_events = dev.sidetone_button_events;

@@ -178,9 +178,9 @@ fn main() -> anyhow::Result<()> {
         GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind));
     }
     GLOBAL_MUTE_HANDLER.set_keybind_enabled(
-        config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Keybind,
+        config.discord.mode.uses_keybind(),
     );
-    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode == hyperx_ngenuity_open::config::DiscordMode::Direct);
+    GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode.uses_direct());
     GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] mute_button_mode={:?} discord.mode={:?} keybind={:?} sidetone_play_pause={}", config.input.mute_button_mode, config.discord.mode, config.discord.keybind, config.device.sidetone_play_pause);

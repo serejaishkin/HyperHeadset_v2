@@ -78,6 +78,17 @@ pub enum DiscordMode {
     None,
     Keybind,
     Direct,
+    /// Direct (RPC) and the keybind together.
+    Both,
+}
+
+impl DiscordMode {
+    pub fn uses_keybind(self) -> bool {
+        matches!(self, DiscordMode::Keybind | DiscordMode::Both)
+    }
+    pub fn uses_direct(self) -> bool {
+        matches!(self, DiscordMode::Direct | DiscordMode::Both)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

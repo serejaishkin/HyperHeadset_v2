@@ -230,9 +230,9 @@ impl eframe::App for HyperXApp {
             crate::input::GLOBAL_MUTE_HANDLER.set_keybind(Some(keybind.clone()));
         }
         crate::input::GLOBAL_MUTE_HANDLER.set_keybind_enabled(
-            self.config.discord.mode == crate::config::DiscordMode::Keybind,
+            self.config.discord.mode.uses_keybind(),
         );
-        crate::input::GLOBAL_MUTE_HANDLER.set_discord_direct(self.config.discord.mode == crate::config::DiscordMode::Direct);
+        crate::input::GLOBAL_MUTE_HANDLER.set_discord_direct(self.config.discord.mode.uses_direct());
         crate::input::GLOBAL_MUTE_HANDLER.set_discord_to_headset(self.config.discord.sync_from_discord);
         crate::input::GLOBAL_MUTE_HANDLER
             .set_sidetone_play_pause(self.config.device.sidetone_play_pause);

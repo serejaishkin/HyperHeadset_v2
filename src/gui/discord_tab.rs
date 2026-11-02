@@ -19,6 +19,7 @@ pub fn show(
         ui.selectable_value(&mut config.mode, DiscordMode::None, "❌ Отключено");
         ui.selectable_value(&mut config.mode, DiscordMode::Keybind, "⌨️ Клавиша");
         ui.selectable_value(&mut config.mode, DiscordMode::Direct, "🔌 Прямая (RPC)");
+        ui.selectable_value(&mut config.mode, DiscordMode::Both, "🔌+⌨️ Прямая + клавиша");
     });
     if config.mode != prev_mode {
         *needs_save = true;
@@ -75,6 +76,11 @@ pub fn show(
 
             ui.small("💡 Назначьте эту же клавишу в Discord → Настройки → Горячие клавиши → Переключить мьют");
             ui.small("Доступные: F13-F24, MediaMute, MediaPlayPause, Ctrl+Shift+M, и др.");
+        }
+
+        DiscordMode::Both => {
+            ui.label("Прямая (RPC) + клавиша одновременно.");
+            ui.small("Клавиша и данные приложения Discord настраиваются во вкладке Discord версии Tauri.");
         }
 
         DiscordMode::Direct => {

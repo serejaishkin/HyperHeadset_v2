@@ -182,22 +182,33 @@ impl MuteHandler {
         drop(last);
 
         let keybind = self.keybind.lock().clone();
-        if self.discord_direct.load(Ordering::Relaxed) {
-            if let Some(m) = muted {
-                log::info!("[MuteHandler] Discord direct mute -> {}", m);
-                crate::discord::voice::set_mute(m);
-            }
-        } else if self.keybind_enabled.load(Ordering::Relaxed) {
+        let direct = self.discord_direct.load(Ordering::Relaxed);
+        let key = self.keybind_enabled.load(Ordering::Relaxed);
+        if key {
             let mut enigo = self.enigo.lock();
             log::info!("[MuteHandler] Attempting mute with keybind: {:?}", keybind);
             let combo = keybind.as_deref().unwrap_or("F20");
             let result = send_combo(&mut enigo, combo);
             log::info!("[MuteHandler] Sent combo {:?}, result: {:?}", combo, result);
-        } else {
-            log::info!("[MuteHandler] Discord keybind mode is off, key not sent");
+        }
+        if direct {
+            if let Some(m) = muted {
+                log::info!("[MuteHandler] Discord direct mute -> {}", m);
+                if key {
+                    // Both modes: let the key toggle land first, then force the exact state over IPC.
+                    std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_millis(400));
+                        crate::discord::voice::set_mute(m);
+                    });
+                } else {
+                    crate::discord::voice::set_mute(m);
+                }
+            }
+        }
+        if !direct && !key {
+            log::info!("[MuteHandler] Discord integration is off, nothing sent");
         }
 
-        // Also toggle system microphone mute so Discord sees the mic muted directly
         self.sync_system_mic(muted);
     }
 
@@ -219,17 +230,21 @@ impl MuteHandler {
 
     /// Re-sync Discord after a double click (no debounce / no system mic change).
     fn send_discord_key(&self, muted: bool) {
+        if self.keybind_enabled.load(Ordering::Relaxed) {
+            let combo = self.keybind.lock().clone().unwrap_or_else(|| "F20".to_string());
+            let mut enigo = self.enigo.lock();
+            let r = send_combo(&mut enigo, &combo);
+            log::info!("[MuteHandler] Re-sent combo {:?}, result: {:?}", combo, r);
+        }
         if self.discord_direct.load(Ordering::Relaxed) {
-            crate::discord::voice::set_mute(muted);
-            return;
+            let both = self.keybind_enabled.load(Ordering::Relaxed);
+            std::thread::spawn(move || {
+                if both {
+                    std::thread::sleep(Duration::from_millis(400));
+                }
+                crate::discord::voice::set_mute(muted);
+            });
         }
-        if !self.keybind_enabled.load(Ordering::Relaxed) {
-            return;
-        }
-        let combo = self.keybind.lock().clone().unwrap_or_else(|| "F20".to_string());
-        let mut enigo = self.enigo.lock();
-        let r = send_combo(&mut enigo, &combo);
-        log::info!("[MuteHandler] Re-sent combo {:?}, result: {:?}", combo, r);
     }
 
     pub fn on_mute_toggled(&self, muted: bool) {

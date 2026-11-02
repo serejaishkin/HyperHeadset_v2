@@ -325,7 +325,7 @@ fn authenticate(conn: &mut Conn, token: &str) -> anyhow::Result<bool> {
 
 fn wanted() -> Option<(String, String)> {
     let cfg = Config::load().ok()?;
-    if cfg.discord.mode != DiscordMode::Direct {
+    if !cfg.discord.mode.uses_direct() {
         set_status("выключено (режим Discord не «Прямой»)");
         return None;
     }
