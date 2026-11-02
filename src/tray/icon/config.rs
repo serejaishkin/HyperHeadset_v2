@@ -76,7 +76,30 @@ impl Default for TrayIconConfig {
     }
 }
 
+/// The size the OS shows tray icons at (small-icon metric), if known.
+pub fn native_tray_size() -> Option<u32> {
+    #[cfg(target_os = "windows")]
+    {
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetSystemMetrics(index: i32) -> i32;
+        }
+        let v = unsafe { GetSystemMetrics(49) }; // SM_CXSMICON
+        if v >= 16 {
+            return Some(v as u32);
+        }
+    }
+    None
+}
+
 impl TrayIconConfig {
+    /// Copy sized for the real tray: rendered at the OS tray-icon size (crisp, no downscaling blur).
+    pub fn for_tray(&self) -> TrayIconConfig {
+        let mut c = self.clone();
+        c.size = native_tray_size().unwrap_or_else(|| self.size.min(48)).clamp(16, 64);
+        c
+    }
+
     pub fn sanitize(&mut self) {
         self.size = self.size.clamp(16, 512);
         self.font_scale = self.font_scale.clamp(1, 20);

@@ -79,7 +79,7 @@ impl ksni::Tray for MyTray {
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
         let s = self.state.lock().unwrap();
         let icon_config = self.icon_config.lock().unwrap();
-        let (rgba, w, h) = generate_tray_icon_rgba(&*icon_config, s.percent, s.charging);
+        let (rgba, w, h) = generate_tray_icon_rgba(&icon_config.for_tray(), s.percent, s.charging);
         let argb = rgba_to_argb32(&rgba);
         vec![ksni::Icon {
             width: w as i32,

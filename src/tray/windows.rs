@@ -157,7 +157,7 @@ impl WindowsTray {
     fn update_icon(&mut self) {
         let Some(tray) = &self.tray else { return; };
         if !self.connected { let _ = tray.set_icon(Some(create_default_tray_icon())); return; }
-        let (rgba, w, h) = generate_tray_icon_rgba(&self.icon_config, self.last_percent, self.last_charging);
+        let (rgba, w, h) = generate_tray_icon_rgba(&self.icon_config.for_tray(), self.last_percent, self.last_charging);
         if let Ok(icon) = Icon::from_rgba(rgba, w, h) { let _ = tray.set_icon(Some(icon)); }
     }
 
