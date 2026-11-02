@@ -110,7 +110,8 @@ fn queue() -> &'static std::sync::mpsc::Sender<Clip> {
                         Ok(()) => vlog("playback OK"),
                         Err(e) => vlog(&format!("playback ERROR: {}", e)),
                     }
-                    std::thread::sleep(VOICE_GAP);
+                    let gap = get_cfg().lock().map(|c| c.announce_gap_ms).unwrap_or(VOICE_GAP.as_millis() as u32);
+                    std::thread::sleep(std::time::Duration::from_millis(gap.min(10_000) as u64));
                 }
             })
             .ok();
