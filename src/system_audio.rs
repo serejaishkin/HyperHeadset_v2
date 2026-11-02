@@ -167,30 +167,70 @@ pub fn get_default_input_device() -> anyhow::Result<String> {
    }
 
    unsafe {
+     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
      let policy: IUnknown = windows::Win32::System::Com::CoCreateInstance(
        &CLSID_POLICY_CONFIG_CLIENT,
        None,
        CLSCTX_ALL,
      )?;
-     let raw = policy.as_raw();
+     // Ask for the real IPolicyConfig interface (Win10/11), then the Vista one, instead of
+     // assuming the IUnknown pointer already has that vtable.
+     let mut iface: *mut c_void = std::ptr::null_mut();
+     let mut used = "IUnknown";
+     for (iid, name) in [
+       (GUID::from_u128(0xf8679f50_850a_41cf_9c72_430f290290c8), "IPolicyConfig"),
+       (GUID::from_u128(0x568b9108_44bf_40b4_9006_86afe5b5a620), "IPolicyConfigVista"),
+     ] {
+       let mut p: *mut c_void = std::ptr::null_mut();
+       if policy.query(&iid, &mut p).is_ok() && !p.is_null() {
+         iface = p;
+         used = name;
+         break;
+       }
+     }
+     let owned = !iface.is_null();
+     let raw = if owned { iface } else { policy.as_raw() };
      let vtbl = *(raw as *const *const PolicyConfigVTable);
      let wide: Vec<u16> = device_id.encode_utf16().chain(std::iter::once(0)).collect();
      let endpoint = PCWSTR(wide.as_ptr());
 
+     let mut result = Ok(());
      for role in [ROLE_CONSOLE, ROLE_MULTIMEDIA, ROLE_COMMUNICATIONS] {
        let hr = ((*vtbl).set_default_endpoint)(raw as *mut c_void, endpoint, role);
-       hr.ok().map_err(|e| anyhow::anyhow!("SetDefaultEndpoint failed for role {}: {}", role, e))?;
+       if let Err(e) = hr.ok() {
+         result = Err(anyhow::anyhow!("SetDefaultEndpoint failed for role {} via {}: {}", role, used, e));
+         break;
+       }
      }
+     if owned {
+       // Release the extra reference taken by QueryInterface.
+       let rel: unsafe extern "system" fn(*mut c_void) -> u32 = std::mem::transmute((*vtbl).release);
+       rel(raw);
+     }
+     result?;
+     log::debug!("[Audio] SetDefaultEndpoint ok via {}", used);
    }
    Ok(())
  }
 
  pub fn set_default_output_device(device_id: &str) -> anyhow::Result<()> {
-   set_default_endpoint_native(device_id)
+   set_default_endpoint_native(device_id)?;
+   match get_default_output_device() {
+     Ok(now) if now == device_id => log::info!("[Audio] System default output is now {}", device_id),
+     Ok(now) => return Err(anyhow::anyhow!("default output is still {} (wanted {})", now, device_id)),
+     Err(_) => {}
+   }
+   Ok(())
  }
 
  pub fn set_default_input_device(device_id: &str) -> anyhow::Result<()> {
-   set_default_endpoint_native(device_id)
+   set_default_endpoint_native(device_id)?;
+   match get_default_input_device() {
+     Ok(now) if now == device_id => log::info!("[Audio] System default input is now {}", device_id),
+     Ok(now) => return Err(anyhow::anyhow!("default input is still {} (wanted {})", now, device_id)),
+     Err(_) => {}
+   }
+   Ok(())
  }
 }
 
