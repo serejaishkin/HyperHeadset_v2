@@ -108,6 +108,10 @@ impl MuteHandler {
     }
 
     /// Called when the headset itself reports a sidetone toggle (not one we requested).
+    pub fn sidetone_play_pause_enabled(&self) -> bool {
+        self.sidetone_play_pause.load(Ordering::Relaxed)
+    }
+
     pub fn on_sidetone_button(&self) {
         if !self.sidetone_play_pause.load(Ordering::Relaxed) {
             return;

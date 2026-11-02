@@ -222,13 +222,17 @@ fn set_mute_button_mode(mode: String) -> Result<(), String> {
 fn get_discord_status() -> String { hyperx_ngenuity_open::discord::voice::status() }
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    if !(url.starts_with("https://") || url.starts_with("http://")) { return Err("bad url".into()); }
-    #[cfg(windows)]
-    { std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", &url]).spawn().map(|_| ()).map_err(|e| e.to_string()) }
-    #[cfg(target_os = "macos")]
-    { std::process::Command::new("open").arg(&url).spawn().map(|_| ()).map_err(|e| e.to_string()) }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    { std::process::Command::new("xdg-open").arg(&url).spawn().map(|_| ()).map_err(|e| e.to_string()) }
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("bad url".into());
+    }
+    let (prog, args): (&str, Vec<String>) = if cfg!(windows) {
+        ("rundll32", vec!["url.dll,FileProtocolHandler".to_string(), url])
+    } else if cfg!(target_os = "macos") {
+        ("open", vec![url])
+    } else {
+        ("xdg-open", vec![url])
+    };
+    std::process::Command::new(prog).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 #[tauri::command]
 fn get_current_keybind() -> Option<String> {
@@ -339,6 +343,7 @@ fn main() {
                 .on_tray_icon_event(|tray, event| { if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, button_state: tauri::tray::MouseButtonState::Up, .. } = event { show_main_window(&tray.app_handle()); } })
                 .build(&app_handle)?;
             if let Some(main_window) = app.get_webview_window("main") {
+                let _ = main_window.set_title(&format!("HyperHeadsetv2 v{}", env!("CARGO_PKG_VERSION")));
                 let window_for_close = main_window.clone();
                 main_window.on_window_event(move |event| { if let WindowEvent::CloseRequested { api, .. } = event { api.prevent_close(); let _ = window_for_close.hide(); } });
             }
@@ -360,6 +365,7 @@ fn main() {
                 let mut was_connected = false; let mut heartbeat_failures = 0u32;
                 let mut last_hid_refresh = Instant::now() - Duration::from_secs(60);
                 let mut last_mute: Option<bool> = None; let mut seen_sidetone_events = 0u32;
+                let mut user_sidetone: bool = Config::load().map(|c| c.device.sidetone).unwrap_or(false);
                 let mut last_mute_poll = Instant::now(); let mut last_wireless_query = Instant::now() - Duration::from_secs(10);
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 let mut consecutive_refresh_failures = 0u32;
@@ -392,6 +398,7 @@ fn main() {
                     }
                     while let Ok(cmd) = device_cmd_rx.try_recv() {
                         if let Some(dev) = manager.active_device() {
+                            if let DeviceCommand::SetSidetone(en) = &cmd { user_sidetone = *en; }
                             let prev_muted = dev.state.muted;
                             let prev_sidetone = dev.state.sidetone;
                             let result = match cmd { DeviceCommand::ToggleMute => dev.toggle_mute(), DeviceCommand::SetSidetone(enabled) => dev.set_sidetone(enabled), DeviceCommand::SetVoicePrompts(enabled) => dev.set_voice_prompts(enabled), DeviceCommand::SetAutoShutdown(minutes) => dev.set_auto_shutdown(minutes) };
@@ -466,6 +473,17 @@ fn main() {
                         if side_events != seen_sidetone_events {
                             seen_sidetone_events = side_events;
                             GLOBAL_MUTE_HANDLER.on_sidetone_button();
+                            // The headset flips its own sidetone on the button press; put it back so the
+                            // button acts as Play/Pause only.
+                            if GLOBAL_MUTE_HANDLER.sidetone_play_pause_enabled() {
+                                if let Some(dev) = manager.active_device() {
+                                    if dev.state.sidetone != user_sidetone {
+                                        log::info!("[Device] Restoring sidetone to {} after button press", user_sidetone);
+                                        let _ = dev.set_sidetone(user_sidetone);
+                                        event_changed = true;
+                                    }
+                                }
+                            }
                         }
                         if event_changed {
                             let st = ui_state(&manager);

@@ -439,7 +439,7 @@ function configToUi(c) {
   $('cfg-auto-shutdown').value = c.device?.auto_shutdown_minutes ?? 30;
   const modeRaw = String(c.input?.mute_button_mode ?? 'smart_double');
   $('cfg-mute-mode').value = ['standard','media_play_pause','smart_double','smart_hold','hold_play_pause'].includes(modeRaw) ? modeRaw : 'smart_double';
-  $('cfg-keybind').value = c.keybind ?? 'F20'; $('cfg-double-tap').value = c.double_tap_ms ?? 500;
+  if ($('cfg-sidetone-playpause')) $('cfg-sidetone-playpause').checked = c.device?.sidetone_playpause !== false; $('cfg-double-tap').value = c.double_tap_ms ?? 500;
   $('voice-enabled').checked = !!c.voice?.enabled; $('voice-battery-low').checked = !!c.voice?.on_battery_low; $('voice-charging').checked = !!c.voice?.on_charging; $('voice-full-charge').checked = !!c.voice?.on_full_charge;
   $('voice-connected').checked = !!c.voice?.on_connected; $('voice-disconnected').checked = !!c.voice?.on_disconnected; $('voice-button-check').checked = c.voice?.on_button_check !== false; $('voice-exact-percent').checked = !!c.voice?.exact_percent;
   $('discord-mode').value = c.discord?.mode ?? 'Keybind'; $('discord-keybind').value = c.discord?.keybind ?? 'F20'; $('discord-app-id').value = c.discord?.direct?.app_id ?? ''; $('discord-battery').checked = !!c.discord?.direct?.show_battery; $('discord-mute').checked = !!c.discord?.direct?.show_mute_status; if ($('discord-client-secret')) $('discord-client-secret').value = c.discord?.direct?.client_secret ?? ''; if ($('discord-sync-from')) $('discord-sync-from').checked = !!c.discord?.sync_from_discord;
@@ -450,11 +450,11 @@ function configToUi(c) {
 }
 
 function uiToConfig() {
-  const c = structuredClone(config); c.enabled = $('cfg-enabled').checked; c.keybind = $('cfg-keybind').value.trim() || 'F20'; c.double_tap_ms = Number($('cfg-double-tap').value) || 500;
+  const c = structuredClone(config); c.enabled = $('cfg-enabled').checked; c.double_tap_ms = Number($('cfg-double-tap').value) || 500;
   c.compact_mode = $('cfg-compact').checked; c.start_with_os = $('cfg-start-os').checked; c.start_in_compact_mode = $('cfg-start-compact').checked; c.language = $('cfg-language').value;
   c.device.sidetone = $('cfg-sidetone').checked; c.device.voice_prompts = $('cfg-voice-prompts').checked; c.device.auto_shutdown_minutes = Number($('cfg-auto-shutdown').value) || 0; c.input.mute_button_mode = $('cfg-mute-mode').value;
   c.voice.enabled = $('voice-enabled').checked; c.voice.on_battery_low = $('voice-battery-low').checked; c.voice.on_charging = $('voice-charging').checked; c.voice.on_full_charge = $('voice-full-charge').checked; c.voice.on_connected = $('voice-connected').checked; c.voice.on_disconnected = $('voice-disconnected').checked; c.voice.on_button_check = $('voice-button-check').checked; c.voice.exact_percent = $('voice-exact-percent').checked;
-  c.discord.mode = $('discord-mode').value; c.discord.keybind = $('discord-keybind').value.trim() || null; c.discord.direct.app_id = $('discord-app-id').value.trim(); c.discord.direct.show_battery = $('discord-battery').checked; c.discord.direct.show_mute_status = $('discord-mute').checked; if ($('discord-client-secret')) c.discord.direct.client_secret = $('discord-client-secret').value.trim(); if ($('discord-sync-from')) c.discord.sync_from_discord = $('discord-sync-from').checked;
+  c.discord.mode = $('discord-mode').value; c.discord.keybind = $('discord-keybind').value.trim() || null; c.keybind = c.discord.keybind || c.keybind || 'F20'; if ($('cfg-sidetone-playpause')) c.device.sidetone_playpause = $('cfg-sidetone-playpause').checked; c.discord.direct.app_id = $('discord-app-id').value.trim(); c.discord.direct.show_battery = $('discord-battery').checked; c.discord.direct.show_mute_status = $('discord-mute').checked; if ($('discord-client-secret')) c.discord.direct.client_secret = $('discord-client-secret').value.trim(); if ($('discord-sync-from')) c.discord.sync_from_discord = $('discord-sync-from').checked;
   c.debug_logging = $('cfg-debug').checked; c.log_to_console = $('cfg-console').checked; c.log_to_file = $('cfg-file').checked;
   c.audio.eq_bands = Array.from(document.querySelectorAll('.eq-band input')).map(input => Number(input.value));
   c.audio.fallback_output_device = $('fallback-output').value || null;

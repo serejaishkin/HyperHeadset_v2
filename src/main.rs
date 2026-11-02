@@ -224,6 +224,7 @@ fn main() -> anyhow::Result<()> {
         let mut last_mute_poll = std::time::Instant::now();
         let mut seen_sidetone_events: u32 = 0;
         let mut away = false;
+        let mut user_sidetone: bool = Config::load().map(|c| c.device.sidetone).unwrap_or(false);
         let mut offline_since: Option<std::time::Instant> = None;
         let mut back_attempts: u32 = 0;
         let mut last_back_try = std::time::Instant::now();
@@ -278,6 +279,7 @@ fn main() -> anyhow::Result<()> {
                         }
                     }
                     hyperx_ngenuity_open::DeviceCommand::SetSidetone(enabled) => {
+                        user_sidetone = enabled;
                         if let Err(e) = device.set_sidetone(enabled) {
                             log::warn!("Set sidetone failed: {}", e);
                         }
@@ -373,6 +375,10 @@ fn main() -> anyhow::Result<()> {
             if device.sidetone_button_events != seen_sidetone_events {
                 seen_sidetone_events = device.sidetone_button_events;
                 GLOBAL_MUTE_HANDLER.on_sidetone_button();
+                if GLOBAL_MUTE_HANDLER.sidetone_play_pause_enabled() && device.state.sidetone != user_sidetone {
+                    log::info!("[Device] Restoring sidetone to {} after button press", user_sidetone);
+                    let _ = device.set_sidetone(user_sidetone);
+                }
             }
 
             if !startup_battery_announced && device.state.battery_percent > 0 {
