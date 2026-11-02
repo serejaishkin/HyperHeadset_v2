@@ -204,6 +204,7 @@ pub struct HyperXDevice {
     pub mute_events_seen: bool,
     /// False while the headset itself is asleep/off (dongle still enumerated).
     pub headset_online: bool,
+    pub offline_readings: u8,
     /// Drivers from `devices/` for headsets that do not speak the Cloud II DTS protocol
     /// (Cloud III / III S / II Core / II Wireless / Alpha / Flight Wireless).
     legacy: Option<crate::devices::Headset>,
@@ -234,7 +235,7 @@ const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, legacy: None }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, offline_readings: 0, legacy: None }
     }
 
     fn prepare_write(&self) {
@@ -584,6 +585,18 @@ impl HyperXDevice {
                     // Dongle stays enumerated, so surface this as a state change only.
                     let online = buf[4] == 1 || buf[4] == 4;
                     log::debug!("[HID] Wireless status: {}", buf[4]);
+                    // A single odd reading while music is streaming must not flip us offline
+                    // (that would switch the default audio device and kill the player's stream):
+                    // going offline needs two consecutive offline readings.
+                    if online {
+                        self.offline_readings = 0;
+                    } else {
+                        self.offline_readings = self.offline_readings.saturating_add(1);
+                        if self.headset_online && self.offline_readings < 2 {
+                            log::info!("[HID] Wireless status {} (offline?) - waiting for confirmation", buf[4]);
+                            return Ok(changed);
+                        }
+                    }
                     if online != self.headset_online {
                         log::info!("[HID] Headset online: {} (status {})", online, buf[4]);
                         self.headset_online = online;

@@ -74,8 +74,9 @@ impl AudioSwitch {
             if self.prev_out.is_none() {
                 self.prev_out = system_audio::get_default_output_device().ok().filter(|c| c != id);
             }
-            log::info!("[Audio] Headset away -> fallback output {}", id);
-            if let Err(e) = system_audio::set_default_output_device(id) {
+            if system_audio::get_default_output_device().map_or(false, |c| &c == id) {
+                log::info!("[Audio] Fallback output already default, not touching it");
+            } else if let Err(e) = { log::info!("[Audio] Headset away -> fallback output {}", id); system_audio::set_default_output_device(id) } {
                 log::warn!("[Audio] Fallback output failed: {}", e);
             }
         }
@@ -83,8 +84,9 @@ impl AudioSwitch {
             if self.prev_in.is_none() {
                 self.prev_in = system_audio::get_default_input_device().ok().filter(|c| c != id);
             }
-            log::info!("[Audio] Headset away -> fallback input {}", id);
-            if let Err(e) = system_audio::set_default_input_device(id) {
+            if system_audio::get_default_input_device().map_or(false, |c| &c == id) {
+                log::info!("[Audio] Fallback input already default, not touching it");
+            } else if let Err(e) = { log::info!("[Audio] Headset away -> fallback input {}", id); system_audio::set_default_input_device(id) } {
                 log::warn!("[Audio] Fallback input failed: {}", e);
             }
         }
@@ -95,15 +97,17 @@ impl AudioSwitch {
         let a = Config::load().unwrap_or_default().audio;
         let mut ok = true;
         if let Some(id) = a.headset_output_device.clone().or_else(|| self.prev_out.clone()) {
-            log::info!("[Audio] Headset back -> output {}", id);
-            if let Err(e) = system_audio::set_default_output_device(&id) {
+            if system_audio::get_default_output_device().map_or(false, |c| c == id) {
+                log::info!("[Audio] Output already {}, not touching it", id);
+            } else if let Err(e) = { log::info!("[Audio] Headset back -> output {}", id); system_audio::set_default_output_device(&id) } {
                 log::warn!("[Audio] Restore output failed: {}", e);
                 ok = false;
             }
         }
         if let Some(id) = a.headset_input_device.clone().or_else(|| self.prev_in.clone()) {
-            log::info!("[Audio] Headset back -> input {}", id);
-            if let Err(e) = system_audio::set_default_input_device(&id) {
+            if system_audio::get_default_input_device().map_or(false, |c| c == id) {
+                log::info!("[Audio] Input already {}, not touching it", id);
+            } else if let Err(e) = { log::info!("[Audio] Headset back -> input {}", id); system_audio::set_default_input_device(&id) } {
                 log::warn!("[Audio] Restore input failed: {}", e);
                 ok = false;
             }
