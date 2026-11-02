@@ -16,6 +16,12 @@ pub struct Config {
     pub log_to_console: bool,
     pub log_to_file: bool,
     pub start_in_compact_mode: bool,
+    /// How often (seconds) the headset is asked whether it is switched on.
+    #[serde(default = "default_status_poll_secs")]
+    pub status_poll_secs: u32,
+    /// How long (seconds) the headset must stay off before audio is switched to the fallback.
+    #[serde(default = "default_offline_debounce_secs")]
+    pub offline_debounce_secs: u32,
     pub audio: AudioConfig,
     pub device: DeviceConfig,
     pub voice: VoiceConfig,
@@ -82,6 +88,14 @@ pub enum DiscordMode {
     Both,
 }
 
+fn default_status_poll_secs() -> u32 {
+    5
+}
+
+fn default_offline_debounce_secs() -> u32 {
+    2
+}
+
 impl AudioConfig {
     /// True when the app should watch the headset's on/off state closely (fast audio switching).
     pub fn wants_fast_status(&self) -> bool {
@@ -136,6 +150,8 @@ impl Default for Config {
             log_to_console: true,
             log_to_file: false,
             start_in_compact_mode: false,
+            status_poll_secs: default_status_poll_secs(),
+            offline_debounce_secs: default_offline_debounce_secs(),
             audio: AudioConfig {
                 eq_bands: [0.0; 10],
                 fallback_output_device: None,

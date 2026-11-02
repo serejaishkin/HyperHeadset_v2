@@ -4,7 +4,15 @@
 use crate::config::Config;
 use crate::system_audio;
 use parking_lot::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
+
+static DEBOUNCE_SECS: AtomicU32 = AtomicU32::new(2);
+
+/// Seconds the headset must stay off before audio switches away (0 = immediately).
+pub fn set_debounce_secs(secs: u32) {
+    DEBOUNCE_SECS.store(secs.min(60), Ordering::Relaxed);
+}
 
 #[derive(Default)]
 pub struct AudioSwitch {
@@ -27,7 +35,7 @@ impl AudioSwitch {
         if !online {
             self.back_attempts = 0;
             let since = *self.offline_since.get_or_insert_with(Instant::now);
-            if since.elapsed() >= Duration::from_secs(2) {
+            if since.elapsed() >= Duration::from_secs(DEBOUNCE_SECS.load(Ordering::Relaxed) as u64) {
                 self.go_away();
             }
         } else {

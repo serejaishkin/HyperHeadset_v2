@@ -182,6 +182,7 @@ fn main() -> anyhow::Result<()> {
     );
     GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode.uses_direct());
     GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
+    hyperx_ngenuity_open::audio_switch::set_debounce_secs(config.offline_debounce_secs);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] mute_button_mode={:?} discord.mode={:?} keybind={:?} sidetone_play_pause={}", config.input.mute_button_mode, config.discord.mode, config.discord.keybind, config.device.sidetone_play_pause);
 
@@ -338,8 +339,8 @@ fn main() -> anyhow::Result<()> {
 
             // NGenuity2 (HeadsetCloudIIWirelessDTS) ticks every 30 s; everything else is event-driven.
             if std::time::Instant::now() >= next_wireless_query {
-                let fast = Config::load().map(|c| c.audio.wants_fast_status()).unwrap_or(false);
-                next_wireless_query = std::time::Instant::now() + Duration::from_secs(if fast { 5 } else { 30 });
+                let secs = Config::load().map(|c| c.status_poll_secs).unwrap_or(30).clamp(1, 120);
+                next_wireless_query = std::time::Instant::now() + Duration::from_secs(secs as u64);
                 let _ = device.request_wireless_status();
             }
             if !device.headset_online {

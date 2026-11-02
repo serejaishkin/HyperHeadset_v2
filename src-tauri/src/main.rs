@@ -264,6 +264,7 @@ fn apply_input_config(config: &Config) {
     GLOBAL_MUTE_HANDLER.set_keybind_enabled(config.discord.mode.uses_keybind());
     GLOBAL_MUTE_HANDLER.set_discord_direct(config.discord.mode.uses_direct());
     GLOBAL_MUTE_HANDLER.set_discord_to_headset(config.discord.sync_from_discord);
+    hyperx_ngenuity_open::audio_switch::set_debounce_secs(config.offline_debounce_secs);
     GLOBAL_MUTE_HANDLER.set_sidetone_play_pause(config.device.sidetone_play_pause);
     log::info!("[Main] keybind={:?} discord.mode={:?} mute_button_mode={:?} sidetone_play_pause={}", kb, config.discord.mode, config.input.mute_button_mode, config.device.sidetone_play_pause);
 }
@@ -438,8 +439,8 @@ fn main() {
                         // Every 30 s (every 5 s when audio auto-switching is on, so the switch to the
                         // fallback device is quick) ask each connected headset if it is switched on.
                         if Instant::now() >= next_wireless_query {
-                            let fast = Config::load().map(|c| c.audio.wants_fast_status()).unwrap_or(false);
-                            next_wireless_query = Instant::now() + Duration::from_secs(if fast { 5 } else { 30 });
+                            let secs = Config::load().map(|c| c.status_poll_secs).unwrap_or(30).clamp(1, 120);
+                            next_wireless_query = Instant::now() + Duration::from_secs(secs as u64);
                             let active = manager.active_index;
                             for (i, d) in manager.devices.iter_mut().enumerate() {
                                 if d.request_wireless_status().unwrap_or(false) && i == active { event_changed = true; }
