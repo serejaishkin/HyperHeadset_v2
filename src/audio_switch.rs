@@ -21,13 +21,13 @@ lazy_static::lazy_static! {
 }
 
 impl AudioSwitch {
-    /// Feed the headset's online state. Offline is only acted on after 5 s (status flickers while
+    /// Feed the headset's online state. Offline is only acted on after 2 s (status flickers while
     /// the headset reconnects); restoring is retried until the headset's endpoint exists again.
     pub fn update(&mut self, online: bool) {
         if !online {
             self.back_attempts = 0;
             let since = *self.offline_since.get_or_insert_with(Instant::now);
-            if since.elapsed() >= Duration::from_secs(5) {
+            if since.elapsed() >= Duration::from_secs(2) {
                 self.go_away();
             }
         } else {

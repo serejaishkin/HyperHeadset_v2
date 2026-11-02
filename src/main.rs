@@ -228,7 +228,7 @@ fn main() -> anyhow::Result<()> {
         let mut offline_since: Option<std::time::Instant> = None;
         let mut back_attempts: u32 = 0;
         let mut last_back_try = std::time::Instant::now();
-        let mut last_wireless_query = std::time::Instant::now() - Duration::from_secs(10);
+        let mut next_wireless_query = std::time::Instant::now();
 
         loop {
             if !device.state.connected {
@@ -254,7 +254,7 @@ fn main() -> anyhow::Result<()> {
                             log::warn!("[Device] Initial refresh after connect failed: {}", e);
                         }
                         last_full_refresh = std::time::Instant::now();
-                        last_wireless_query = std::time::Instant::now() - Duration::from_secs(10);
+                        next_wireless_query = std::time::Instant::now();
 
                     }
                     Err(e) => {
@@ -337,8 +337,9 @@ fn main() -> anyhow::Result<()> {
             }
 
             // NGenuity2 (HeadsetCloudIIWirelessDTS) ticks every 30 s; everything else is event-driven.
-            if last_wireless_query.elapsed() >= FULL_REFRESH_INTERVAL {
-                last_wireless_query = std::time::Instant::now();
+            if std::time::Instant::now() >= next_wireless_query {
+                let fast = Config::load().map(|c| c.audio.wants_fast_status()).unwrap_or(false);
+                next_wireless_query = std::time::Instant::now() + Duration::from_secs(if fast { 5 } else { 30 });
                 let _ = device.request_wireless_status();
             }
             if !device.headset_online {

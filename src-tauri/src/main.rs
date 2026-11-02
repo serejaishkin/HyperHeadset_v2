@@ -366,7 +366,7 @@ fn main() {
                 let mut last_hid_refresh = Instant::now() - Duration::from_secs(60);
                 let mut last_mute: Option<bool> = None; let mut seen_sidetone_events = 0u32;
                 let mut user_sidetone: bool = Config::load().map(|c| c.device.sidetone).unwrap_or(false);
-                let mut last_mute_poll = Instant::now(); let mut last_wireless_query = Instant::now() - Duration::from_secs(10);
+                let mut last_mute_poll = Instant::now(); let mut next_wireless_query = Instant::now();
                 let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
                 let mut consecutive_refresh_failures = 0u32;
                 loop {
@@ -435,8 +435,11 @@ fn main() {
                         let mut muted_now: Option<bool> = None;
                         let mut side_events = 0u32;
                         // Every 30 s ask every connected headset whether it is switched on.
-                        if last_wireless_query.elapsed() >= Duration::from_secs(30) {
-                            last_wireless_query = Instant::now();
+                        // Every 30 s (every 5 s when audio auto-switching is on, so the switch to the
+                        // fallback device is quick) ask each connected headset if it is switched on.
+                        if Instant::now() >= next_wireless_query {
+                            let fast = Config::load().map(|c| c.audio.wants_fast_status()).unwrap_or(false);
+                            next_wireless_query = Instant::now() + Duration::from_secs(if fast { 5 } else { 30 });
                             let active = manager.active_index;
                             for (i, d) in manager.devices.iter_mut().enumerate() {
                                 if d.request_wireless_status().unwrap_or(false) && i == active { event_changed = true; }

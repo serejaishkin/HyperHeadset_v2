@@ -82,6 +82,13 @@ pub enum DiscordMode {
     Both,
 }
 
+impl AudioConfig {
+    /// True when the app should watch the headset's on/off state closely (fast audio switching).
+    pub fn wants_fast_status(&self) -> bool {
+        self.auto_switch_audio && (self.fallback_output_device.is_some() || self.fallback_input_device.is_some())
+    }
+}
+
 impl DiscordMode {
     pub fn uses_keybind(self) -> bool {
         matches!(self, DiscordMode::Keybind | DiscordMode::Both)
