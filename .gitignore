@@ -14,3 +14,13 @@ REVERSE_ENGINEERING/NGENUITY_COMPONENTS/dll_analysis/*.md
 !REVERSE_ENGINEERING/NGENUITY_COMPONENTS/dll_analysis/TEMPLATE.md
 REVERSE_ENGINEERING/NGENUITY_COMPONENTS/protocol_analysis/
 
+
+# Never commit build outputs, packaged app contents or local files
+/release
+*.bak
+*.backup
+/logs.txt
+/tray_icon.toml
+/config.toml
+/discord_auth.json
+REVERSE_ENGINEERING/NGENUITY_COMPONENTS/extracted/
