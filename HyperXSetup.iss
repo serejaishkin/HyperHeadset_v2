@@ -1,6 +1,6 @@
 [Setup]
 AppName=HyperX NGENUITY Open
-AppVersion=0.2.26
+AppVersion=0.2.27
 AppPublisher=serezaiskin-cell
 DefaultDirName={autopf}\HyperX NGENUITY Open
 DefaultGroupName=HyperX NGENUITY Open

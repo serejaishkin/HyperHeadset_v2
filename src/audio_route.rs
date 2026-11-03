@@ -31,7 +31,7 @@ mod imp {
     };
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
 
-    #[link(name = "combase")]
+    #[link(name = "combase", kind = "raw-dylib")]
     extern "system" {
         fn RoGetActivationFactory(class_id: *mut c_void, iid: *const GUID, factory: *mut *mut c_void) -> HRESULT;
     }
