@@ -118,7 +118,7 @@ fn audio_away(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Opti
         }
     }
     *away = true;
-    hyperx_ngenuity_open::audio_switch::move_streams_after_switch();
+    hyperx_ngenuity_open::audio_switch::move_streams_after_switch(true);
 }
 
 /// Headset is back: restore headset devices (configured ones, else what was default before).
@@ -146,7 +146,7 @@ fn audio_back(away: &mut bool, prev_out: &mut Option<String>, prev_in: &mut Opti
     }
     if ok {
         *away = false;
-        hyperx_ngenuity_open::audio_switch::move_streams_after_switch();
+        hyperx_ngenuity_open::audio_switch::move_streams_after_switch(true);
         *prev_out = None;
         *prev_in = None;
     }

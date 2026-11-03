@@ -16,7 +16,10 @@ pub fn set_debounce_secs(secs: u32) {
 
 /// After the default output changed, move apps' running streams that stayed on another device
 /// (runs in the background: apps often open/close streams a moment after the switch).
-pub fn move_streams_after_switch() {
+pub fn move_streams_after_switch(output_changed: bool) {
+    if !output_changed {
+        return;
+    }
     if !Config::load().unwrap_or_default().audio.move_app_streams {
         return;
     }
@@ -33,6 +36,20 @@ pub fn move_streams_after_switch() {
             }
         }
     });
+}
+
+/// Finds the headset's own audio endpoint by name (HyperX / Cloud ...), used when no explicit
+/// headset device is chosen in the settings.
+fn find_headset_device(output: bool) -> Option<String> {
+    let devices = system_audio::get_audio_devices().ok()?;
+    devices
+        .into_iter()
+        .filter(|d| if output { d.is_output } else { d.is_input })
+        .find(|d| {
+            let n = d.name.to_lowercase();
+            n.contains("hyperx") || n.contains("cloud")
+        })
+        .map(|d| d.id)
 }
 
 #[derive(Default)]
@@ -105,6 +122,7 @@ impl AudioSwitch {
         if self.away {
             return;
         }
+        let mut out_changed = false;
         let a = Config::load().unwrap_or_default().audio;
         if !a.auto_switch_audio {
             log::warn!("[Audio] Headset is off but 'auto switch audio' is disabled in settings");
@@ -120,8 +138,12 @@ impl AudioSwitch {
             }
             if system_audio::get_default_output_device().map_or(false, |c| &c == id) {
                 log::info!("[Audio] Fallback output already default, not touching it");
-            } else if let Err(e) = { log::info!("[Audio] Headset away -> fallback output {}", id); system_audio::set_default_output_device(id) } {
-                log::warn!("[Audio] Fallback output failed: {}", e);
+            } else {
+                log::info!("[Audio] Headset away -> fallback output {}", id);
+                match system_audio::set_default_output_device(id) {
+                    Ok(()) => out_changed = true,
+                    Err(e) => log::warn!("[Audio] Fallback output failed: {}", e),
+                }
             }
         }
         if let Some(ref id) = a.fallback_input_device {
@@ -135,21 +157,33 @@ impl AudioSwitch {
             }
         }
         self.away = true;
-        move_streams_after_switch();
+        move_streams_after_switch(out_changed);
     }
 
     fn come_back(&mut self) -> bool {
         let a = Config::load().unwrap_or_default().audio;
         let mut ok = true;
-        if let Some(id) = a.headset_output_device.clone().or_else(|| self.prev_out.clone()) {
+        let mut out_changed = false;
+        let out_target = a.headset_output_device.clone()
+            .or_else(|| find_headset_device(true))
+            .or_else(|| self.prev_out.clone());
+        let in_target = a.headset_input_device.clone()
+            .or_else(|| find_headset_device(false))
+            .or_else(|| self.prev_in.clone());
+        if out_target.is_none() {
+            log::warn!("[Audio] Headset is back but its output device is unknown - choose it in Audio settings");
+        }
+        if let Some(id) = out_target {
             if system_audio::get_default_output_device().map_or(false, |c| c == id) {
                 log::info!("[Audio] Output already {}, not touching it", id);
             } else if let Err(e) = { log::info!("[Audio] Headset back -> output {}", id); system_audio::set_default_output_device(&id) } {
                 log::warn!("[Audio] Restore output failed: {}", e);
                 ok = false;
+            } else {
+                out_changed = true;
             }
         }
-        if let Some(id) = a.headset_input_device.clone().or_else(|| self.prev_in.clone()) {
+        if let Some(id) = in_target {
             if system_audio::get_default_input_device().map_or(false, |c| c == id) {
                 log::info!("[Audio] Input already {}, not touching it", id);
             } else if let Err(e) = { log::info!("[Audio] Headset back -> input {}", id); system_audio::set_default_input_device(&id) } {
@@ -159,7 +193,7 @@ impl AudioSwitch {
         }
         if ok {
             self.away = false;
-            move_streams_after_switch();
+            move_streams_after_switch(out_changed);
             self.prev_out = None;
             self.prev_in = None;
         }

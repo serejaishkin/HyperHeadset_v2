@@ -110,8 +110,9 @@ mod imp {
             let sessions = match mgr.GetSessionEnumerator() { Ok(s) => s, Err(_) => continue };
             for j in 0..sessions.GetCount().unwrap_or(0) {
                 let ctl = match sessions.GetSession(j) { Ok(c) => c, Err(_) => continue };
-                // 2 = AudioSessionStateExpired
-                if ctl.GetState().map(|s| s.0 == 2).unwrap_or(true) {
+                // Only sessions that are playing right now (1 = AudioSessionStateActive); idle or
+                // expired sessions on other devices must not be touched.
+                if ctl.GetState().map(|s| s.0 != 1).unwrap_or(true) {
                     continue;
                 }
                 let ctl2: IAudioSessionControl2 = match ctl.cast() { Ok(c) => c, Err(_) => continue };
