@@ -65,6 +65,7 @@ pub struct AudioSwitch {
     last_online_in: Option<String>,
     last_remember: Option<Instant>,
     logged_off: bool,
+    startup_done: bool,
 }
 
 lazy_static::lazy_static! {
@@ -88,6 +89,15 @@ impl AudioSwitch {
         } else {
             self.offline_since = None;
             self.logged_off = false;
+            // First time we see the headset on (app start): make the system use it, even if some
+            // other device (e.g. a second headset) is the default right now.
+            if !self.startup_done && !self.away {
+                self.startup_done = true;
+                if Config::load().unwrap_or_default().audio.auto_switch_audio {
+                    log::info!("[Audio] Headset is on at start -> making it the default audio device");
+                    self.come_back();
+                }
+            }
             if !self.away && self.last_remember.map_or(true, |t| t.elapsed() >= Duration::from_secs(30)) {
                 self.last_remember = Some(Instant::now());
                 let a = Config::load().unwrap_or_default().audio;
