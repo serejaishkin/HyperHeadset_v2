@@ -17,7 +17,7 @@
   <main class="main">
     <header class="topbar">
       <nav class="tabs"><button class="tab-btn active" data-tab="dashboard" data-i18n="tab.dashboard">Главная</button><button class="tab-btn" data-tab="equalizer" data-i18n="tab.equalizer">Эквалайзер</button><button class="tab-btn" data-tab="settings" data-i18n="tab.settings">Настройки</button></nav>
-      <div class="header-status"><span id="connection-state" class="connection-state searching" data-i18n="header.searching">ПОИСК</span><span id="header-battery">[БАТ] --%</span><button id="btn-compact" class="compact-button" data-i18n-title="header.compact_title" title="Компактный режим">⛶</button></div>
+      <div class="header-status"><span id="connection-state" class="connection-state searching" data-i18n="header.searching">ПОИСК</span><span id="header-battery">[БАТ] --%</span><button id="btn-reconnect" class="compact-button" title="Обновить / переопросить устройство">⟳</button><button id="btn-compact" class="compact-button" data-i18n-title="header.compact_title" title="Компактный режим">⛶</button></div>
     </header>
     <section class="tab-content active" id="dashboard">
       <div id="device-selector-container" class="device-selector-row" style="display:none; margin-bottom: 14px;">
@@ -29,9 +29,7 @@
         <section class="status-panel battery-panel"><div class="panel-title" data-i18n="dash.battery">Батарея:</div><div class="battery-value" id="battery-percent">--%</div><div class="battery-bar"><div id="battery-bar-fill"></div></div><div class="battery-state" id="battery-status" data-i18n="dash.searching">Поиск устройства...</div></section>
         <section class="status-panel"><div class="panel-title" data-i18n="dash.microphone">Микрофон:</div><div class="status-value" id="mic-status">Неизвестно</div><div class="panel-title signal-title" data-i18n="dash.signal">Сигнал:</div><div class="status-value" id="signal-value">-- dBm</div></section>
       </div>
-      <h2 data-i18n="dash.quick_actions">Быстрые действия</h2>
-      <div class="quick-actions"><button id="btn-mute" data-i18n="dash.mute_mic">Выкл. микрофон</button><button id="btn-voice-check" data-i18n="dash.check_battery">Проверить батарею (голос)</button></div>
-      <div id="device-message" class="device-message"><strong id="device-message-title" data-i18n="dash.searching_headset">Поиск гарнитуры...</strong><span id="device-message-text" data-i18n="dash.connect_text">Подключите гарнитуру/донгл HyperX для начала. Обнаружение работает автоматически.</span><button id="btn-reconnect" data-i18n="dash.retry">Повторить</button></div>
+      <div id="device-message" class="device-message"><strong id="device-message-title" data-i18n="dash.searching_headset">Поиск гарнитуры...</strong><span id="device-message-text" data-i18n="dash.connect_text">Подключите гарнитуру/донгл HyperX для начала. Обнаружение работает автоматически.</span></div>
     </section>
     <section class="tab-content" id="equalizer">
       <h1 data-i18n="eq.title">Эквалайзер</h1>

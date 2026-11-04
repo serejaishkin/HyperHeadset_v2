@@ -535,9 +535,7 @@ async function saveSettings() {
   } catch (error) { console.error('Save failed', error); toast(`${tr('toast.save_error')}: ${error}`); }
 }
 
-$('btn-mute').addEventListener('click', () => command('toggle_mute'));
 $('btn-reconnect').addEventListener('click', refresh);
-$('btn-voice-check').addEventListener('click', checkBatteryVoice);
 $('btn-test-voice').addEventListener('click', async () => { try { await invoke('test_voice'); toast(tr('toast.voice_test')); } catch (e) { toast(`${tr('toast.voice_error')}: ${e}`); } });
 $('btn-save-settings').addEventListener('click', saveSettings); $('btn-reset-settings').addEventListener('click', loadConfig); $('btn-compact').addEventListener('click', () => command('open_compact_window'));
 $('btn-refresh-audio-devices').addEventListener('click', loadAudioDevices);

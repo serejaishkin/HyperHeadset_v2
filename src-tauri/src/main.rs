@@ -106,9 +106,10 @@ fn save_tray_config(app: tauri::AppHandle, mut config: TrayIconConfig) -> Result
     if let Some(tray) = app.tray_by_id("main") {
         let state = app.state::<AppState>();
         let device = state.device_state.lock().unwrap().clone();
+        let (pct, chg) = if device.connected { (device.battery_percent, device.charging) } else { (OFFLINE_PERCENT, false) };
         let (rgba, w, h) = match config.mode {
-            TrayIconMode::Big => generate_big_digits_rgba(device.battery_percent, device.charging, &config.for_tray()),
-            TrayIconMode::Battery => generate_battery_gauge_rgba(&config.for_tray(), device.battery_percent, device.charging),
+            TrayIconMode::Big => generate_big_digits_rgba(pct, chg, &config.for_tray()),
+            TrayIconMode::Battery => generate_battery_gauge_rgba(&config.for_tray(), pct, chg),
         };
         match tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             Ok(_) => log::info!("[Tray] set_icon OK after save"),
@@ -155,6 +156,13 @@ fn toggle_system_output_mute() -> Result<(), String> { hyperx_ngenuity_open::sys
 fn play_pause() -> Result<(), String> { hyperx_ngenuity_open::system_audio::play_pause().map_err(|e| e.to_string()) }
 #[tauri::command]
 fn get_audio_devices() -> Result<Vec<hyperx_ngenuity_open::system_audio::AudioDevice>, String> { hyperx_ngenuity_open::system_audio::get_audio_devices().map_err(|e| e.to_string()) }
+#[tauri::command]
+fn get_default_audio_devices() -> serde_json::Value {
+    serde_json::json!({
+        "output": hyperx_ngenuity_open::system_audio::get_default_output_device().ok(),
+        "input": hyperx_ngenuity_open::system_audio::get_default_input_device().ok(),
+    })
+}
 #[tauri::command]
 fn set_default_output_device(device_id: String) -> Result<(), String> { hyperx_ngenuity_open::system_audio::set_default_output_device(&device_id).map_err(|e| e.to_string()) }
 #[tauri::command]
@@ -601,9 +609,11 @@ fn main() {
                             log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
                                 icon_config.mode, st.battery_percent, st.charging,
                                 icon_config.colors.high.fg, icon_config.colors.high.outline);
+                            // Headset off / dongle only: show the dedicated offline icon, never the last percent.
+                            let (pct, chg) = if st.connected { (st.battery_percent, st.charging) } else { (OFFLINE_PERCENT, false) };
                             let (rgba, w, h) = match icon_config.mode {
-                                TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, st.charging, &icon_config.for_tray()),
-                                TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), st.battery_percent, st.charging),
+                                TrayIconMode::Big => generate_big_digits_rgba(pct, chg, &icon_config.for_tray()),
+                                TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), pct, chg),
                             };
                             if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
                                 log::warn!("[Tray] set_icon failed: {}", e);
@@ -617,7 +627,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, get_discord_status, open_url, open_compact_window, show_main_window_cmd, get_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, get_discord_status, open_url, open_compact_window, show_main_window_cmd, get_audio_devices, get_default_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

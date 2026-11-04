@@ -14,9 +14,9 @@
       },
       {
         "label": "compact", "url": "compact.html", "title": "HyperHeadsetv2 Compact",
-        "width": 280, "height": 380,
-        "minWidth": 240, "minHeight": 320,
-        "maxWidth": 420, "maxHeight": 550,
+        "width": 300, "height": 250,
+        "minWidth": 260, "minHeight": 230,
+        "maxWidth": 460, "maxHeight": 340,
         "center": true, "visible": false, "resizable": true
       }
     ]
