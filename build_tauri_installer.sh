@@ -8,7 +8,12 @@ VER=$(grep -m1 '^version' src-tauri/Cargo.toml | cut -d'"' -f2)
 echo "== Building HyperHeadsetv2 v$VER =="
 
 # Never pick up an installer from an earlier build.
-rm -rf src-tauri/target/release/bundle release
+rm -rf src-tauri/target/release/bundle
+# 'release' may be held open (Explorer window, a terminal inside it, antivirus): empty it instead of failing.
+if ! rm -rf release 2>/dev/null; then
+  echo "note: could not remove ./release (in use); clearing its contents instead"
+  find release -mindepth 1 -delete 2>/dev/null || rm -rf release/* 2>/dev/null || true
+fi
 rm -f src-tauri/target/release/hyperx-ngenuity-open-tauri.exe
 mkdir -p release
 
