@@ -19,7 +19,7 @@ cargo tauri signer generate -w ~/.tauri/hyperheadset.key
 ```json
 "updater": {
   "pubkey": "<публичный ключ из шага 1>",
-  "endpoints": ["https://github.com/serejaishkin/HyperHeadset_v2/releases/latest/download/latest.json"]
+  "endpoints": ["https://github.com/serejaishkin/hyperx_ngenuity_open/releases/latest/download/latest.json"]
 }
 ```
 

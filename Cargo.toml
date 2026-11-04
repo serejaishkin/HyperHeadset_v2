@@ -4,7 +4,7 @@ version = "0.2.30"
 edition = "2021"
 authors = ["serejaishkin"]
 license = "MIT"
-repository = "https://github.com/serejaishkin/HyperHeadset_v2"
+repository = "https://github.com/serejaishkin/hyperx_ngenuity_open"
 
 [dependencies]
 hidapi = "2.6"

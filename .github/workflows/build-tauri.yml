@@ -2,7 +2,7 @@ name: Build Tauri
 
 on:
   push:
-    branches: [fix/tauri-functional-hid]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
