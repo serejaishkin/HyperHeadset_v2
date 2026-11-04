@@ -597,6 +597,8 @@ async function refreshPerDeviceEq() {
   } catch (e) { console.debug('per-device eq:', e); }
 }
 $('eq-save-per-device').addEventListener('click', async () => {
+  await refreshPerDeviceEq();
+document.querySelectorAll('.tab-btn[data-tab="equalizer"]').forEach(b => b.addEventListener('click', refreshPerDeviceEq));
   if (!activeDeviceId) { toast(tr('toast.no_device')); return; }
   try {
     const bands = Array.from(document.querySelectorAll('.eq-band input')).map(i => Number(i.value));
@@ -611,6 +613,7 @@ $('eq-save-per-device').addEventListener('click', async () => {
   } catch (e) { toast(`${tr('toast.save_error')}: ${e}`); }
 });
 $('eq-clear-per-device').addEventListener('click', async () => {
+  await refreshPerDeviceEq();
   if (!activeDeviceId) return;
   try {
     let per = await invoke('get_per_device_config', { deviceId: activeDeviceId });
