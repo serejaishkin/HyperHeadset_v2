@@ -1,16 +1,13 @@
 mod config;
 mod big;
-mod digits;
 mod battery;
 
 pub use config::{OFFLINE_PERCENT, TrayIconConfig, TrayIconColors, IconColors, TrayIconMode};
 pub use big::generate_big_digits_rgba;
-pub use digits::generate_battery_icon_rgba;
 pub use battery::generate_battery_gauge_rgba;
 
 /// Render the tray icon for the configured mode:
-/// Big    = large outlined digits that fill the icon on a transparent background;
-/// Digits = small digits on a coloured background;
+/// Big     = large outlined digits that fill the icon on a transparent background;
 /// Battery = battery gauge filled by charge (readable at 16px, no digits).
 pub fn generate_tray_icon_rgba(
     config: &TrayIconConfig,
@@ -19,7 +16,6 @@ pub fn generate_tray_icon_rgba(
 ) -> (Vec<u8>, u32, u32) {
     match config.mode {
         TrayIconMode::Big => generate_big_digits_rgba(percent, charging, config),
-        TrayIconMode::Digits => generate_battery_icon_rgba(config, percent, charging),
         TrayIconMode::Battery => generate_battery_gauge_rgba(config, percent, charging),
     }
 }
@@ -29,7 +25,7 @@ pub fn generate_battery_icon_png(
     percent: u8,
     charging: bool,
 ) -> anyhow::Result<Vec<u8>> {
-    let (rgba, w, h) = generate_battery_icon_rgba(config, percent, charging);
+    let (rgba, w, h) = generate_battery_gauge_rgba(config, percent, charging);
     let img = image::RgbaImage::from_raw(w, h, rgba)
         .ok_or_else(|| anyhow::anyhow!("Invalid image buffer"))?;
     let mut buf = Vec::new();

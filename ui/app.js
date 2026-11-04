@@ -132,6 +132,15 @@ function hexToRgba(hex, alpha = 255) { const h = String(hex || '#000000').replac
 function setColor(id, value) { const el = $(id); if (el) el.value = rgbaToHex(value); }
 function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', fallback?.[3] ?? 255); }
 
+function statusColor(t, schemeKey, pct) {
+  const c = t.colors || {};
+  const base = (c[schemeKey] || c.high || { bg:[0,180,80,255] }).bg;
+  if (!t.smooth_colors || schemeKey === 'charging' || schemeKey === 'offline') return base;
+  const lo = Number(t.low_threshold) || 0, hi = Number(t.high_threshold) || 50, mid = (lo + hi) / 2;
+  const [A, B, k] = pct <= mid ? [c.low.bg, c.medium.bg, mid > 0 ? pct / mid : 1] : [c.medium.bg, c.high.bg, (pct - mid) / Math.max(1, 100 - mid)];
+  const kk = Math.min(1, Math.max(0, k));
+  return A.map((v, i) => Math.round(v + (B[i] - v) * kk));
+}
 const TRAY_STATES = ['charging','high','medium','low','offline'];
 const OFFLINE_DEFAULT = { bg:[90,90,90,255], fg:[210,210,210,255], outline:[20,20,20,255], border:[60,60,60,255] };
 function updateTrayLabels() {
@@ -152,7 +161,8 @@ function trayToUi(t) {
   $('tray-high-th').value = t.high_threshold ?? 50; $('tray-low-th').value = t.low_threshold ?? 20;
   updateTrayLabels();
   trayConfig = structuredClone(t);
-  $('tray-mode').value = t.mode || 'big';
+  $('tray-mode').value = (t.mode === 'battery') ? 'battery' : 'big';
+  if ($('tray-smooth')) $('tray-smooth').checked = !!t.smooth_colors;
   const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'digits' ? '' : 'none';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of TRAY_STATES) {
@@ -165,6 +175,7 @@ function uiToTray() {
   t.low_threshold = Math.min(t.high_threshold - 1, Math.max(0, Number($('tray-low-th').value) || 0));
   if (t.colors && !t.colors.offline) t.colors.offline = structuredClone(OFFLINE_DEFAULT);
   t.mode = $('tray-mode').value || 'big';
+  t.smooth_colors = !!($('tray-smooth') && $('tray-smooth').checked);
   t.size = Number($('tray-size').value) || 256; t.font_scale = Number($('tray-font-scale').value) || 8; t.outline_width = Number($('tray-outline').value) || 0; t.border_width = Number($('tray-border').value) || 0; t.gap_between_digits = Number($('tray-gap').value) || 0;
   if (!t.colors) return t;
   for (const name of TRAY_STATES) {
@@ -214,7 +225,7 @@ function renderTrayPreview() {
   ctx.clearRect(0, 0, sz, sz);
 
   if (t.mode === 'big') {
-    const fg = scheme.bg, ol = scheme.outline;
+    const fg = statusColor(t, schemeKey, pct), ol = scheme.outline;
     const text = String(percent);
     const n = text.length;
     const gap = 2;
@@ -265,11 +276,11 @@ function renderTrayPreview() {
     ctx.fillStyle = rgbaToRgbStr(frame); ctx.fillRect(cx0, 0, cx1 - cx0, by0);
     ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
     ctx.fillStyle = 'rgb(13,13,13)'; ctx.fillRect(ix0, iy0, ix1 - ix0, iy1 - iy0);
-    ctx.fillStyle = rgbaToRgbStr(scheme.bg); ctx.fillRect(ix0, ftop, ix1 - ix0, iy1 - ftop);
+    ctx.fillStyle = rgbaToRgbStr(statusColor(t, schemeKey, pct)); ctx.fillRect(ix0, ftop, ix1 - ix0, iy1 - ftop);
     const w = ix1 - ix0, h = ih;
     const px = (fx, fy) => [ix0 + fx * w, iy0 + fy * h];
     if (offline) {
-      ctx.strokeStyle = rgbaToRgbStr(scheme.bg); ctx.lineWidth = Math.max(1, S * 0.07);
+      ctx.strokeStyle = rgbaToRgbStr(statusColor(t, schemeKey, pct)); ctx.lineWidth = Math.max(1, S * 0.07);
       const sd = Math.min(w, h) * 0.35, cx = ix0 + w / 2, cy = iy0 + h / 2;
       ctx.beginPath(); ctx.moveTo(cx - sd, cy - sd); ctx.lineTo(cx + sd, cy + sd); ctx.moveTo(cx + sd, cy - sd); ctx.lineTo(cx - sd, cy + sd); ctx.stroke();
     } else if (charging) {
@@ -277,48 +288,12 @@ function renderTrayPreview() {
       [[0.72,0],[0.06,0.56],[0.46,0.56],[0.28,1],[0.94,0.42],[0.54,0.42]].forEach((p, i) => { const q = px(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
       ctx.closePath(); ctx.fill();
     }
-  } else {
-    const bg = scheme.bg, fg = scheme.fg, ol = scheme.fg, bd = scheme.border;
-    ctx.fillStyle = rgbaToRgbStr(bg); ctx.fillRect(0, 0, sz, sz);
-    const bw = t.border_width || 0;
-    if (bw > 0) { ctx.fillStyle = rgbaToRgbStr(bd); ctx.fillRect(0, 0, sz, bw); ctx.fillRect(0, sz - bw, sz, bw); ctx.fillRect(0, 0, bw, sz); ctx.fillRect(sz - bw, 0, bw, sz); }
-    const fs = t.font_scale || 8, opx = t.outline_width || 2, gap = t.gap_between_digits || 4;
-    const dw = 5 * fs, dh = 7 * fs;
-    const text = String(percent);
-    const n = text.length;
-    const totalW = n * dw + (n - 1) * gap;
-    const sx = Math.floor((sz - totalW) / 2);
-    const sy = Math.floor((sz - dh) / 2);
-
-    for (let ci = 0; ci < n; ci++) {
-      const d = text[ci] === '-' ? 10 : parseInt(text[ci]);
-      const digit = DIGITS[d];
-      const ox = sx + ci * (dw + gap);
-      if (opx > 0) {
-        for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
-          if ((digit[row] >> (4 - col)) & 1) {
-            for (let dy = -opx; dy <= opx; dy++) for (let dx = -opx; dx <= opx; dx++) {
-              const xi = ox + col * fs + dx, yi = sy + row * fs + dy;
-              if (xi >= 0 && yi >= 0 && xi < sz && yi < sz) { ctx.fillStyle = rgbaToRgbStr(ol); ctx.fillRect(xi, yi, 1, 1); }
-            }
-          }
-        }
-      }
-      for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
-        if ((digit[row] >> (4 - col)) & 1) {
-          for (let dy = 0; dy < fs; dy++) for (let dx = 0; dx < fs; dx++) {
-            const x = ox + col * fs + dx, y = sy + row * fs + dy;
-            if (x < sz && y < sz) { ctx.fillStyle = rgbaToRgbStr(fg); ctx.fillRect(x, y, 1, 1); }
-          }
-        }
-      }
-    }
   }
   const info = $('tray-preview-info');
   if (info) info.textContent = `${t.mode} · ${sz}×${sz} · scheme: ${schemeKey} (${percent}%)`;
 }
 
-['tray-mode','tray-size','tray-font-scale','tray-outline','tray-border','tray-gap',
+['tray-mode','tray-smooth','tray-size','tray-font-scale','tray-outline','tray-border','tray-gap',
  'tray-charging-bg','tray-charging-fg','tray-charging-outline','tray-charging-border',
  'tray-high-bg','tray-high-fg','tray-high-outline','tray-high-border',
  'tray-medium-bg','tray-medium-fg','tray-medium-outline','tray-medium-border',

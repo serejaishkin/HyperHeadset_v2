@@ -4,9 +4,10 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TrayIconMode {
+    /// Large seven-segment digits. Old configs with mode = "digits" load as this.
     #[default]
+    #[serde(alias = "digits")]
     Big,
-    Digits,
     Battery,
 }
 
@@ -25,6 +26,9 @@ pub struct TrayIconConfig {
     /// Charge above this percent (and not above high) uses "medium"; at or below it uses "low".
     #[serde(default = "default_low_threshold")]
     pub low_threshold: u8,
+    /// Blend the status colors smoothly with the charge level instead of switching at the thresholds.
+    #[serde(default)]
+    pub smooth_colors: bool,
     pub colors: TrayIconColors,
 }
 
@@ -70,6 +74,7 @@ impl Default for TrayIconConfig {
             outline_width: 2,
             border_width: 0,
             gap_between_digits: 4,
+            smooth_colors: false,
             high_threshold: 50,
             low_threshold: 20,
             colors: TrayIconColors {
@@ -140,6 +145,26 @@ impl TrayIconConfig {
         } else {
             &self.colors.low
         }
+    }
+
+    /// Main status color (digit / gauge fill). Offline and charging use their own color; otherwise either the
+    /// threshold color, or with `smooth_colors` a blend low -> medium -> high across 0..100 %.
+    pub fn status_color(&self, percent: u8, charging: bool) -> [u8; 4] {
+        if percent == OFFLINE_PERCENT || charging || !self.smooth_colors {
+            return self.scheme_for(percent, charging).bg;
+        }
+        let p = percent.min(100) as f32;
+        let mid = (self.low_threshold as f32 + self.high_threshold as f32) / 2.0;
+        let (a, b, t) = if p <= mid {
+            (self.colors.low.bg, self.colors.medium.bg, if mid > 0.0 { p / mid } else { 1.0 })
+        } else {
+            (self.colors.medium.bg, self.colors.high.bg, (p - mid) / (100.0 - mid).max(1.0))
+        };
+        let mut out = [255u8; 4];
+        for i in 0..4 {
+            out[i] = (a[i] as f32 + (b[i] as f32 - a[i] as f32) * t.clamp(0.0, 1.0)).round() as u8;
+        }
+        out
     }
 
     pub fn sanitize(&mut self) {

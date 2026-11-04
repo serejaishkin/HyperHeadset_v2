@@ -784,25 +784,19 @@ hold=Play/Pause"));
         ui.horizontal(|ui| {
             ui.label("Mode:");
             ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Big, "Big digits (fill the icon, no background)");
-            ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Digits, "Digits on background");
             ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Battery, "Battery gauge (readable at 16px)");
         });
         if self.tray_icon_config.mode == TrayIconMode::Big {
-            ui.small("Big mode: digits auto-fit the icon; BG/Border and Font/Gap are not used, FG/Outline are.");
+            ui.small("Big mode: digits auto-fit the icon and use the status color; Outline is the outline color.");
+            if ui.checkbox(&mut self.tray_icon_config.smooth_colors, "Smooth color blend by charge").changed() { self.needs_save = true; }
         }
         ui.horizontal(|ui| {
             ui.label(self.i18n.t("Size:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.size, 16..=512)).changed() { self.needs_save = true; }
-            ui.label(self.i18n.t("Font:"));
-            if ui.add(egui::Slider::new(&mut self.tray_icon_config.font_scale, 1..=20)).changed() { self.needs_save = true; }
         });
         ui.horizontal(|ui| {
             ui.label(self.i18n.t("Outline:"));
             if ui.add(egui::Slider::new(&mut self.tray_icon_config.outline_width, 0..=10)).changed() { self.needs_save = true; }
-            ui.label(self.i18n.t("Border:"));
-            if ui.add(egui::Slider::new(&mut self.tray_icon_config.border_width, 0..=20)).changed() { self.needs_save = true; }
-            ui.label(self.i18n.t("Gap:"));
-            if ui.add(egui::Slider::new(&mut self.tray_icon_config.gap_between_digits, 0..=50)).changed() { self.needs_save = true; }
         });
 
         ui.separator();

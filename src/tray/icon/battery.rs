@@ -16,7 +16,7 @@ pub fn generate_battery_gauge_rgba(
 
     let scheme = config.scheme_for(percent, charging);
     let offline = percent == OFFLINE_PERCENT;
-    let fill_c = Rgba(scheme.bg);
+    let fill_c = Rgba(config.status_color(percent, charging));
     let frame_c = if offline { Rgba(scheme.fg) } else { Rgba([240, 240, 240, 255]) };
     let mark_c = frame_c;
     let track_c = Rgba([0, 0, 0, 150]);
