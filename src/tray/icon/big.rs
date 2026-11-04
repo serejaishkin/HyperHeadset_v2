@@ -50,7 +50,8 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     let mut img = RgbaImage::new(size, size);
 
     let scheme = config.scheme_for(percent, charging);
-    let fg = Rgba(scheme.fg);
+    // Big digits have no background: the status color ("bg") is the digit color itself.
+    let fg = Rgba(scheme.bg);
     let outline = Rgba(scheme.outline);
 
     let chars: Vec<usize> = if percent == super::config::OFFLINE_PERCENT {

@@ -135,6 +135,7 @@ function colorValue(id, fallback) { return hexToRgba($(id)?.value || '#000000', 
 const TRAY_STATES = ['charging','high','medium','low','offline'];
 const OFFLINE_DEFAULT = { bg:[90,90,90,255], fg:[210,210,210,255], outline:[20,20,20,255], border:[60,60,60,255] };
 function updateTrayLabels() {
+  const grid = document.querySelector('.tray-color-grid'); if (grid) grid.dataset.mode = ($('tray-mode') && $('tray-mode').value) || 'big';
   const h = Number($('tray-high-th').value) || 50, l = Number($('tray-low-th').value);
   const lo = Number.isFinite(l) ? l : 20;
   const names = {
@@ -213,7 +214,7 @@ function renderTrayPreview() {
   ctx.clearRect(0, 0, sz, sz);
 
   if (t.mode === 'big') {
-    const fg = scheme.fg, ol = scheme.fg;
+    const fg = scheme.bg, ol = scheme.outline;
     const text = String(percent);
     const n = text.length;
     const gap = 2;

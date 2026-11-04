@@ -24,7 +24,7 @@ fn attach_parent_console(open_new_window: bool) -> Option<std::fs::File> {
 
 pub fn init(config: &Config) {
     #[cfg_attr(not(windows), allow(unused_variables))]
-    let want_window = config.debug_logging || std::env::args().any(|a| a == "--console" || a == "--debug");
+    let want_window = config.log_to_console || std::env::args().any(|a| a == "--console" || a == "--debug");
     #[cfg(target_os = "windows")]
     let console = attach_parent_console(want_window).map(std::sync::Mutex::new);
     #[cfg(not(target_os = "windows"))]

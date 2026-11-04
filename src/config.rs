@@ -158,7 +158,7 @@ impl Default for Config {
             compact_mode: false,
             language: "ru".to_string(),
             debug_logging: false,
-            log_to_console: true,
+            log_to_console: false,
             log_to_file: false,
             start_in_compact_mode: false,
             status_poll_secs: default_status_poll_secs(),
