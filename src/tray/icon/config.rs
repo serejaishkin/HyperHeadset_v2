@@ -7,6 +7,7 @@ pub enum TrayIconMode {
     #[default]
     Big,
     Digits,
+    Battery,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

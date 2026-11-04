@@ -10,7 +10,7 @@ use hyperx_ngenuity_open::config::Config;
 use hyperx_ngenuity_open::device::{DeviceState, MultiDeviceManager, DeviceCommand};
 use hyperx_ngenuity_open::audio_switch::AUDIO_SWITCH;
 use hyperx_ngenuity_open::input::GLOBAL_MUTE_HANDLER;
-use hyperx_ngenuity_open::tray::icon::{OFFLINE_PERCENT, TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_big_digits_rgba};
+use hyperx_ngenuity_open::tray::icon::{OFFLINE_PERCENT, TrayIconConfig, TrayIconMode, generate_battery_icon_rgba, generate_battery_gauge_rgba, generate_big_digits_rgba};
 use hyperx_ngenuity_open::input::MuteButtonMode as InputMuteButtonMode;
 use hyperx_ngenuity_open::config::MuteButtonMode;
 
@@ -109,6 +109,7 @@ fn save_tray_config(app: tauri::AppHandle, mut config: TrayIconConfig) -> Result
         let (rgba, w, h) = match config.mode {
             TrayIconMode::Big => generate_big_digits_rgba(device.battery_percent, device.charging, &config.for_tray()),
             TrayIconMode::Digits => generate_battery_icon_rgba(&config.for_tray(), device.battery_percent, device.charging),
+            TrayIconMode::Battery => generate_battery_gauge_rgba(&config.for_tray(), device.battery_percent, device.charging),
         };
         match tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             Ok(_) => log::info!("[Tray] set_icon OK after save"),
@@ -290,6 +291,7 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
         let (rgba, w, h) = match icon_config.mode {
             TrayIconMode::Big => generate_big_digits_rgba(OFFLINE_PERCENT, false, &icon_config.for_tray()),
             TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config.for_tray(), OFFLINE_PERCENT, false),
+            TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), OFFLINE_PERCENT, false),
         };
         if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             log::warn!("[Tray] disconnected set_icon failed: {}", e);
@@ -604,6 +606,7 @@ fn main() {
                             let (rgba, w, h) = match icon_config.mode {
                                 TrayIconMode::Big => generate_big_digits_rgba(st.battery_percent, st.charging, &icon_config.for_tray()),
                                 TrayIconMode::Digits => generate_battery_icon_rgba(&icon_config.for_tray(), st.battery_percent, st.charging),
+                                TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), st.battery_percent, st.charging),
                             };
                             if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
                                 log::warn!("[Tray] set_icon failed: {}", e);

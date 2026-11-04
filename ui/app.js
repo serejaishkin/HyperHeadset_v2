@@ -153,7 +153,7 @@ function trayToUi(t) {
   updateTrayLabels();
   trayConfig = structuredClone(t);
   $('tray-mode').value = t.mode || 'big';
-  const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'big' ? 'block' : '';
+  const ds = $('digits-settings'); if (ds) ds.style.display = $('tray-mode').value === 'digits' ? '' : 'none';
   $('tray-size').value = t.size; $('tray-font-scale').value = t.font_scale; $('tray-outline').value = t.outline_width; $('tray-border').value = t.border_width; $('tray-gap').value = t.gap_between_digits;
   for (const name of TRAY_STATES) {
     setColor(`tray-${name}-bg`, t.colors[name].bg); setColor(`tray-${name}-fg`, t.colors[name].fg); setColor(`tray-${name}-outline`, t.colors[name].outline); setColor(`tray-${name}-border`, t.colors[name].border);
@@ -251,6 +251,31 @@ function renderTrayPreview() {
           }
         }
       }
+    }
+  } else if (t.mode === 'battery') {
+    const charging = schemeKey === 'charging';
+    const S = sz, th = Math.max(1, Math.round(S / 10));
+    const bx0 = Math.round(S * 0.20), bx1 = Math.round(S * 0.80), by0 = Math.round(S * 0.14), by1 = S - 1;
+    const cx0 = Math.round(S * 0.38), cx1 = Math.round(S * 0.62);
+    const ix0 = bx0 + th, ix1 = bx1 - th, iy0 = by0 + th, iy1 = by1 - th, ih = Math.max(1, iy1 - iy0);
+    const lvl = offline ? 0 : Math.min(100, pct);
+    let fh = Math.floor((ih * lvl + 50) / 100); if (!offline && lvl > 0 && fh === 0) fh = 1;
+    const ftop = iy1 - fh;
+    const frame = offline ? scheme.fg : [240, 240, 240, 255];
+    ctx.fillStyle = rgbaToRgbStr(frame); ctx.fillRect(cx0, 0, cx1 - cx0, by0);
+    ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+    ctx.fillStyle = 'rgb(13,13,13)'; ctx.fillRect(ix0, iy0, ix1 - ix0, iy1 - iy0);
+    ctx.fillStyle = rgbaToRgbStr(scheme.bg); ctx.fillRect(ix0, ftop, ix1 - ix0, iy1 - ftop);
+    const w = ix1 - ix0, h = ih;
+    const px = (fx, fy) => [ix0 + fx * w, iy0 + fy * h];
+    if (offline) {
+      ctx.strokeStyle = rgbaToRgbStr(scheme.bg); ctx.lineWidth = Math.max(1, S * 0.07);
+      const sd = Math.min(w, h) * 0.35, cx = ix0 + w / 2, cy = iy0 + h / 2;
+      ctx.beginPath(); ctx.moveTo(cx - sd, cy - sd); ctx.lineTo(cx + sd, cy + sd); ctx.moveTo(cx + sd, cy - sd); ctx.lineTo(cx - sd, cy + sd); ctx.stroke();
+    } else if (charging) {
+      ctx.fillStyle = rgbaToRgbStr(frame); ctx.beginPath();
+      [[0.72,0],[0.06,0.56],[0.46,0.56],[0.28,1],[0.94,0.42],[0.54,0.42]].forEach((p, i) => { const q = px(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+      ctx.closePath(); ctx.fill();
     }
   } else {
     const bg = scheme.bg, fg = scheme.fg, ol = scheme.fg, bd = scheme.border;
@@ -469,7 +494,7 @@ if ($('btn-test-mute')) {
 
 $('tray-mode').addEventListener('change', () => {
   const mode = $('tray-mode').value;
-  const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'big' ? 'none' : '';
+  const ds = $('digits-settings'); if (ds) ds.style.display = mode === 'digits' ? '' : 'none';
   renderTrayPreview();
 });
 

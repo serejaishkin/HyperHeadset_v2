@@ -785,6 +785,7 @@ hold=Play/Pause"));
             ui.label("Mode:");
             ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Big, "Big digits (fill the icon, no background)");
             ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Digits, "Digits on background");
+            ui.selectable_value(&mut self.tray_icon_config.mode, TrayIconMode::Battery, "Battery gauge (readable at 16px)");
         });
         if self.tray_icon_config.mode == TrayIconMode::Big {
             ui.small("Big mode: digits auto-fit the icon; BG/Border and Font/Gap are not used, FG/Outline are.");
