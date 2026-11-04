@@ -195,12 +195,15 @@ fn apply_eq(bands: [f32; 10]) -> Result<(), String> {
 #[tauri::command]
 fn eq_backend_status() -> serde_json::Value {
     #[cfg(target_os = "windows")] { return serde_json::json!({"os":"windows","installed":hyperx_ngenuity_open::audio::windows::is_apo_installed()}); }
-    #[cfg(not(target_os = "windows"))] { serde_json::json!({"os":"other","installed":true}) }
+    #[cfg(target_os = "linux")] { return serde_json::json!({"os":"linux","installed":hyperx_ngenuity_open::audio::linux::is_installed()}); }
+    #[cfg(target_os = "macos")] { return serde_json::json!({"os":"macos","installed":hyperx_ngenuity_open::audio::macos_eqmac::is_installed()}); }
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))] { serde_json::json!({"os":"other","installed":false}) }
 }
 #[tauri::command]
 async fn install_eq_backend() -> Result<(), String> {
     #[cfg(target_os = "windows")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::windows::install_apo().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
-    #[cfg(not(target_os = "windows"))] { Err("Автоустановка доступна только в Windows".into()) }
+    #[cfg(target_os = "macos")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::macos_eqmac::install().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))] { Err("Установите PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (или аналог для вашего дистрибутива)".into()) }
 }
 #[tauri::command]
 fn open_eq_configurator() -> Result<(), String> {

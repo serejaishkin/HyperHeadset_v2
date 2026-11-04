@@ -7,13 +7,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="side-control"><div class="side-title">VOL</div><input id="volume" class="vertical-range" type="range" min="0" max="100" value="92"><div class="side-value" id="volume-value">92%</div></div>
-    <div class="side-control"><div class="side-title">MIC</div><input id="mic-volume" class="vertical-range" type="range" min="0" max="100" value="100"><div class="side-value" id="mic-value">100%</div></div>
-    <button class="side-button" id="mic-toggle" data-i18n="sidebar.mic_on">МИКР ВКЛ</button>
-    <label class="side-check"><input type="checkbox" id="sidetone"><span data-i18n="sidebar.sidetone">Сайдтон</span></label>
-    <button class="side-button play-button" id="play-button" data-i18n="sidebar.play">ИГРАТЬ</button>
-  </aside>
   <main class="main">
     <header class="topbar">
       <nav class="tabs"><button class="tab-btn active" data-tab="dashboard" data-i18n="tab.dashboard">Главная</button><button class="tab-btn" data-tab="equalizer" data-i18n="tab.equalizer">Эквалайзер</button><button class="tab-btn" data-tab="settings" data-i18n="tab.settings">Настройки</button></nav>
@@ -29,6 +22,11 @@
         <section class="status-panel battery-panel"><div class="panel-title" data-i18n="dash.battery">Батарея:</div><div class="battery-value" id="battery-percent">--%</div><div class="battery-bar"><div id="battery-bar-fill"></div></div><div class="battery-state" id="battery-status" data-i18n="dash.searching">Поиск устройства...</div></section>
         <section class="status-panel"><div class="panel-title" data-i18n="dash.microphone">Микрофон:</div><div class="status-value" id="mic-status">Неизвестно</div><div class="panel-title signal-title" data-i18n="dash.signal">Сигнал:</div><div class="status-value" id="signal-value">-- dBm</div></section>
       </div>
+      <section class="controls-panel">
+        <div class="ctl-slider"><span class="ctl-title">VOL</span><input id="volume" class="h-range" type="range" min="0" max="100" value="92"><span class="ctl-value" id="volume-value">92%</span></div>
+        <div class="ctl-slider"><span class="ctl-title">MIC</span><input id="mic-volume" class="h-range" type="range" min="0" max="100" value="100"><span class="ctl-value" id="mic-value">100%</span></div>
+        <div class="ctl-buttons"><button class="side-button" id="mic-toggle" data-i18n="sidebar.mic_on">МИКР ВКЛ</button><label class="side-check"><input type="checkbox" id="sidetone"><span data-i18n="sidebar.sidetone">Сайдтон</span></label><button class="side-button play-button" id="play-button" data-i18n="sidebar.play">ИГРАТЬ</button></div>
+      </section>
       <div id="device-message" class="device-message"><strong id="device-message-title" data-i18n="dash.searching_headset">Поиск гарнитуры...</strong><span id="device-message-text" data-i18n="dash.connect_text">Подключите гарнитуру/донгл HyperX для начала. Обнаружение работает автоматически.</span></div>
     </section>
     <section class="tab-content" id="equalizer">

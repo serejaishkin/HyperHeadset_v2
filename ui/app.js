@@ -716,19 +716,30 @@ for (const [id, label] of [['cfg-poll-secs', 'cfg-poll-secs-val'], ['cfg-debounc
 }
 
 // ---- Equalizer APO: detect / auto-install (Windows)
+let eqInstallLabel = 'Установить Equalizer APO';
 async function refreshEqBackend() {
   try {
     const st = await invoke('eq_backend_status');
-    $('eq-apo-banner').style.display = (st.os === 'windows' && !st.installed) ? 'block' : 'none';
+    const texts = {
+      windows: ['Для эквалайзера на всю систему нужен Equalizer APO.', 'Установить Equalizer APO'],
+      macos: ['Для эквалайзера на всю систему нужен eqtune (macOS 14.2+, устанавливается через cargo).', 'Установить eqtune'],
+      linux: ['Для эквалайзера нужен PipeWire (pipewire, pactl). В Ubuntu/Debian: sudo apt install pipewire pipewire-pulse pulseaudio-utils.', 'Как установить'],
+    };
+    const t = texts[st.os] || ['Эквалайзер недоступен на этой системе.', 'Подробнее'];
+    $('eq-apo-text').textContent = t[0]; $('eq-apo-install').textContent = t[1]; eqInstallLabel = t[1];
+    $('eq-apo-banner').style.display = st.installed ? 'none' : 'block';
   } catch (e) { console.debug('eq status:', e); }
 }
 $('eq-apo-install').addEventListener('click', async () => {
   const b = $('eq-apo-install'); b.disabled = true; b.textContent = 'Установка… (подтвердите запрос UAC)';
   try {
     await invoke('install_eq_backend');
-    $('eq-apo-text').textContent = 'Equalizer APO установлен. Откройте Configurator, отметьте гарнитуру в списке устройств, затем перезагрузите компьютер — после этого эквалайзер заработает.';
-    b.style.display = 'none'; $('eq-apo-config').style.display = '';
-  } catch (e) { b.disabled = false; b.textContent = 'Установить Equalizer APO'; toast(String(e)); }
+    const st = await invoke('eq_backend_status');
+    if (st.os === 'windows') {
+      $('eq-apo-text').textContent = 'Equalizer APO установлен. Откройте Configurator, отметьте гарнитуру в списке устройств, затем перезагрузите компьютер — после этого эквалайзер заработает.';
+      b.style.display = 'none'; $('eq-apo-config').style.display = '';
+    } else { $('eq-apo-banner').style.display = 'none'; toast('Готово: эквалайзер можно применять'); }
+  } catch (e) { b.disabled = false; b.textContent = eqInstallLabel; toast(String(e)); }
 });
 $('eq-apo-config').addEventListener('click', () => invoke('open_eq_configurator').catch(e => toast(String(e))));
 refreshEqBackend();
