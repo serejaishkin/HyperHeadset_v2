@@ -99,3 +99,36 @@ pub fn list_presets() -> Vec<String> {
     }
     presets
 }
+const APO_URL: &str = "https://sourceforge.net/projects/equalizerapo/files/1.4.2/EqualizerAPO-x64-1.4.2.exe/download";
+
+/// Downloads the official Equalizer APO installer and runs it silently (UAC prompt, /S = NSIS silent).
+/// Blocks until the installer finishes. Equalizer APO is GPLv2 and is downloaded, not bundled.
+pub fn install_apo() -> anyhow::Result<()> {
+    use std::os::windows::process::CommandExt;
+    if is_apo_installed() { return Ok(()); }
+    let script = format!(
+        "$ErrorActionPreference='Stop'; $p=Join-Path $env:TEMP 'EqualizerAPO-setup.exe'; \
+         [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; \
+         Invoke-WebRequest -UseBasicParsing -Uri '{}' -OutFile $p; \
+         $r=Start-Process -FilePath $p -ArgumentList '/S' -Verb RunAs -Wait -PassThru; exit $r.ExitCode", APO_URL);
+    let out = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow::anyhow!("Установка Equalizer APO не удалась: {}",
+            String::from_utf8_lossy(&out.stderr).trim()));
+    }
+    if !is_apo_installed() { return Err(anyhow::anyhow!("Установщик завершился, но Equalizer APO не найден")); }
+    log::info!("[WindowsEQ] Equalizer APO installed");
+    Ok(())
+}
+
+/// Opens APO's Configurator so the user can tick the headset device (needs a reboot afterwards).
+pub fn open_configurator() -> anyhow::Result<()> {
+    let exe = PathBuf::from(APO_CONFIG_PATH).parent().and_then(|p| p.parent()).map(|p| p.join("Configurator.exe"))
+        .ok_or_else(|| anyhow::anyhow!("bad APO path"))?;
+    if !exe.exists() { return Err(anyhow::anyhow!("Configurator.exe не найден")); }
+    std::process::Command::new(exe).spawn()?;
+    Ok(())
+}

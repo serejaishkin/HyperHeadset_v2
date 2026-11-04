@@ -714,3 +714,22 @@ for (const [id, label] of [['cfg-poll-secs', 'cfg-poll-secs-val'], ['cfg-debounc
   const el = $(id);
   if (el) el.addEventListener('input', () => { $(label).textContent = el.value; });
 }
+
+// ---- Equalizer APO: detect / auto-install (Windows)
+async function refreshEqBackend() {
+  try {
+    const st = await invoke('eq_backend_status');
+    $('eq-apo-banner').style.display = (st.os === 'windows' && !st.installed) ? 'block' : 'none';
+  } catch (e) { console.debug('eq status:', e); }
+}
+$('eq-apo-install').addEventListener('click', async () => {
+  const b = $('eq-apo-install'); b.disabled = true; b.textContent = 'Установка… (подтвердите запрос UAC)';
+  try {
+    await invoke('install_eq_backend');
+    $('eq-apo-text').textContent = 'Equalizer APO установлен. Откройте Configurator, отметьте гарнитуру в списке устройств, затем перезагрузите компьютер — после этого эквалайзер заработает.';
+    b.style.display = 'none'; $('eq-apo-config').style.display = '';
+  } catch (e) { b.disabled = false; b.textContent = 'Установить Equalizer APO'; toast(String(e)); }
+});
+$('eq-apo-config').addEventListener('click', () => invoke('open_eq_configurator').catch(e => toast(String(e))));
+refreshEqBackend();
+document.querySelectorAll('.tab-btn[data-tab="equalizer"]').forEach(b => b.addEventListener('click', refreshEqBackend));
