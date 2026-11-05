@@ -19,12 +19,12 @@ impl MacOSTray {
     pub fn new(tx: Sender<TrayCommand>) -> Self {
         let menu = Menu::new();
 
-        let open_item = MenuItem::new("Открыть", true, None);
-        let toggle_mute_item = MenuItem::new("Переключить мьют", true, None);
-        let battery_item = MenuItem::new("Батарея: --%", false, None);
+        let open_item = MenuItem::new(crate::tr_pick("Открыть", "Open"), true, None);
+        let toggle_mute_item = MenuItem::new(crate::tr_pick("Переключить мьют", "Toggle mute"), true, None);
+        let battery_item = MenuItem::new(format!("{}: --%", crate::tr_pick("Батарея", "Battery")), false, None);
         let sep1 = PredefinedMenuItem::separator();
         let sep2 = PredefinedMenuItem::separator();
-        let quit_item = MenuItem::new("Выход", true, None);
+        let quit_item = MenuItem::new(crate::tr_pick("Выход", "Quit"), true, None);
 
         menu.append(&open_item).unwrap();
         menu.append(&toggle_mute_item).unwrap();
@@ -110,8 +110,8 @@ impl MacOSTray {
 }
 
 fn build_tooltip(percent: u8, muted: bool) -> String {
-    let mic = if muted { "🔇 Выключен" } else { "🎙️ Включён" };
-    format!("HyperX NGENUITY Open\n🔋 Батарея: {}%\n🎤 Микрофон: {}", percent, mic)
+    let mic = if muted { format!("🔇 {}", crate::tr_pick("Выключен", "Off")) } else { format!("🎙️ {}", crate::tr_pick("Включён", "On")) };
+    format!("HyperX NGENUITY Open\n🔋 {}: {}%\n🎤 {}: {}", crate::tr_pick("Батарея", "Battery"), percent, crate::tr_pick("Микрофон", "Microphone"), mic)
 }
 
 fn load_fallback_icon() -> tray_icon::Icon {

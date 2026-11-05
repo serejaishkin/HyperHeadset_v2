@@ -66,6 +66,8 @@ pub struct AudioSwitch {
     last_remember: Option<Instant>,
     logged_off: bool,
     startup_done: bool,
+    /// Set when going away was refused (feature off / nothing configured); retried after 30 s.
+    gave_up_at: Option<Instant>,
 }
 
 lazy_static::lazy_static! {
@@ -89,6 +91,7 @@ impl AudioSwitch {
         } else {
             self.offline_since = None;
             self.logged_off = false;
+            self.gave_up_at = None;
             // First time we see the headset on (app start): make the system use it, even if some
             // other device (e.g. a second headset) is the default right now.
             if !self.startup_done && !self.away {
@@ -109,6 +112,10 @@ impl AudioSwitch {
                         if Some(&i) != a.fallback_input_device.as_ref() { self.last_online_in = Some(i); }
                     }
                 }
+            }
+            // After 10 quick tries keep trying every 30 s: the endpoint can appear late.
+            if self.back_attempts >= 10 && self.last_back_try.map_or(true, |t| t.elapsed() >= Duration::from_secs(30)) {
+                self.back_attempts = 0;
             }
             if self.away
                 && self.back_attempts < 10
@@ -132,14 +139,20 @@ impl AudioSwitch {
         if self.away {
             return;
         }
+        // Refused earlier (settings off / no fallback): don't hit the disk and the log on every loop pass.
+        if self.gave_up_at.map_or(false, |t| t.elapsed() < Duration::from_secs(30)) {
+            return;
+        }
         let mut out_changed = false;
         let a = Config::load().unwrap_or_default().audio;
         if !a.auto_switch_audio {
             log::warn!("[Audio] Headset is off but 'auto switch audio' is disabled in settings");
+            self.gave_up_at = Some(Instant::now());
             return;
         }
         if a.fallback_output_device.is_none() && a.fallback_input_device.is_none() {
             log::warn!("[Audio] Auto-switch is on but no fallback devices are saved");
+            self.gave_up_at = Some(Instant::now());
             return;
         }
         if let Some(ref id) = a.fallback_output_device {

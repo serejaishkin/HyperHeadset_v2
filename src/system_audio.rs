@@ -188,8 +188,12 @@ pub fn get_default_input_device() -> anyhow::Result<String> {
          break;
        }
      }
-     let owned = !iface.is_null();
-     let raw = if owned { iface } else { policy.as_raw() };
+     if iface.is_null() {
+       // Never call through the plain IUnknown pointer: it has no SetDefaultEndpoint slot.
+       return Err(anyhow::anyhow!("IPolicyConfig is not available on this Windows version"));
+     }
+     let owned = true;
+     let raw = iface;
      let vtbl = *(raw as *const *const PolicyConfigVTable);
      let wide: Vec<u16> = device_id.encode_utf16().chain(std::iter::once(0)).collect();
      let endpoint = PCWSTR(wide.as_ptr());

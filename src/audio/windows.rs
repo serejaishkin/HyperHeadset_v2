@@ -11,7 +11,10 @@ const BAND_FREQUENCIES: [f32; 10] = [
 ];
 
 pub fn is_apo_installed() -> bool {
-    PathBuf::from(APO_CONFIG_PATH).parent().map(|p| p.exists()).unwrap_or(false)
+    // The config folder alone can be left over after an uninstall: require the Configurator too.
+    let cfg = PathBuf::from(APO_CONFIG_PATH);
+    cfg.parent().map_or(false, |p| p.exists())
+        && cfg.parent().and_then(|p| p.parent()).map_or(false, |root| root.join("Configurator.exe").exists())
 }
 
 const APO_OWN_FILE: &str = "hyperx_ngenuity_open.txt";
@@ -40,12 +43,17 @@ pub fn apply_eq_bands(bands: &[f32; 10]) -> anyhow::Result<()> {
     let perm = |e: std::io::Error| anyhow::anyhow!(
         "Нет прав на запись в папку Equalizer APO ({}). Запустите приложение от имени администратора один раз. ({})", own.display(), e);
     fs::write(&own, eq_text(bands)).map_err(perm)?;
-    let main = fs::read_to_string(&cfg).unwrap_or_default();
+    // Only a missing file counts as empty; any other read error must not lead to overwriting the user's config.
+    let main = match fs::read(&cfg) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(perm(e)),
+    };
     if !main.contains(APO_OWN_FILE) {
-        let mut out = main;
-        if !out.is_empty() && !out.ends_with('\n') { out.push('\n'); }
-        out.push_str(&format!("Include: {}\n", APO_OWN_FILE));
-        fs::write(&cfg, out).map_err(perm)?;
+        use std::io::Write;
+        let mut f = fs::OpenOptions::new().append(true).open(&cfg).map_err(perm)?;
+        let prefix = if main.is_empty() || main.ends_with('\n') { "" } else { "\n" };
+        write!(f, "{}Include: {}\n", prefix, APO_OWN_FILE).map_err(perm)?;
     }
     log::info!("[WindowsEQ] Applied {} bands via {:?}", bands.len(), own);
     Ok(())
@@ -82,53 +90,4 @@ pub fn load_preset(name: &str) -> anyhow::Result<[f32; 10]> {
     if idx != 10 { return Err(anyhow::anyhow!("Preset file corrupted")); }
     log::info!("[WindowsEQ] Loaded preset from {:?}", path);
     Ok(bands)
-}
-
-pub fn list_presets() -> Vec<String> {
-    let preset_dir = PathBuf::from(APO_PRESETS_DIR);
-    if !preset_dir.exists() { return Vec::new(); }
-    let mut presets = Vec::new();
-    if let Ok(entries) = fs::read_dir(&preset_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("hyperx_") && name.ends_with(".txt") {
-                let preset = name.trim_start_matches("hyperx_").trim_end_matches(".txt").replace("_", " ");
-                presets.push(preset);
-            }
-        }
-    }
-    presets
-}
-const APO_URL: &str = "https://sourceforge.net/projects/equalizerapo/files/1.4.2/EqualizerAPO-x64-1.4.2.exe/download";
-
-/// Downloads the official Equalizer APO installer and runs it silently (UAC prompt, /S = NSIS silent).
-/// Blocks until the installer finishes. Equalizer APO is GPLv2 and is downloaded, not bundled.
-pub fn install_apo() -> anyhow::Result<()> {
-    use std::os::windows::process::CommandExt;
-    if is_apo_installed() { return Ok(()); }
-    let script = format!(
-        "$ErrorActionPreference='Stop'; $p=Join-Path $env:TEMP 'EqualizerAPO-setup.exe'; \
-         [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; \
-         Invoke-WebRequest -UseBasicParsing -Uri '{}' -OutFile $p; \
-         $r=Start-Process -FilePath $p -ArgumentList '/S' -Verb RunAs -Wait -PassThru; exit $r.ExitCode", APO_URL);
-    let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output()?;
-    if !out.status.success() {
-        return Err(anyhow::anyhow!("{}: {}", crate::tr_pick("Установка Equalizer APO не удалась", "Equalizer APO installation failed"),
-            String::from_utf8_lossy(&out.stderr).trim()));
-    }
-    if !is_apo_installed() { return Err(anyhow::anyhow!(crate::tr_pick("Установщик завершился, но Equalizer APO не найден", "The installer finished but Equalizer APO was not found"))); }
-    log::info!("[WindowsEQ] Equalizer APO installed");
-    Ok(())
-}
-
-/// Opens APO's Configurator so the user can tick the headset device (needs a reboot afterwards).
-pub fn open_configurator() -> anyhow::Result<()> {
-    let exe = PathBuf::from(APO_CONFIG_PATH).parent().and_then(|p| p.parent()).map(|p| p.join("Configurator.exe"))
-        .ok_or_else(|| anyhow::anyhow!("bad APO path"))?;
-    if !exe.exists() { return Err(anyhow::anyhow!(crate::tr_pick("Configurator.exe не найден", "Configurator.exe not found"))); }
-    std::process::Command::new(exe).spawn()?;
-    Ok(())
 }

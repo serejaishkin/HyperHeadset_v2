@@ -514,7 +514,7 @@ async function loadConfig() {
     const lang = c.language || 'ru';
     window.__currentLang = lang;
     document.documentElement.lang = lang;
-    if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); } catch (e) {} }
+    if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); refresh(); refreshEqBackend(); } catch (e) {} }
     configToUi(c); trayToUi(t); renderTrayPreview();
     $('cfg-start-os').checked = autoStart;
     loadAudioDevices();
@@ -568,7 +568,7 @@ $('cfg-language').addEventListener('change', (e) => {
   window.__currentLang = lang;
   document.documentElement.lang = lang;
   if (config) config.language = lang;
-  if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); } catch (e) {} }
+  if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); refresh(); refreshEqBackend(); } catch (e) {} }
   markDirty();
 });
 
@@ -718,32 +718,37 @@ for (const [id, label] of [['cfg-poll-secs', 'cfg-poll-secs-val'], ['cfg-debounc
   if (el) el.addEventListener('input', () => { $(label).textContent = el.value; });
 }
 
-// ---- Equalizer APO: detect / auto-install (Windows)
-let eqInstallLabel = tr('ui.eq_win_btn');
+// ---- System equalizer backend: detect, show where to get it / which command to run
+const EQ_LINKS = {
+  windows: 'https://sourceforge.net/projects/equalizerapo/',
+  macos: 'https://crates.io/crates/eqtune',
+  linux: 'https://docs.pipewire.org/page_module_filter_chain.html',
+};
+const EQ_CMDS = {
+  macos: 'cargo install eqtune\neqtune install',
+  linux: '# Debian / Ubuntu:\nsudo apt install pipewire pipewire-pulse pulseaudio-utils\n# Fedora:\nsudo dnf install pipewire pipewire-pulseaudio pulseaudio-utils\n# Arch:\nsudo pacman -S pipewire pipewire-pulse libpulse',
+};
 async function refreshEqBackend() {
   try {
     const st = await invoke('eq_backend_status');
-    const texts = {
-      windows: [tr('ui.eq_win'), tr('ui.eq_win_btn')],
-      macos: [tr('ui.eq_mac'), tr('ui.eq_mac_btn')],
-      linux: [tr('ui.eq_linux'), tr('ui.eq_linux_btn')],
-    };
-    const t = texts[st.os] || [tr('ui.eq_other'), tr('ui.eq_other_btn')];
-    $('eq-apo-text').textContent = t[0]; $('eq-apo-install').textContent = t[1]; eqInstallLabel = t[1];
+    const os = st.os;
+    const texts = { windows: tr('ui.eq_win'), macos: tr('ui.eq_mac'), linux: tr('ui.eq_linux') };
+    $('eq-apo-text').textContent = texts[os] || tr('ui.eq_other');
+    const cmd = $('eq-apo-cmd'), open = $('eq-apo-install'), copy = $('eq-apo-config');
+    cmd.style.display = EQ_CMDS[os] ? 'block' : 'none'; cmd.textContent = EQ_CMDS[os] || '';
+    open.textContent = tr('ui.eq_open_page'); open.style.display = EQ_LINKS[os] ? '' : 'none';
+    copy.textContent = tr('ui.eq_copy_cmd'); copy.style.display = EQ_CMDS[os] ? '' : 'none';
     $('eq-apo-banner').style.display = st.installed ? 'none' : 'block';
+    refreshEqBackend.os = os;
   } catch (e) { console.debug('eq status:', e); }
 }
-$('eq-apo-install').addEventListener('click', async () => {
-  const b = $('eq-apo-install'); b.disabled = true; b.textContent = tr('ui.eq_installing');
-  try {
-    await invoke('install_eq_backend');
-    const st = await invoke('eq_backend_status');
-    if (st.os === 'windows') {
-      $('eq-apo-text').textContent = tr('ui.eq_apo_done');
-      b.style.display = 'none'; $('eq-apo-config').style.display = '';
-    } else { $('eq-apo-banner').style.display = 'none'; toast(tr('ui.eq_ready')); }
-  } catch (e) { b.disabled = false; b.textContent = eqInstallLabel; toast(String(e)); }
+$('eq-apo-install').addEventListener('click', () => {
+  const url = EQ_LINKS[refreshEqBackend.os]; if (url) invoke('open_url', { url }).catch(e => toast(String(e)));
 });
-$('eq-apo-config').addEventListener('click', () => invoke('open_eq_configurator').catch(e => toast(String(e))));
+$('eq-apo-config').addEventListener('click', async () => {
+  const cmd = EQ_CMDS[refreshEqBackend.os]; if (!cmd) return;
+  try { await navigator.clipboard.writeText(cmd.split('\n').filter(l => !l.startsWith('#')).join('\n')); toast(tr('ui.eq_copied')); }
+  catch (e) { toast(tr('ui.js_code_selected')); }
+});
 refreshEqBackend();
 document.querySelectorAll('.tab-btn[data-tab="equalizer"]').forEach(b => b.addEventListener('click', refreshEqBackend));

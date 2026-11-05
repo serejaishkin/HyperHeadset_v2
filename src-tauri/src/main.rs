@@ -75,6 +75,19 @@ fn upload_voice_file(filename: String, data: Vec<u8>) -> Result<String, String> 
     std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
     Ok(dest.to_string_lossy().to_string())
 }
+static TRAY_MENU_ITEMS: Mutex<Option<[tauri::menu::MenuItem<tauri::Wry>; 4]>> = Mutex::new(None);
+
+/// Re-apply tray menu labels in the current UI language (called after settings are saved).
+fn refresh_tray_menu_labels() {
+    if let Some(items) = TRAY_MENU_ITEMS.lock().unwrap().as_ref() {
+        let t = |ru: &str, en: &str| hyperx_ngenuity_open::tr_pick(ru, en);
+        let _ = items[0].set_text(t("Открыть", "Open"));
+        let _ = items[1].set_text(t("Мьют", "Mute"));
+        let _ = items[2].set_text(t("Компактное окно", "Compact window"));
+        let _ = items[3].set_text(t("Выход", "Quit"));
+    }
+}
+
 #[tauri::command]
 fn save_config(config: Config) -> Result<(), String> {
     hyperx_ngenuity_open::audio::voice::update_config(config.voice.clone());
@@ -90,7 +103,9 @@ fn save_config(config: Config) -> Result<(), String> {
         MuteButtonMode::HoldPlayPause => InputMuteButtonMode::HoldPlayPause,
     });
     apply_input_config(&config);
-    config.save().map_err(|e| e.to_string())
+    let res = config.save().map_err(|e| e.to_string());
+    refresh_tray_menu_labels();
+    res
 }
 #[tauri::command]
 fn get_tray_config() -> Result<TrayIconConfig, String> { Ok(TrayIconConfig::load_or_create()) }
@@ -200,17 +215,6 @@ fn eq_backend_status() -> serde_json::Value {
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))] { serde_json::json!({"os":"other","installed":false}) }
 }
 #[tauri::command]
-async fn install_eq_backend() -> Result<(), String> {
-    #[cfg(target_os = "windows")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::windows::install_apo().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
-    #[cfg(target_os = "macos")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::macos_eqmac::install().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))] { Err(hyperx_ngenuity_open::tr_pick("Установите PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (или аналог для вашего дистрибутива)", "Install PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (or the equivalent for your distribution)")) }
-}
-#[tauri::command]
-fn open_eq_configurator() -> Result<(), String> {
-    #[cfg(target_os = "windows")] { return hyperx_ngenuity_open::audio::windows::open_configurator().map_err(|e| e.to_string()); }
-    #[cfg(not(target_os = "windows"))] { Err(hyperx_ngenuity_open::tr_pick("Только Windows", "Windows only")) }
-}
-#[tauri::command]
 fn toggle_mute(state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::ToggleMute).map_err(|e| e.to_string()) }
 #[tauri::command]
 fn set_sidetone(enabled: bool, state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::SetSidetone(enabled)).map_err(|e| e.to_string()) }
@@ -304,6 +308,26 @@ fn ui_state(m: &MultiDeviceManager) -> DeviceState {
     s
 }
 
+/// Redraw the tray icon and tooltip for the given device state (offline icon when the headset is off).
+fn update_tray(app: &tauri::AppHandle, st: &DeviceState) {
+    let Some(tray) = app.tray_by_id("main") else { return; };
+    let icon_config = TrayIconConfig::load_or_create();
+    log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
+        icon_config.mode, st.battery_percent, st.charging,
+        icon_config.colors.high.fg, icon_config.colors.high.outline);
+    // Headset off / dongle only: show the dedicated offline icon, never the last percent.
+    let (pct, chg) = if st.connected { (st.battery_percent, st.charging) } else { (OFFLINE_PERCENT, false) };
+    let (rgba, w, h) = match icon_config.mode {
+        TrayIconMode::Big => generate_big_digits_rgba(pct, chg, &icon_config.for_tray()),
+        TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), pct, chg),
+    };
+    if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
+        log::warn!("[Tray] set_icon failed: {}", e);
+    }
+    let tooltip = if !st.connected { hyperx_ngenuity_open::tr_pick("HyperX NGENUITY Open\nгарнитура выключена", "HyperX NGENUITY Open\nheadset off") } else if st.charging { format!("HyperX NGENUITY Open\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperX NGENUITY Open\n🔋 {}% — {}", st.battery_percent, st.name) };
+    let _ = tray.set_tooltip(Some(&tooltip));
+}
+
 fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>) {
     { let mut st = state.lock().unwrap(); *st = DeviceState::default(); }
     let _ = app.emit("device-disconnected", ()); let _ = app.emit("device-state", DeviceState::default());
@@ -320,7 +344,7 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
         if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             log::warn!("[Tray] disconnected set_icon failed: {}", e);
         }
-        let _ = tray.set_tooltip(Some(&hyperx_ngenuity_open::tr_pick("HyperHeadsetv2 — нет подключения", "HyperHeadsetv2 — not connected")));
+        let _ = tray.set_tooltip(Some(&hyperx_ngenuity_open::tr_pick("HyperX NGENUITY Open — нет подключения", "HyperX NGENUITY Open — not connected")));
     }
 }
 
@@ -357,10 +381,11 @@ fn main() {
             let toggle_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Мьют", "Mute"), true, None::<&str>)?;
             let compact_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Компактное окно", "Compact window"), true, None::<&str>)?;
             let quit_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Выход", "Quit"), true, None::<&str>)?;
+            *TRAY_MENU_ITEMS.lock().unwrap() = Some([open_i.clone(), toggle_i.clone(), compact_i.clone(), quit_i.clone()]);
             menu.append(&open_i)?; menu.append(&toggle_i)?; menu.append(&compact_i)?; menu.append(&PredefinedMenuItem::separator(&app_handle)?)?; menu.append(&quit_i)?;
             let (tray_rgba, tray_w, tray_h) = load_tray_png();
             let tray_icon = tauri::image::Image::new(&tray_rgba, tray_w, tray_h);
-            let _tray = tauri::tray::TrayIconBuilder::with_id("main").icon(tray_icon).menu(&menu).tooltip(&hyperx_ngenuity_open::tr_pick("HyperHeadsetv2 — поиск наушников...", "HyperHeadsetv2 — searching for headset..."))
+            let _tray = tauri::tray::TrayIconBuilder::with_id("main").icon(tray_icon).menu(&menu).tooltip(&hyperx_ngenuity_open::tr_pick("HyperX NGENUITY Open — поиск наушников...", "HyperX NGENUITY Open — searching for headset..."))
                 .on_menu_event({ let device_cmd_tx = device_cmd_tx.clone(); move |app, event| {
                     if event.id == open_i.id() { show_main_window(app); }
                     else if event.id == toggle_i.id() { let _ = device_cmd_tx.send(DeviceCommand::ToggleMute); }
@@ -370,7 +395,7 @@ fn main() {
                 .on_tray_icon_event(|tray, event| { if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, button_state: tauri::tray::MouseButtonState::Up, .. } = event { show_main_window(&tray.app_handle()); } })
                 .build(&app_handle)?;
             if let Some(main_window) = app.get_webview_window("main") {
-                let _ = main_window.set_title(&format!("HyperHeadsetv2 v{}", env!("CARGO_PKG_VERSION")));
+                let _ = main_window.set_title(&format!("HyperX NGENUITY Open v{}", env!("CARGO_PKG_VERSION")));
                 let window_for_close = main_window.clone();
                 main_window.on_window_event(move |event| { if let WindowEvent::CloseRequested { api, .. } = event { api.prevent_close(); let _ = window_for_close.hide(); } });
             }
@@ -543,6 +568,7 @@ fn main() {
                         if event_changed {
                             let st = ui_state(&manager);
                             { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
+                            update_tray(&app_handle_device, &st);
                             let _ = app_handle_device.emit("device-state", st);
                         }
                     }
@@ -596,6 +622,7 @@ fn main() {
                         consecutive_refresh_failures += 1;
                         log::debug!("[Device] Consecutive refresh failures: {}", consecutive_refresh_failures);
                     }
+                    if !refresh_ok {
                     heartbeat_failures += 1; let enumerated = manager.is_enumerated(); log::warn!("[HID] Heartbeat failed {}/5; enumeration={}", heartbeat_failures, enumerated); if heartbeat_failures >= 5 {
                         if enumerated {
                             log::warn!("[HID] Device enumerated but not accessible — retrying HID open without publishing disconnect.");
@@ -619,33 +646,18 @@ fn main() {
                         }
                         heartbeat_failures = 0;
                     }
+                    }
                     // Update tray icon only if refresh was successful
                     if refresh_ok {
                         let st = ui_state(&manager);
-                        if let Some(tray) = app_handle_device.tray_by_id("main") {
-                            let icon_config = TrayIconConfig::load_or_create();
-                            log::debug!("[Tray] update: mode={:?} bat={} charging={} high.fg={:?} high.outline={:?}",
-                                icon_config.mode, st.battery_percent, st.charging,
-                                icon_config.colors.high.fg, icon_config.colors.high.outline);
-                            // Headset off / dongle only: show the dedicated offline icon, never the last percent.
-                            let (pct, chg) = if st.connected { (st.battery_percent, st.charging) } else { (OFFLINE_PERCENT, false) };
-                            let (rgba, w, h) = match icon_config.mode {
-                                TrayIconMode::Big => generate_big_digits_rgba(pct, chg, &icon_config.for_tray()),
-                                TrayIconMode::Battery => generate_battery_gauge_rgba(&icon_config.for_tray(), pct, chg),
-                            };
-                            if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
-                                log::warn!("[Tray] set_icon failed: {}", e);
-                            }
-                            let tooltip = if !st.connected { hyperx_ngenuity_open::tr_pick("HyperHeadsetv2\nгарнитура выключена", "HyperHeadsetv2\nheadset off") } else if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
-                            let _ = tray.set_tooltip(Some(&tooltip));
-                        }
+                        update_tray(&app_handle_device, &st);
                     }
                     thread::sleep(Duration::from_millis(500));
                 }
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, eq_backend_status, install_eq_backend, open_eq_configurator, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, get_discord_status, open_url, open_compact_window, show_main_window_cmd, get_audio_devices, get_default_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
+        .invoke_handler(tauri::generate_handler![get_device_state, get_connected_devices, select_device, get_config, save_config, get_per_device_config, save_per_device_config, set_custom_voice_dir, upload_voice_file, get_tray_config, save_tray_config, get_autostart_enabled, set_autostart_enabled, check_battery_voice, test_voice, get_audio_levels, set_volume, set_mic_volume, toggle_system_mic_mute, toggle_system_output_mute, play_pause, apply_eq, eq_backend_status, toggle_mute, set_sidetone, set_voice_prompts, set_auto_shutdown, set_mute_button_mode, get_current_keybind, get_discord_status, open_url, open_compact_window, show_main_window_cmd, get_audio_devices, get_default_audio_devices, set_default_output_device, set_default_input_device, switch_to_fallback_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

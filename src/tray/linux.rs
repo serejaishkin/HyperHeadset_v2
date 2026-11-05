@@ -91,14 +91,14 @@ impl ksni::Tray for MyTray {
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         let s = self.state.lock().unwrap();
         let battery_text = if s.charging {
-            format!("⚡ Заряд: {}%", s.percent)
+            format!("⚡ {}: {}%", crate::tr_pick("Заряд", "Charge"), s.percent)
         } else {
-            format!("🔋 Батарея: {}%", s.percent)
+            format!("🔋 {}: {}%", crate::tr_pick("Батарея", "Battery"), s.percent)
         };
         let mic_text = if s.muted {
-            "🔇 Микрофон: выкл".to_string()
+            format!("🔇 {}", crate::tr_pick("Микрофон: выкл", "Microphone: off"))
         } else {
-            "🎙️ Микрофон: вкл".to_string()
+            format!("🎙️ {}", crate::tr_pick("Микрофон: вкл", "Microphone: on"))
         };
         vec![
             ksni::MenuItem::Standard(ksni::menu::StandardItem {
@@ -111,7 +111,7 @@ impl ksni::Tray for MyTray {
             }),
             ksni::MenuItem::Separator,
             ksni::MenuItem::Standard(ksni::menu::StandardItem {
-                label: "Открыть".into(),
+                label: crate::tr_pick("Открыть", "Open"),
                 activate: {
                     let tx = self.tx.clone();
                     Box::new(move |_tray| { let _ = tx.send(TrayCommand::ShowWindow); })
@@ -119,7 +119,7 @@ impl ksni::Tray for MyTray {
                 ..Default::default()
             }),
             ksni::MenuItem::Standard(ksni::menu::StandardItem {
-                label: "Переключить мьют".into(),
+                label: crate::tr_pick("Переключить мьют", "Toggle mute"),
                 activate: {
                     let tx = self.tx.clone();
                     Box::new(move |_tray| { let _ = tx.send(TrayCommand::ToggleMute); })
@@ -128,7 +128,7 @@ impl ksni::Tray for MyTray {
             }),
             ksni::MenuItem::Separator,
             ksni::MenuItem::Standard(ksni::menu::StandardItem {
-                label: "Выход".into(),
+                label: crate::tr_pick("Выход", "Quit"),
                 activate: {
                     let tx = self.tx.clone();
                     Box::new(move |_tray| { let _ = tx.send(TrayCommand::Quit); })

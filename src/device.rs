@@ -376,7 +376,7 @@ impl HyperXDevice {
                     // Check if device is in use by another application (e.g., NGENUITY)
                     if err_msg.contains("access") || err_msg.contains("busy") || err_msg.contains("permission") {
                         log::warn!("[HID] Device appears to be in use by another application: {}", err_msg);
-                        log::warn!("[HID] Close NGENUITY or other HyperX software to allow HyperHeadsetv2 to access the device");
+                        log::warn!("[HID] Close NGENUITY or other HyperX software to allow HyperX NGENUITY Open to access the device");
                     } else {
                         log::debug!("[HID] open_path failed: {}", e);
                     }

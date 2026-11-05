@@ -5,6 +5,7 @@ use std::path::PathBuf;
 pub use crate::input::MuteButtonMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub keybind: String,
     pub enabled: bool,
@@ -219,7 +220,16 @@ impl Config {
 
     pub fn load() -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(Self::path())?;
-        Ok(toml::from_str(&content)?)
+        match toml::from_str(&content) {
+            Ok(c) => Ok(c),
+            Err(e) => {
+                // Keep a copy so a config that fails to parse is never lost when defaults get saved over it.
+                let bad = Self::path().with_extension("toml.bad");
+                let _ = std::fs::write(&bad, &content);
+                log::error!("[Config] failed to parse config.toml ({}); copy saved to {:?}", e, bad);
+                Err(e.into())
+            }
+        }
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
@@ -242,4 +252,29 @@ impl Config {
 
 fn default_true() -> bool {
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_and_partial_configs_load_with_defaults() {
+        let c: Config = toml::from_str("").expect("empty config must load");
+        assert!(c.audio.move_app_streams, "move_app_streams defaults to true");
+        assert!(!c.log_to_console, "console window is off by default");
+        // a full config with only the newest fields removed must still load
+        let mut full = toml::to_string(&Config::default()).unwrap();
+        full = full.lines().filter(|l| !l.starts_with("move_app_streams") && !l.starts_with("status_poll_secs")).collect::<Vec<_>>().join("\n");
+        let c: Config = toml::from_str(&full).expect("older config must load");
+        assert!(c.audio.move_app_streams);
+    }
+
+    #[test]
+    fn config_roundtrips() {
+        let c = Config::default();
+        let s = toml::to_string(&c).unwrap();
+        let back: Config = toml::from_str(&s).unwrap();
+        assert_eq!(toml::to_string(&back).unwrap(), s);
+    }
 }

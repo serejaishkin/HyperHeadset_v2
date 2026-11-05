@@ -83,25 +83,3 @@ pub fn apply_eq_bands(bands: &[f32; 10]) -> Result<()> {
     );
     Ok(())
 }
-
-/// Installs eqtune with `cargo install eqtune` (needs Xcode CLT + Rust).
-pub fn install() -> Result<()> {
-    check_macos_version()?;
-    if is_installed() {
-        return Ok(());
-    }
-    let cargo = find_binary("cargo").ok_or_else(|| {
-        anyhow!("cargo не найден. Установите Xcode Command Line Tools (`xcode-select --install`) и Rust (https://rustup.rs), затем повторите")
-    })?;
-    log::info!("[MacEQ] cargo install eqtune ...");
-    let status = Command::new(cargo)
-        .args(["install", "eqtune"])
-        .status()
-        .context("Не удалось запустить cargo")?;
-    if !status.success() {
-        bail!("`cargo install eqtune` завершился с ошибкой ({status})");
-    }
-    let bin =
-        find_binary("eqtune").ok_or_else(|| anyhow!("eqtune установлен, но не найден в PATH"))?;
-    run(&bin, &["install".into()])
-}

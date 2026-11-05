@@ -1,19 +1,19 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0-rc",
   "productName": "HyperHeadsetv2",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "identifier": "com.hyperheadsetv2",
   "build": { "frontendDist": "../ui" },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "label": "main", "title": "HyperHeadsetv2",
+        "label": "main", "title": "HyperX NGENUITY Open",
         "width": 980, "height": 600,
         "minWidth": 400, "minHeight": 300, "center": true
       },
       {
-        "label": "compact", "url": "compact.html", "title": "HyperHeadsetv2 Compact",
+        "label": "compact", "url": "compact.html", "title": "HyperX NGENUITY Open",
         "width": 300, "height": 275,
         "minWidth": 240, "minHeight": 260,
         "maxWidth": 460, "maxHeight": 340,

@@ -55,7 +55,7 @@ impl WindowsTray {
         let icon = create_default_tray_icon();
 
         let tray = TrayIconBuilder::new()
-            .with_tooltip("HyperX — подключение...")
+            .with_tooltip(crate::tr_pick("HyperX — подключение...", "HyperX — connecting..."))
             .with_icon(icon)
             .with_menu(Box::new(Menu::new()))
             .build();
@@ -102,18 +102,18 @@ impl WindowsTray {
         let mut new_callbacks: HashMap<MenuId, Box<dyn Fn() + Send>> = HashMap::new();
 
         if self.connected {
-            let battery_text = if self.last_charging { format!("⚡ Заряд: {}%", self.last_percent) }
-                               else { format!("🔋 Батарея: {}%", self.last_percent) };
+            let battery_text = if self.last_charging { format!("⚡ {}: {}%", crate::tr_pick("Заряд", "Charge"), self.last_percent) }
+                               else { format!("🔋 {}: {}%", crate::tr_pick("Батарея", "Battery"), self.last_percent) };
             let _ = menu.append(&MenuItem::new(&battery_text, false, None));
-            let mic_text = if self.last_muted { "🔇 Микрофон: выкл" } else { "🎙️ Микрофон: вкл" };
-            let _ = menu.append(&MenuItem::new(mic_text, false, None));
+            let mic_text = if self.last_muted { format!("🔇 {}", crate::tr_pick("Микрофон: выкл", "Microphone: off")) } else { format!("🎙️ {}", crate::tr_pick("Микрофон: вкл", "Microphone: on")) };
+            let _ = menu.append(&MenuItem::new(&mic_text, false, None));
             let _ = menu.append(&PredefinedMenuItem::separator());
         } else {
-            let _ = menu.append(&MenuItem::new("🎧 Гарнитура отключена", false, None));
+            let _ = menu.append(&MenuItem::new(format!("🎧 {}", crate::tr_pick("Гарнитура отключена", "Headset disconnected")), false, None));
             let _ = menu.append(&PredefinedMenuItem::separator());
         }
 
-        let open_i = MenuItem::new("Открыть", true, None);
+        let open_i = MenuItem::new(crate::tr_pick("Открыть", "Open"), true, None);
         let _ = menu.append(&open_i);
         let tx_open = self.tx.clone();
         new_callbacks.insert(open_i.id().clone(), Box::new(move || { 
@@ -122,13 +122,13 @@ impl WindowsTray {
             let _ = tx_open.send(super::TrayCommand::ShowWindow); 
         }));
 
-        let toggle_i = MenuItem::new("Переключить мьют", true, None);
+        let toggle_i = MenuItem::new(crate::tr_pick("Переключить мьют", "Toggle mute"), true, None);
         let _ = menu.append(&toggle_i);
         let tx_toggle = self.tx.clone();
         new_callbacks.insert(toggle_i.id().clone(), Box::new(move || { let _ = tx_toggle.send(super::TrayCommand::ToggleMute); }));
 
         let _ = menu.append(&PredefinedMenuItem::separator());
-        let quit_i = MenuItem::new("Выход", true, None);
+        let quit_i = MenuItem::new(crate::tr_pick("Выход", "Quit"), true, None);
         let _ = menu.append(&quit_i);
         let tx_quit = self.tx.clone();
         new_callbacks.insert(quit_i.id().clone(), Box::new(move || { let _ = tx_quit.send(super::TrayCommand::Quit); }));
@@ -140,16 +140,11 @@ impl WindowsTray {
     fn update_tooltip(&self) {
         let Some(tray) = &self.tray else { return; };
         let tooltip = if !self.connected {
-            "HyperX NGENUITY Open
-🎧 Гарнитура отключена".to_string()
+            format!("HyperX NGENUITY Open\n🎧 {}", crate::tr_pick("Гарнитура отключена", "Headset disconnected"))
         } else {
-            let mic_status = if self.last_muted { "🔇 Выключен" } else { "🎙️ Включён" };
-            if self.last_charging { format!("HyperX NGENUITY Open
-⚡ Заряжается: {}%
-🎤 Микрофон: {}", self.last_percent, mic_status) }
-            else { format!("HyperX NGENUITY Open
-🔋 Батарея: {}%
-🎤 Микрофон: {}", self.last_percent, mic_status) }
+            let mic_status = if self.last_muted { format!("🔇 {}", crate::tr_pick("Выключен", "Off")) } else { format!("🎙️ {}", crate::tr_pick("Включён", "On")) };
+            if self.last_charging { format!("HyperX NGENUITY Open\n⚡ {}: {}%\n🎤 {}: {}", crate::tr_pick("Заряжается", "Charging"), self.last_percent, crate::tr_pick("Микрофон", "Microphone"), mic_status) }
+            else { format!("HyperX NGENUITY Open\n🔋 {}: {}%\n🎤 {}: {}", crate::tr_pick("Батарея", "Battery"), self.last_percent, crate::tr_pick("Микрофон", "Microphone"), mic_status) }
         };
         let _ = tray.set_tooltip(Some(&tooltip));
     }
