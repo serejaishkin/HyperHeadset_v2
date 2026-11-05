@@ -526,7 +526,7 @@ fn main() {
                             }
                             muted_now = Some(dev.state.muted);
                             side_events = dev.sidetone_button_events;
-                            AUDIO_SWITCH.lock().update(dev.headset_online);
+                            AUDIO_SWITCH.lock().update_confirmed(dev.headset_online, dev.status_known, dev.state.battery_percent > 0);
                         }
                         if let Some(m) = muted_now {
                             if last_mute != Some(m) {

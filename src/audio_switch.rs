@@ -68,6 +68,9 @@ pub struct AudioSwitch {
     startup_done: bool,
     /// Set when going away was refused (feature off / nothing configured); retried after 30 s.
     gave_up_at: Option<Instant>,
+    first_seen: Option<Instant>,
+    startup_tries: u32,
+    last_startup_try: Option<Instant>,
 }
 
 lazy_static::lazy_static! {
@@ -78,6 +81,16 @@ impl AudioSwitch {
     /// Feed the headset's online state. Offline is only acted on after 2 s (status flickers while
     /// the headset reconnects); restoring is retried until the headset's endpoint exists again.
     pub fn update(&mut self, online: bool) {
+        self.update_confirmed(online, true, true);
+    }
+
+    /// Like `update`, but tells whether the online state is trustworthy: `status_known` = the dongle
+    /// has answered a wireless-status query, `battery_known` = a battery level was read. Until both
+    /// hold (or 15 s have passed) an "online" guess is not used to grab the default device or to
+    /// remember defaults - with the headset off the dongle's audio endpoint can still be present.
+    pub fn update_confirmed(&mut self, online: bool, status_known: bool, battery_known: bool) {
+        let first = *self.first_seen.get_or_insert_with(Instant::now);
+        let ready = status_known && (battery_known || first.elapsed() >= Duration::from_secs(15));
         if !online {
             self.back_attempts = 0;
             if !self.logged_off && !self.away {
@@ -94,14 +107,21 @@ impl AudioSwitch {
             self.gave_up_at = None;
             // First time we see the headset on (app start): make the system use it, even if some
             // other device (e.g. a second headset) is the default right now.
-            if !self.startup_done && !self.away {
-                self.startup_done = true;
+            if !self.startup_done && !self.away && ready
+                && self.last_startup_try.map_or(true, |t| t.elapsed() >= Duration::from_secs(2))
+            {
+                self.last_startup_try = Some(Instant::now());
                 if Config::load().unwrap_or_default().audio.auto_switch_audio {
                     log::info!("[Audio] Headset is on at start -> making it the default audio device");
-                    self.come_back();
+                    self.startup_tries += 1;
+                    if self.come_back() || self.startup_tries >= 5 {
+                        self.startup_done = true;
+                    }
+                } else {
+                    self.startup_done = true;
                 }
             }
-            if !self.away && self.last_remember.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
+            if ready && !self.away && self.last_remember.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
                 self.last_remember = Some(Instant::now());
                 let a = Config::load().unwrap_or_default().audio;
                 if a.auto_switch_audio {
@@ -221,5 +241,32 @@ impl AudioSwitch {
             self.prev_in = None;
         }
         ok
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn startup_waits_for_a_confirmed_status() {
+        let mut sw = AudioSwitch::default();
+        // online guess only: nothing is attempted, startup stays pending
+        sw.update_confirmed(true, false, false);
+        assert!(!sw.startup_done);
+        assert_eq!(sw.startup_tries, 0);
+        // status known but battery not yet read, still within 15 s: still pending
+        sw.update_confirmed(true, true, false);
+        assert!(!sw.startup_done);
+        // both known: startup runs (auto switch off in the default config -> marked done)
+        sw.update_confirmed(true, true, true);
+        assert!(sw.startup_done || sw.startup_tries > 0);
+    }
+
+    #[test]
+    fn unknown_status_never_remembers_defaults() {
+        let mut sw = AudioSwitch::default();
+        sw.update_confirmed(true, false, false);
+        assert!(sw.last_remember.is_none());
     }
 }

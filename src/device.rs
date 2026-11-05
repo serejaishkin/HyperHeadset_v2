@@ -205,6 +205,8 @@ pub struct HyperXDevice {
     /// False while the headset itself is asleep/off (dongle still enumerated).
     pub headset_online: bool,
     pub offline_readings: u8,
+    /// True once the dongle has answered a wireless-status query (until then `headset_online` is only a guess).
+    pub status_known: bool,
     /// Drivers from `devices/` for headsets that do not speak the Cloud II DTS protocol
     /// (Cloud III / III S / II Core / II Wireless / Alpha / Flight Wireless).
     legacy: Option<crate::devices::Headset>,
@@ -241,7 +243,7 @@ impl Default for HyperXDevice {
 
 impl HyperXDevice {
     pub fn new() -> Self {
-        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, offline_readings: 0, legacy: None }
+        Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, offline_readings: 0, status_known: false, legacy: None }
     }
 
     fn prepare_write(&self) {
@@ -291,6 +293,7 @@ impl HyperXDevice {
         self.legacy = Some(headset);
         self.state.connected = true;
         self.headset_online = true;
+        self.status_known = false;
         self.sync_from_legacy();
         Ok(())
     }
@@ -313,7 +316,7 @@ impl HyperXDevice {
         if let Some(v) = p.voice_prompt_on { self.state.voice_prompts = v; }
         if let Some(n) = p.device_name.clone() { self.state.name = n; }
         self.state.device_id = format!("{:04X}:{:04X}", p.vendor_id, p.product_id);
-        if let Some(c) = p.connected { self.headset_online = c; }
+        if let Some(c) = p.connected { self.headset_online = c; self.status_known = true; }
         before != (
             self.state.battery_percent, self.state.charging, self.state.muted,
             self.state.sidetone, self.state.voice_prompts, self.headset_online,
@@ -591,6 +594,7 @@ impl HyperXDevice {
                     // Dongle stays enumerated, so surface this as a state change only.
                     let online = buf[4] == 1 || buf[4] == 4;
                     log::debug!("[HID] Wireless status: {}", buf[4]);
+                    self.status_known = true;
                     // A single odd reading while music is streaming must not flip us offline
                     // (that would switch the default audio device and kill the player's stream):
                     // going offline needs two consecutive offline readings.
