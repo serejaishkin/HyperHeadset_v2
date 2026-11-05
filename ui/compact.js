@@ -95,6 +95,8 @@ async function loadConfig() {
         const lang = c.language || 'ru';
         window.__currentLang = lang;
         document.documentElement.lang = lang;
+        if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+        refreshCompact();
         $('auto-switch-c').classList.toggle('on', !!c.audio?.auto_switch_audio);
     } catch (e) { console.error('loadConfig failed', e); }
 }

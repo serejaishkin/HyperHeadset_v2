@@ -36,21 +36,21 @@
   <div class="compact">
     <div class="head">
       <div class="battery" id="battery-pct">--%</div>
-      <div class="info"><div class="status" id="battery-st">Нет подключения</div><div class="mic" id="mic-status"></div></div>
+      <div class="info"><div class="status" id="battery-st" data-i18n="bat.no_connection">Нет подключения</div><div class="mic" id="mic-status"></div></div>
       <span id="connection" class="connection" title=""></span>
     </div>
     <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
     <div class="sliders">
-      <div class="slider"><span class="ic">🔊</span><input type="range" id="vol-master" min="0" max="100" value="50"><span class="val" id="vol-value">50%</span></div>
-      <div class="slider"><span class="ic">🎙</span><input type="range" id="vol-mic" min="0" max="100" value="50"><span class="val" id="mic-value">50%</span></div>
+      <div class="slider" data-i18n-title="compact.volume_title" title="Громкость"><span class="ic">🔊</span><input type="range" id="vol-master" min="0" max="100" value="50"><span class="val" id="vol-value">50%</span></div>
+      <div class="slider" data-i18n-title="compact.mic_title" title="Микрофон"><span class="ic">🎙</span><input type="range" id="vol-mic" min="0" max="100" value="50"><span class="val" id="mic-value">50%</span></div>
     </div>
-    <div class="dev"><label>OUT</label><select id="out-c"></select></div>
-    <div class="dev"><label>IN</label><select id="in-c"></select></div>
+    <div class="dev" data-i18n-title="compact.out_title" title="Устройство вывода"><label>OUT</label><select id="out-c"></select></div>
+    <div class="dev" data-i18n-title="compact.in_title" title="Устройство ввода"><label>IN</label><select id="in-c"></select></div>
     <div class="actions">
-      <button id="btn-mute-c" title="Мьют микрофона">🎙</button>
-      <button id="sidetone-c" title="Сайдтон">🎧</button>
-      <button id="auto-switch-c" title="Авто-переключение звука">⇄</button>
-      <button id="btn-main-c" title="Открыть основное окно">⛶</button>
+      <button id="btn-mute-c" title="Мьют микрофона" data-i18n-title="compact.mute_title">🎙</button>
+      <button id="sidetone-c" title="Сайдтон" data-i18n-title="compact.sidetone">🎧</button>
+      <button id="auto-switch-c" title="Авто-переключение звука" data-i18n-title="compact.auto_switch_title">⇄</button>
+      <button id="btn-main-c" title="Открыть основное окно" data-i18n-title="compact.main_title">⛶</button>
     </div>
   </div>
   <script src="lang.js"></script>

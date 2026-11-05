@@ -1,5 +1,12 @@
 window.I18N = {
   ru: {
+    "compact.mute_title": "Мьют микрофона",
+    "compact.auto_switch_title": "Авто-переключение звука",
+    "compact.main_title": "Открыть основное окно",
+    "compact.volume_title": "Громкость",
+    "compact.mic_title": "Микрофон",
+    "compact.out_title": "Устройство вывода",
+    "compact.in_title": "Устройство ввода",
     "ui.eq_win": "Для эквалайзера на всю систему нужен Equalizer APO. Скачайте и установите его, затем в Configurator отметьте гарнитуру в списке устройств и перезагрузите компьютер.",
     "ui.eq_mac": "Для эквалайзера на всю систему нужен eqtune (macOS 14.2+). Установите его в Терминале (нужны Xcode Command Line Tools и Rust):",
     "ui.eq_linux": "Для эквалайзера нужен PipeWire (команды pipewire и pactl). Установите пакеты для вашего дистрибутива:",
@@ -293,6 +300,13 @@ window.I18N = {
     'debug.test_mute': 'Тест мьюта',
   },
   en: {
+    "compact.mute_title": "Mute microphone",
+    "compact.auto_switch_title": "Auto-switch audio device",
+    "compact.main_title": "Open main window",
+    "compact.volume_title": "Volume",
+    "compact.mic_title": "Microphone",
+    "compact.out_title": "Output device",
+    "compact.in_title": "Input device",
     "ui.eq_win": "The system-wide equalizer needs Equalizer APO. Download and install it, then tick the headset in Configurator’s device list and restart the computer.",
     "ui.eq_mac": "The system-wide equalizer needs eqtune (macOS 14.2+). Install it in Terminal (needs Xcode Command Line Tools and Rust):",
     "ui.eq_linux": "The equalizer needs PipeWire (pipewire and pactl commands). Install the packages for your distribution:",
