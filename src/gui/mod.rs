@@ -59,15 +59,14 @@ pub enum SettingsTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum Tab {
+    #[default]
     Dashboard,
     Equalizer,
     Settings,
 }
 
-impl Default for Tab {
-    fn default() -> Self { Tab::Dashboard }
-}
 
 impl HyperXApp {
     pub fn new(config: Config, device_state: DeviceState, apo_available: bool, debounced_eq: Arc<DebouncedEQ>, i18n: crate::i18n::I18n) -> Self {
@@ -208,12 +207,11 @@ impl eframe::App for HyperXApp {
             std::process::exit(0);
         }
 
-        if !self.window_hidden {
-            if ctx.input(|i| i.viewport().minimized) == Some(true) {
+        if !self.window_hidden
+            && ctx.input(|i| i.viewport().minimized) == Some(true) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 self.window_hidden = true;
             }
-        }
 
         if let Some(capture) = &self.keybind_capture {
             if let Some(combo) = capture.poll_result() {
@@ -1064,13 +1062,12 @@ hold=Play/Pause"));
         let current_name = available.iter().find(|(code, _)| code == &selected).map(|(_, name)| name.clone()).unwrap_or_else(|| "English".to_string());
         egui::ComboBox::from_label("").selected_text(current_name).show_ui(ui, |ui| {
             for (code, name) in &available {
-                if ui.selectable_value(&mut selected, code.clone(), name.clone()).changed() {
-                    if selected != self.config.language {
+                if ui.selectable_value(&mut selected, code.clone(), name.clone()).changed()
+                    && selected != self.config.language {
                         self.config.language = selected.clone();
                         self.i18n = crate::i18n::I18n::new(&lang_dir, &selected);
                         self.needs_save = true;
                     }
-                }
             }
         });
     }

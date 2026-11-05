@@ -13,6 +13,12 @@ pub struct GlobalHotkeyCapture {
     pub start_time: Arc<Mutex<Option<Instant>>>,
 }
 
+impl Default for GlobalHotkeyCapture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GlobalHotkeyCapture {
     pub fn new() -> Self {
         Self {

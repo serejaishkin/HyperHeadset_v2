@@ -101,7 +101,7 @@ impl AudioSwitch {
                     self.come_back();
                 }
             }
-            if !self.away && self.last_remember.map_or(true, |t| t.elapsed() >= Duration::from_secs(30)) {
+            if !self.away && self.last_remember.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
                 self.last_remember = Some(Instant::now());
                 let a = Config::load().unwrap_or_default().audio;
                 if a.auto_switch_audio {
@@ -114,12 +114,12 @@ impl AudioSwitch {
                 }
             }
             // After 10 quick tries keep trying every 30 s: the endpoint can appear late.
-            if self.back_attempts >= 10 && self.last_back_try.map_or(true, |t| t.elapsed() >= Duration::from_secs(30)) {
+            if self.back_attempts >= 10 && self.last_back_try.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
                 self.back_attempts = 0;
             }
             if self.away
                 && self.back_attempts < 10
-                && self.last_back_try.map_or(true, |t| t.elapsed() >= Duration::from_secs(2))
+                && self.last_back_try.is_none_or(|t| t.elapsed() >= Duration::from_secs(2))
             {
                 self.last_back_try = Some(Instant::now());
                 self.back_attempts += 1;
@@ -140,7 +140,7 @@ impl AudioSwitch {
             return;
         }
         // Refused earlier (settings off / no fallback): don't hit the disk and the log on every loop pass.
-        if self.gave_up_at.map_or(false, |t| t.elapsed() < Duration::from_secs(30)) {
+        if self.gave_up_at.is_some_and(|t| t.elapsed() < Duration::from_secs(30)) {
             return;
         }
         let mut out_changed = false;
@@ -159,7 +159,7 @@ impl AudioSwitch {
             if self.prev_out.is_none() {
                 self.prev_out = system_audio::get_default_output_device().ok().filter(|c| c != id).or_else(|| self.last_online_out.clone());
             }
-            if system_audio::get_default_output_device().map_or(false, |c| &c == id) {
+            if system_audio::get_default_output_device().is_ok_and(|c| &c == id) {
                 log::info!("[Audio] Fallback output already default, not touching it");
             } else {
                 log::info!("[Audio] Headset away -> fallback output {}", id);
@@ -173,7 +173,7 @@ impl AudioSwitch {
             if self.prev_in.is_none() {
                 self.prev_in = system_audio::get_default_input_device().ok().filter(|c| c != id).or_else(|| self.last_online_in.clone());
             }
-            if system_audio::get_default_input_device().map_or(false, |c| &c == id) {
+            if system_audio::get_default_input_device().is_ok_and(|c| &c == id) {
                 log::info!("[Audio] Fallback input already default, not touching it");
             } else if let Err(e) = { log::info!("[Audio] Headset away -> fallback input {}", id); system_audio::set_default_input_device(id) } {
                 log::warn!("[Audio] Fallback input failed: {}", e);
@@ -197,7 +197,7 @@ impl AudioSwitch {
             log::warn!("[Audio] Headset is back but its output device is unknown - choose it in Audio settings");
         }
         if let Some(id) = out_target {
-            if system_audio::get_default_output_device().map_or(false, |c| c == id) {
+            if system_audio::get_default_output_device().is_ok_and(|c| c == id) {
                 log::info!("[Audio] Output already {}, not touching it", id);
             } else if let Err(e) = { log::info!("[Audio] Headset back -> output {}", id); system_audio::set_default_output_device(&id) } {
                 log::warn!("[Audio] Restore output failed: {}", e);
@@ -207,7 +207,7 @@ impl AudioSwitch {
             }
         }
         if let Some(id) = in_target {
-            if system_audio::get_default_input_device().map_or(false, |c| c == id) {
+            if system_audio::get_default_input_device().is_ok_and(|c| c == id) {
                 log::info!("[Audio] Input already {}, not touching it", id);
             } else if let Err(e) = { log::info!("[Audio] Headset back -> input {}", id); system_audio::set_default_input_device(&id) } {
                 log::warn!("[Audio] Restore input failed: {}", e);

@@ -184,7 +184,7 @@ impl TrayIconConfig {
         ];
         for c in all_colors {
             for arr in [&mut c.bg, &mut c.fg, &mut c.outline, &mut c.border] {
-                for v in arr.iter_mut() { *v = (*v).min(255); }
+                for v in arr.iter_mut() { *v = (*v); }
             }
         }
     }

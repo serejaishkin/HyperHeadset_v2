@@ -101,7 +101,7 @@ fn save_file_dialog_windows(title: &str, default_name: &str, _filter: &str) -> O
 fn open_file_dialog_linux(title: &str, _default_dir: &str) -> Option<PathBuf> {
     // Try zenity first
     if let Ok(output) = Command::new("zenity")
-        .args(&["--file-selection", "--title", title, "--file-filter=HyperX Presets | *.hyperx *.txt *.json"])
+        .args(["--file-selection", "--title", title, "--file-filter=HyperX Presets | *.hyperx *.txt *.json"])
         .output() 
     {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -112,7 +112,7 @@ fn open_file_dialog_linux(title: &str, _default_dir: &str) -> Option<PathBuf> {
 
     // Fallback to kdialog
     if let Ok(output) = Command::new("kdialog")
-        .args(&["--getopenfilename", ".", "HyperX Presets (*.hyperx *.txt *.json)"])
+        .args(["--getopenfilename", ".", "HyperX Presets (*.hyperx *.txt *.json)"])
         .output() 
     {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -127,7 +127,7 @@ fn open_file_dialog_linux(title: &str, _default_dir: &str) -> Option<PathBuf> {
 #[cfg(target_os = "linux")]
 fn save_file_dialog_linux(title: &str, default_name: &str, _default_dir: &str) -> Option<PathBuf> {
     if let Ok(output) = Command::new("zenity")
-        .args(&["--file-selection", "--save", "--title", title, "--filename", default_name])
+        .args(["--file-selection", "--save", "--title", title, "--filename", default_name])
         .output() 
     {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -137,7 +137,7 @@ fn save_file_dialog_linux(title: &str, default_name: &str, _default_dir: &str) -
     }
 
     if let Ok(output) = Command::new("kdialog")
-        .args(&["--getsavefilename", default_name, "HyperX Presets (*.hyperx)"])
+        .args(["--getsavefilename", default_name, "HyperX Presets (*.hyperx)"])
         .output() 
     {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();

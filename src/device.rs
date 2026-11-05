@@ -233,6 +233,12 @@ const SET_VOICE_PROMPT_CMD_ID: u8 = 19;
 
 const RESPONSE_DELAY: Duration = Duration::from_millis(100);
 
+impl Default for HyperXDevice {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HyperXDevice {
     pub fn new() -> Self {
         Self { device: None, state: DeviceState::default(), last_presence_check: None, last_sidetone_set: None, sidetone_button_events: 0, mute_events_seen: false, headset_online: true, offline_readings: 0, legacy: None }
@@ -511,7 +517,7 @@ impl HyperXDevice {
         // Enumeration is relatively expensive, so check presence only every few seconds.
         let due = self
             .last_presence_check
-            .map_or(true, |t| t.elapsed() >= Duration::from_secs(5));
+            .is_none_or(|t| t.elapsed() >= Duration::from_secs(5));
         if due {
             self.last_presence_check = Some(std::time::Instant::now());
             let api = HidApi::new().map_err(|_| anyhow::anyhow!("HID API unavailable"))?;
@@ -556,7 +562,7 @@ impl HyperXDevice {
                     let on = buf[4] == 1;
                     let ours = self
                         .last_sidetone_set
-                        .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                        .is_some_and(|t| t.elapsed() < Duration::from_millis(1500));
                     if !ours {
                         self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
                         log::info!("[HID] Sidetone event from headset: on={}", on);
@@ -627,7 +633,7 @@ impl HyperXDevice {
                     E::SideToneOn(_) => {
                         let ours = self
                             .last_sidetone_set
-                            .map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                            .is_some_and(|t| t.elapsed() < Duration::from_millis(1500));
                         if !ours {
                             self.sidetone_button_events = self.sidetone_button_events.wrapping_add(1);
                             log::info!("[HID] Sidetone event from headset (legacy)");
@@ -643,7 +649,7 @@ impl HyperXDevice {
             changed = self.sync_from_legacy();
         } else {
             // Nothing arrived: make sure the dongle is still there.
-            let due = self.last_presence_check.map_or(true, |t| t.elapsed() >= Duration::from_secs(5));
+            let due = self.last_presence_check.is_none_or(|t| t.elapsed() >= Duration::from_secs(5));
             if due {
                 self.last_presence_check = Some(std::time::Instant::now());
                 let api = HidApi::new().map_err(|_| anyhow::anyhow!("HID API unavailable"))?;

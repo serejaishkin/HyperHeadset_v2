@@ -212,10 +212,9 @@ fn extract_byte_array(v: &dyn RefArg) -> Option<Vec<u8>> {
     let mut iter = v.as_iter()?;
     let mut out = Vec::new();
     for item in iter.by_ref() {
-        if let Some(b) = item.as_u64() {
+        {
+            let b = item.as_u64()?;
             out.push(b as u8);
-        } else {
-            return None;
         }
     }
     Some(out)

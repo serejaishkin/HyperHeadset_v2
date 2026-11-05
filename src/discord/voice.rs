@@ -399,7 +399,7 @@ fn session(client_id: &str, secret: &str) -> anyhow::Result<()> {
                         log::warn!("[DiscordRPC] error: {}", v["data"]);
                     } else if v["evt"] == "VOICE_SETTINGS_UPDATE" {
                         if let Some(m) = v["data"]["mute"].as_bool() {
-                            let own = LAST_OWN_SET.lock().map_or(false, |t| t.elapsed() < Duration::from_millis(1500));
+                            let own = LAST_OWN_SET.lock().is_some_and(|t| t.elapsed() < Duration::from_millis(1500));
                             if !own {
                                 log::info!("[DiscordRPC] Discord mute changed in Discord: {}", m);
                                 *DISCORD_MUTE.lock() = Some(m);

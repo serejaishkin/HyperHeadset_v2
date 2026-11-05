@@ -15,17 +15,16 @@ const LONG_PRESS_MS: u64 = 500;
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum MuteButtonMode {
     Standard,
     MediaPlayPause,
+    #[default]
     SmartDouble,
     SmartHold,
     HoldPlayPause,
 }
 
-impl Default for MuteButtonMode {
-    fn default() -> Self { MuteButtonMode::SmartDouble }
-}
 
 pub struct MuteHandler {
     mode: Mutex<MuteButtonMode>,
@@ -39,6 +38,12 @@ pub struct MuteHandler {
     discord_to_headset: AtomicBool,
     sidetone_play_pause: AtomicBool,
     last_sidetone_btn: Mutex<Option<Instant>>,
+}
+
+impl Default for MuteHandler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MuteHandler {
@@ -462,7 +467,7 @@ fn parse_part(token: &str) -> Option<Part> {
         "\\" | "backslash" => Part::Main(punct_key(0xDC, '\\')),
         "`" => Part::Main(punct_key(0xC0, '`')),
 
-        s if s.chars().count() == 1 && s.chars().next().map_or(false, |c| c.is_ascii_alphanumeric()) => {
+        s if s.chars().count() == 1 && s.chars().next().is_some_and(|c| c.is_ascii_alphanumeric()) => {
             Part::Main(char_key(s.chars().next().unwrap()))
         }
         _ => return None,

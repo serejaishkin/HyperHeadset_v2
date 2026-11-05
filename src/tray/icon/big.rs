@@ -78,7 +78,7 @@ pub fn generate_big_digits_rgba(percent: u8, charging: bool, config: &TrayIconCo
     loop {
         gap = t.max(1);
         w = (avail - (n - 1) * gap) / n;
-        if w >= 2 * t + 1 || t == 1 {
+        if w > 2 * t || t == 1 {
             break;
         }
         t -= 1;

@@ -12,6 +12,12 @@ fn mic_muted() -> Option<bool> {
     Some(String::from_utf8_lossy(&out.stdout).contains("yes"))
 }
 
+impl Default for LinuxVolume {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LinuxVolume {
     pub fn new() -> Self { Self }
 

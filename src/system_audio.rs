@@ -35,6 +35,14 @@ mod platform {
  use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
  use windows::Win32::System::Com::StructuredStorage::PropVariantToStringWithDefault;
  use windows::Win32::System::Com::STGM;
+ use windows::Win32::System::Com::CoTaskMemFree;
+
+ /// Convert and free an endpoint id returned by IMMDevice::GetId (the caller owns that string).
+ unsafe fn id_string(p: windows::core::PWSTR) -> anyhow::Result<String> {
+   let s = p.to_string();
+   CoTaskMemFree(Some(p.0 as *const std::ffi::c_void));
+   Ok(s?)
+ }
  use windows::Win32::System::Com::{CoCreateInstance,CoInitializeEx,CLSCTX_ALL,COINIT_MULTITHREADED};
  fn endpoint(flow:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<IAudioEndpointVolume>{unsafe{let _=CoInitializeEx(None,COINIT_MULTITHREADED);let en:IMMDeviceEnumerator=CoCreateInstance(&MMDeviceEnumerator,None,CLSCTX_ALL)?;let d=en.GetDefaultAudioEndpoint(flow,eConsole)?;Ok(d.Activate(CLSCTX_ALL,None)?)}}
  fn read(f:windows::Win32::Media::Audio::EDataFlow)->anyhow::Result<u8>{unsafe{Ok((endpoint(f)?.GetMasterVolumeLevelScalar()?*100.0).round().clamp(0.0,100.0)as u8)}}
@@ -50,7 +58,7 @@ pub fn get_default_output_device() -> anyhow::Result<String> {
       let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
       let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
       let device = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
-      Ok(device.GetId()?.to_string()?)
+      Ok(id_string(device.GetId()?)?)
     }
   }
 
@@ -59,7 +67,7 @@ pub fn get_default_input_device() -> anyhow::Result<String> {
       let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
       let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
       let device = en.GetDefaultAudioEndpoint(eCapture, eConsole)?;
-      Ok(device.GetId()?.to_string()?)
+      Ok(id_string(device.GetId()?)?)
     }
   }
 
@@ -77,7 +85,7 @@ pub fn get_default_input_device() -> anyhow::Result<String> {
          if let Ok(device) = collection.Item(i) {
            match device.GetId() {
              Ok(raw_id) => {
-               let id = match raw_id.to_string() {
+               let id = match id_string(raw_id) {
                  Ok(id) => id,
                  Err(e) => {
                    log::warn!("[Audio] Failed to convert output endpoint ID: {}", e);
@@ -107,7 +115,7 @@ pub fn get_default_input_device() -> anyhow::Result<String> {
          if let Ok(device) = collection.Item(i) {
            match device.GetId() {
              Ok(raw_id) => {
-               let id = match raw_id.to_string() {
+               let id = match id_string(raw_id) {
                  Ok(id) => id,
                  Err(e) => {
                    log::warn!("[Audio] Failed to convert input endpoint ID: {}", e);

@@ -88,7 +88,7 @@ mod imp {
             let same = std::fs::read_link(format!("/proc/{}/exe", pid))
                 .ok()
                 .and_then(|p| p.file_name().map(|n| n.to_os_string()))
-                .map_or(false, |n| n == own);
+                .is_some_and(|n| n == own);
             if same {
                 log::info!("[Main] Closing duplicate instance (pid {})", pid);
                 let _ = std::process::Command::new("kill").arg(pid.to_string()).status();

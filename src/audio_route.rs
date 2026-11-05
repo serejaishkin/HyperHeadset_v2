@@ -29,7 +29,7 @@ mod imp {
         eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator,
         MMDeviceEnumerator, DEVICE_STATE_ACTIVE,
     };
-    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_ALL, COINIT_MULTITHREADED};
 
     #[link(name = "combase", kind = "raw-dylib")]
     extern "system" {
@@ -41,6 +41,7 @@ mod imp {
     const IID_DOWNLEVEL: GUID = GUID::from_u128(0x2a59116d_6c4f_45e0_a74f_707e3fef9258);
     // IUnknown (3) + IInspectable (3) + 19 unused methods, then Set/Get/ClearAll.
     const SLOT_SET_PERSISTED: usize = 25;
+    const SLOT_GET_PERSISTED: usize = 26;
     const SLOT_RELEASE: usize = 2;
 
     const E_RENDER: i32 = 0;
@@ -48,6 +49,7 @@ mod imp {
     const ROLE_MULTIMEDIA: i32 = 1;
 
     type SetFn = unsafe extern "system" fn(*mut c_void, u32, i32, i32, *mut c_void) -> HRESULT;
+    type GetFn = unsafe extern "system" fn(*mut c_void, u32, i32, i32, *mut *mut c_void) -> HRESULT;
     type ReleaseFn = unsafe extern "system" fn(*mut c_void) -> u32;
 
     struct Factory(*mut c_void);
@@ -65,6 +67,21 @@ mod imp {
                 last = hr;
             }
             Err(anyhow::anyhow!("AudioPolicyConfig factory not available (hr=0x{:08X})", last.0 as u32))
+        }
+
+        /// True when the app already has a per-app output chosen by the user (Windows "App volume and
+        /// device preferences"); we must neither override nor clear such a choice.
+        unsafe fn has_pin(&self, pid: u32, flow: i32, role: i32) -> bool {
+            let vtbl = *(self.0 as *const *const usize);
+            let f: GetFn = std::mem::transmute(*vtbl.add(SLOT_GET_PERSISTED));
+            let mut out: *mut c_void = std::ptr::null_mut();
+            let hr = f(self.0, pid, flow, role, &mut out);
+            if out.is_null() {
+                return false;
+            }
+            // Take ownership of the returned HSTRING so it is freed.
+            let h: HSTRING = std::mem::transmute(out);
+            hr.is_ok() && !h.is_empty()
         }
 
         /// `device_id` None/empty clears the per-app preference (stream follows the default again).
@@ -102,7 +119,11 @@ mod imp {
         let devices = en.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)?;
         for i in 0..devices.GetCount()? {
             let dev = match devices.Item(i) { Ok(d) => d, Err(_) => continue };
-            let id = match dev.GetId().ok().and_then(|s| s.to_string().ok()) { Some(s) => s, None => continue };
+            let id = match dev.GetId().ok().and_then(|p| {
+                let s = p.to_string().ok();
+                CoTaskMemFree(Some(p.0 as *const c_void));
+                s
+            }) { Some(s) => s, None => continue };
             if id == target {
                 continue;
             }
@@ -137,6 +158,17 @@ mod imp {
             let factory = Factory::open()?;
             let dev = policy_device_id(target);
             let mut moved = 0usize;
+            // Apps the user pinned to a device themselves are left alone (and their pin is never cleared).
+            let pids: Vec<u32> = pids
+                .into_iter()
+                .filter(|pid| {
+                    let pinned = factory.has_pin(*pid, E_RENDER, ROLE_CONSOLE);
+                    if pinned {
+                        log::info!("[Audio] pid {} has its own device chosen in Windows settings, not moving it", pid);
+                    }
+                    !pinned
+                })
+                .collect();
             for pid in &pids {
                 let mut ok = true;
                 for role in [ROLE_CONSOLE, ROLE_MULTIMEDIA] {

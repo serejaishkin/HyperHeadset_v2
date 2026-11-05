@@ -26,7 +26,7 @@ impl LinuxTray {
             icon_config: icon_config.clone(),
         });
         std::thread::spawn(move || {
-            let _handle = service.spawn();
+            service.spawn();
             std::thread::park();
         });
         Self { state, icon_config }
