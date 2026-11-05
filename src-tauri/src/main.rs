@@ -203,12 +203,12 @@ fn eq_backend_status() -> serde_json::Value {
 async fn install_eq_backend() -> Result<(), String> {
     #[cfg(target_os = "windows")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::windows::install_apo().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
     #[cfg(target_os = "macos")] { return tauri::async_runtime::spawn_blocking(|| hyperx_ngenuity_open::audio::macos_eqmac::install().map_err(|e| e.to_string())).await.map_err(|e| e.to_string())?; }
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))] { Err("Установите PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (или аналог для вашего дистрибутива)".into()) }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))] { Err(hyperx_ngenuity_open::tr_pick("Установите PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (или аналог для вашего дистрибутива)", "Install PipeWire: sudo apt install pipewire pipewire-pulse pulseaudio-utils (or the equivalent for your distribution)")) }
 }
 #[tauri::command]
 fn open_eq_configurator() -> Result<(), String> {
     #[cfg(target_os = "windows")] { return hyperx_ngenuity_open::audio::windows::open_configurator().map_err(|e| e.to_string()); }
-    #[cfg(not(target_os = "windows"))] { Err("Только Windows".into()) }
+    #[cfg(not(target_os = "windows"))] { Err(hyperx_ngenuity_open::tr_pick("Только Windows", "Windows only")) }
 }
 #[tauri::command]
 fn toggle_mute(state: State<AppState>) -> Result<(), String> { state.device_cmd_tx.send(DeviceCommand::ToggleMute).map_err(|e| e.to_string()) }
@@ -320,7 +320,7 @@ fn publish_disconnected(app: &tauri::AppHandle, state: &Arc<Mutex<DeviceState>>)
         if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
             log::warn!("[Tray] disconnected set_icon failed: {}", e);
         }
-        let _ = tray.set_tooltip(Some("HyperHeadsetv2 — нет подключения"));
+        let _ = tray.set_tooltip(Some(&hyperx_ngenuity_open::tr_pick("HyperHeadsetv2 — нет подключения", "HyperHeadsetv2 — not connected")));
     }
 }
 
@@ -353,14 +353,14 @@ fn main() {
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
             let menu = Menu::new(&app_handle)?;
-            let open_i = MenuItem::new(&app_handle, "Открыть", true, None::<&str>)?;
-            let toggle_i = MenuItem::new(&app_handle, "Мьют", true, None::<&str>)?;
-            let compact_i = MenuItem::new(&app_handle, "Компактное окно", true, None::<&str>)?;
-            let quit_i = MenuItem::new(&app_handle, "Выход", true, None::<&str>)?;
+            let open_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Открыть", "Open"), true, None::<&str>)?;
+            let toggle_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Мьют", "Mute"), true, None::<&str>)?;
+            let compact_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Компактное окно", "Compact window"), true, None::<&str>)?;
+            let quit_i = MenuItem::new(&app_handle, &hyperx_ngenuity_open::tr_pick("Выход", "Quit"), true, None::<&str>)?;
             menu.append(&open_i)?; menu.append(&toggle_i)?; menu.append(&compact_i)?; menu.append(&PredefinedMenuItem::separator(&app_handle)?)?; menu.append(&quit_i)?;
             let (tray_rgba, tray_w, tray_h) = load_tray_png();
             let tray_icon = tauri::image::Image::new(&tray_rgba, tray_w, tray_h);
-            let _tray = tauri::tray::TrayIconBuilder::with_id("main").icon(tray_icon).menu(&menu).tooltip("HyperHeadsetv2 — поиск наушников...")
+            let _tray = tauri::tray::TrayIconBuilder::with_id("main").icon(tray_icon).menu(&menu).tooltip(&hyperx_ngenuity_open::tr_pick("HyperHeadsetv2 — поиск наушников...", "HyperHeadsetv2 — searching for headset..."))
                 .on_menu_event({ let device_cmd_tx = device_cmd_tx.clone(); move |app, event| {
                     if event.id == open_i.id() { show_main_window(app); }
                     else if event.id == toggle_i.id() { let _ = device_cmd_tx.send(DeviceCommand::ToggleMute); }
@@ -636,7 +636,7 @@ fn main() {
                             if let Err(e) = tray.set_icon(Some(tauri::image::Image::new(&rgba, w, h))) {
                                 log::warn!("[Tray] set_icon failed: {}", e);
                             }
-                            let tooltip = if !st.connected { "HyperHeadsetv2\nгарнитура выключена".to_string() } else if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
+                            let tooltip = if !st.connected { hyperx_ngenuity_open::tr_pick("HyperHeadsetv2\nгарнитура выключена", "HyperHeadsetv2\nheadset off") } else if st.charging { format!("HyperHeadsetv2\n⚡ {}% — {}", st.battery_percent, st.name) } else { format!("HyperHeadsetv2\n🔋 {}% — {}", st.battery_percent, st.name) };
                             let _ = tray.set_tooltip(Some(&tooltip));
                         }
                     }

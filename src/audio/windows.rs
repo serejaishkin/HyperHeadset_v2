@@ -31,9 +31,9 @@ fn eq_text(bands: &[f32; 10]) -> String {
 /// (the user's existing APO configuration is kept, only one Include line is appended once).
 pub fn apply_eq_bands(bands: &[f32; 10]) -> anyhow::Result<()> {
     if !is_apo_installed() {
-        return Err(anyhow::anyhow!(
-            "Equalizer APO не найден ({}). Установите Equalizer APO (sourceforge.net/projects/equalizerapo), \
-             включите его для гарнитуры в Configurator и повторите.", APO_CONFIG_PATH));
+        return Err(anyhow::anyhow!(crate::tr_pick(
+            "Equalizer APO не найден. Установите Equalizer APO (sourceforge.net/projects/equalizerapo), включите его для гарнитуры в Configurator и повторите.",
+            "Equalizer APO not found. Install Equalizer APO (sourceforge.net/projects/equalizerapo), enable it for the headset in Configurator and retry.")));
     }
     let cfg = PathBuf::from(APO_CONFIG_PATH);
     let own = cfg.with_file_name(APO_OWN_FILE);
@@ -116,10 +116,10 @@ pub fn install_apo() -> anyhow::Result<()> {
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()?;
     if !out.status.success() {
-        return Err(anyhow::anyhow!("Установка Equalizer APO не удалась: {}",
+        return Err(anyhow::anyhow!("{}: {}", crate::tr_pick("Установка Equalizer APO не удалась", "Equalizer APO installation failed"),
             String::from_utf8_lossy(&out.stderr).trim()));
     }
-    if !is_apo_installed() { return Err(anyhow::anyhow!("Установщик завершился, но Equalizer APO не найден")); }
+    if !is_apo_installed() { return Err(anyhow::anyhow!(crate::tr_pick("Установщик завершился, но Equalizer APO не найден", "The installer finished but Equalizer APO was not found"))); }
     log::info!("[WindowsEQ] Equalizer APO installed");
     Ok(())
 }
@@ -128,7 +128,7 @@ pub fn install_apo() -> anyhow::Result<()> {
 pub fn open_configurator() -> anyhow::Result<()> {
     let exe = PathBuf::from(APO_CONFIG_PATH).parent().and_then(|p| p.parent()).map(|p| p.join("Configurator.exe"))
         .ok_or_else(|| anyhow::anyhow!("bad APO path"))?;
-    if !exe.exists() { return Err(anyhow::anyhow!("Configurator.exe не найден")); }
+    if !exe.exists() { return Err(anyhow::anyhow!(crate::tr_pick("Configurator.exe не найден", "Configurator.exe not found"))); }
     std::process::Command::new(exe).spawn()?;
     Ok(())
 }

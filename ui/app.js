@@ -58,7 +58,7 @@ async function refreshDevices() {
       devices.forEach((d, idx) => {
         const opt = document.createElement('option');
         opt.value = idx;
-        opt.textContent = `${d.name || 'Гарнитура #' + (idx+1)} (${d.battery_percent}%)`;
+        opt.textContent = `${d.name || (tr('ui.js_headset_n') + (idx+1))} (${d.battery_percent}%)`;
         select.appendChild(opt);
       });
       if (currentVal !== '') select.value = currentVal;
@@ -94,14 +94,14 @@ async function loadAudioDevices() {
     for (const [id, isOut] of [['headset-output', true], ['headset-input', false]]) {
       const sel = $(id); if (!sel) continue;
       const cur = sel.value;
-      sel.innerHTML = '<option value="">Авто (найти по имени HyperX)</option>';
+      sel.innerHTML = `<option value="">${tr('ui.js_auto')}</option>`;
       devices.filter(d => isOut ? d.is_output : d.is_input).forEach(d => { const o = document.createElement('option'); o.value = d.id; o.textContent = d.name; sel.appendChild(o); });
       if (cur) sel.value = cur;
     }
 
     if (outputSelect) {
       const currentOutput = outputSelect.value;
-      outputSelect.innerHTML = '<option value="">Нет</option>';
+      outputSelect.innerHTML = `<option value="">${tr('ui.js_none')}</option>`;
       devices.filter(d => d.is_output).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -113,7 +113,7 @@ async function loadAudioDevices() {
 
     if (inputSelect) {
       const currentInput = inputSelect.value;
-      inputSelect.innerHTML = '<option value="">Нет</option>';
+      inputSelect.innerHTML = `<option value="">${tr('ui.js_none')}</option>`;
       devices.filter(d => d.is_input).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -148,11 +148,11 @@ function updateTrayLabels() {
   const h = Number($('tray-high-th').value) || 50, l = Number($('tray-low-th').value);
   const lo = Number.isFinite(l) ? l : 20;
   const names = {
-    charging: 'Зарядка (подключён кабель)',
-    high: `Высокий (> ${h}%)`,
-    medium: `Средний (${lo + 1}–${h}%)`,
-    low: `Низкий (0–${lo}%)`,
-    offline: 'Гарнитура выключена / нет связи'
+    charging: tr('ui.js_st_charging'),
+    high: `${tr('ui.js_st_high')} (> ${h}%)`,
+    medium: `${tr('ui.js_st_medium')} (${lo + 1}–${h}%)`,
+    low: `${tr('ui.js_st_low')} (0–${lo}%)`,
+    offline: tr('ui.js_st_offline')
   };
   for (const n of TRAY_STATES) { const e = $('tray-lbl-' + n); if (e) e.textContent = names[n]; }
 }
@@ -343,7 +343,7 @@ const discordKeybindInput = $('discord-keybind');
 if (discordKeybindInput) {
   discordKeybindInput.addEventListener('focus', () => {
     discordKeybindInput.value = '';
-    discordKeybindInput.placeholder = 'Нажмите клавишу...';
+    discordKeybindInput.placeholder = tr('ui.ph_press_key');
   });
 
   discordKeybindInput.addEventListener('keydown', (e) => {
@@ -367,7 +367,7 @@ if (discordKeybindInput) {
   });
 
   discordKeybindInput.addEventListener('blur', () => {
-    discordKeybindInput.placeholder = 'Нажмите клавишу...';
+    discordKeybindInput.placeholder = tr('ui.ph_press_key');
   });
 }
 
@@ -376,7 +376,7 @@ const globalKeybindInput = $('cfg-keybind');
 if (globalKeybindInput) {
   globalKeybindInput.addEventListener('focus', () => {
     globalKeybindInput.value = '';
-    globalKeybindInput.placeholder = 'Нажмите клавишу...';
+    globalKeybindInput.placeholder = tr('ui.ph_press_key');
   });
 
   globalKeybindInput.addEventListener('keydown', (e) => {
@@ -430,7 +430,7 @@ if (globalKeybindInput) {
   });
 
   globalKeybindInput.addEventListener('blur', () => {
-    globalKeybindInput.placeholder = 'Нажмите клавишу...';
+    globalKeybindInput.placeholder = tr('ui.ph_press_key');
   });
 }
 
@@ -514,7 +514,7 @@ async function loadConfig() {
     const lang = c.language || 'ru';
     window.__currentLang = lang;
     document.documentElement.lang = lang;
-    if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+    if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); } catch (e) {} }
     configToUi(c); trayToUi(t); renderTrayPreview();
     $('cfg-start-os').checked = autoStart;
     loadAudioDevices();
@@ -568,7 +568,7 @@ $('cfg-language').addEventListener('change', (e) => {
   window.__currentLang = lang;
   document.documentElement.lang = lang;
   if (config) config.language = lang;
-  if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+  if (typeof window.applyLanguage === 'function') { window.applyLanguage(lang); try { updateTrayLabels(); renderTrayPreview(); } catch (e) {} }
   markDirty();
 });
 
@@ -693,22 +693,22 @@ refreshDiscordStatus();
 if ($('discord-code-copy')) {
   $('discord-code-copy').addEventListener('click', async () => {
     const id = $('discord-app-id').value.trim(), secret = $('discord-client-secret').value.trim();
-    if (!id || !secret) { toast('Сначала заполните ID приложения и Client Secret'); return; }
+    if (!id || !secret) { toast(tr('ui.js_fill_ids')); return; }
     const code = `${id}:${secret}`;
     $('discord-code').value = code;
     $('discord-code').type = 'text';
-    try { await navigator.clipboard.writeText(code); toast('Код скопирован'); } catch (e) { $('discord-code').select(); toast('Выделено — нажмите Ctrl+C'); }
+    try { await navigator.clipboard.writeText(code); toast(tr('ui.js_code_copied')); } catch (e) { $('discord-code').select(); toast(tr('ui.js_code_selected')); }
   });
 }
 if ($('discord-code-apply')) {
   $('discord-code-apply').addEventListener('click', () => {
     const m = $('discord-code').value.trim().match(/^(\d{15,25}):(.+)$/);
-    if (!m) { toast('Неверный код: нужен формат ID:секрет'); return; }
+    if (!m) { toast(tr('ui.js_bad_code')); return; }
     $('discord-app-id').value = m[1];
     $('discord-client-secret').value = m[2];
     $('discord-code').value = '';
     $('discord-code').type = 'password';
-    toast('Подставлено. Выберите режим «Прямой» и нажмите «Сохранить»');
+    toast(tr('ui.js_code_applied'));
   });
 }
 
@@ -719,29 +719,29 @@ for (const [id, label] of [['cfg-poll-secs', 'cfg-poll-secs-val'], ['cfg-debounc
 }
 
 // ---- Equalizer APO: detect / auto-install (Windows)
-let eqInstallLabel = 'Установить Equalizer APO';
+let eqInstallLabel = tr('ui.eq_win_btn');
 async function refreshEqBackend() {
   try {
     const st = await invoke('eq_backend_status');
     const texts = {
-      windows: ['Для эквалайзера на всю систему нужен Equalizer APO.', 'Установить Equalizer APO'],
-      macos: ['Для эквалайзера на всю систему нужен eqtune (macOS 14.2+, устанавливается через cargo).', 'Установить eqtune'],
-      linux: ['Для эквалайзера нужен PipeWire (pipewire, pactl). В Ubuntu/Debian: sudo apt install pipewire pipewire-pulse pulseaudio-utils.', 'Как установить'],
+      windows: [tr('ui.eq_win'), tr('ui.eq_win_btn')],
+      macos: [tr('ui.eq_mac'), tr('ui.eq_mac_btn')],
+      linux: [tr('ui.eq_linux'), tr('ui.eq_linux_btn')],
     };
-    const t = texts[st.os] || ['Эквалайзер недоступен на этой системе.', 'Подробнее'];
+    const t = texts[st.os] || [tr('ui.eq_other'), tr('ui.eq_other_btn')];
     $('eq-apo-text').textContent = t[0]; $('eq-apo-install').textContent = t[1]; eqInstallLabel = t[1];
     $('eq-apo-banner').style.display = st.installed ? 'none' : 'block';
   } catch (e) { console.debug('eq status:', e); }
 }
 $('eq-apo-install').addEventListener('click', async () => {
-  const b = $('eq-apo-install'); b.disabled = true; b.textContent = 'Установка… (подтвердите запрос UAC)';
+  const b = $('eq-apo-install'); b.disabled = true; b.textContent = tr('ui.eq_installing');
   try {
     await invoke('install_eq_backend');
     const st = await invoke('eq_backend_status');
     if (st.os === 'windows') {
-      $('eq-apo-text').textContent = 'Equalizer APO установлен. Откройте Configurator, отметьте гарнитуру в списке устройств, затем перезагрузите компьютер — после этого эквалайзер заработает.';
+      $('eq-apo-text').textContent = tr('ui.eq_apo_done');
       b.style.display = 'none'; $('eq-apo-config').style.display = '';
-    } else { $('eq-apo-banner').style.display = 'none'; toast('Готово: эквалайзер можно применять'); }
+    } else { $('eq-apo-banner').style.display = 'none'; toast(tr('ui.eq_ready')); }
   } catch (e) { b.disabled = false; b.textContent = eqInstallLabel; toast(String(e)); }
 });
 $('eq-apo-config').addEventListener('click', () => invoke('open_eq_configurator').catch(e => toast(String(e))));

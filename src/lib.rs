@@ -35,3 +35,11 @@ macro_rules! debug_println {
 
 use std::sync::OnceLock;
 pub static VERBOSE: OnceLock<bool> = OnceLock::new();
+
+/// Pick the UI-language variant of a message (Russian when the config language is "ru"/unreadable).
+pub fn tr_pick(ru: &str, en: &str) -> String {
+    match config::Config::load() {
+        Ok(c) if c.language != "ru" => en.to_string(),
+        _ => ru.to_string(),
+    }
+}

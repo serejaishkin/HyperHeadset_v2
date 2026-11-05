@@ -85,7 +85,7 @@ pub fn apply_eq_bands(bands: &[f32; 10]) -> anyhow::Result<()> {
     stop_previous();
     let child = Command::new("pipewire").arg("-c").arg(&conf)
         .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null())
-        .spawn().map_err(|e| anyhow::anyhow!("Не удалось запустить pipewire filter-chain: {e}"))?;
+        .spawn().map_err(|e| anyhow::anyhow!("{}: {e}", crate::tr_pick("Не удалось запустить pipewire filter-chain", "Failed to start pipewire filter-chain")))?;
     fs::write(dir().join("eq.pid"), child.id().to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(700));
     let _ = Command::new("pactl").args(["set-default-sink", SINK_NAME]).status();
@@ -107,7 +107,7 @@ fn easyeffects_json(bands: &[f32; 10]) -> String {
 
 fn apply_easyeffects(bands: &[f32; 10]) -> anyhow::Result<()> {
     if !have("easyeffects") {
-        return Err(anyhow::anyhow!("Нужен PipeWire (команды `pipewire` и `pactl`) или EasyEffects. Установите: sudo apt install pipewire pipewire-pulse pulseaudio-utils"));
+        return Err(anyhow::anyhow!(crate::tr_pick("Нужен PipeWire (команды `pipewire` и `pactl`) или EasyEffects. Установите: sudo apt install pipewire pipewire-pulse pulseaudio-utils", "PipeWire (`pipewire` and `pactl` commands) or EasyEffects is required. Install: sudo apt install pipewire pipewire-pulse pulseaudio-utils")));
     }
     save_preset("hyperx_ngenuity", bands)?;
     let _ = Command::new("easyeffects").arg("--load-preset").arg("hyperx_ngenuity").spawn();
