@@ -114,6 +114,20 @@ listen('device-disconnected', () => updateCompact({ connected: false }));
 listen('device-command-error', e => console.error('Device command failed:', e.payload));
 
 refreshCompact(); loadConfig(); refreshDevices(true); refreshLevels();
+// the language can be switched in the main window: pick it up without reopening this one
+async function syncLanguage() {
+    try {
+        const c = await invoke('get_config');
+        const lang = c.language || 'ru';
+        if (lang !== window.__currentLang) {
+            window.__currentLang = lang;
+            document.documentElement.lang = lang;
+            if (typeof window.applyLanguage === 'function') window.applyLanguage(lang);
+            refreshCompact(); refreshDevices(true);
+        }
+    } catch (e) { /* ignore */ }
+}
+setInterval(syncLanguage, 2000);
 setInterval(refreshCompact, 2000);
 setInterval(() => refreshDevices(false), 3000);
 setInterval(refreshLevels, 3000);
