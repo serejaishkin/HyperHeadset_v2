@@ -15,6 +15,7 @@ pub mod hotkey;
 pub mod airoha_hid;
 pub mod audio_switch;
 pub mod audio_route;
+pub mod low_battery;
 pub mod logging;
 pub mod single_instance;
 #[cfg(target_os = "linux")]

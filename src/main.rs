@@ -216,7 +216,7 @@ fn main() -> anyhow::Result<()> {
         let mut was_connected = false;
         let mut last_charging = false;
         let mut last_full_charge_announced = false;
-        let mut last_battery_low = false;
+        let mut low_battery = hyperx_ngenuity_open::low_battery::LowBatteryTracker::new();
         let mut startup_battery_announced = false;
         let mut prev_output_device: Option<String> = None;
         let mut prev_input_device: Option<String> = None;
@@ -242,7 +242,6 @@ fn main() -> anyhow::Result<()> {
                     last_mute = None;
                     last_charging = false;
                     startup_battery_announced = false;
-                    last_battery_low = false;
                     last_full_charge_announced = false;
 
                     audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
@@ -329,7 +328,6 @@ fn main() -> anyhow::Result<()> {
                     last_mute = None;
                     last_charging = false;
                     startup_battery_announced = false;
-                    last_battery_low = false;
                     last_full_charge_announced = false;
 
                     audio_away(&mut away, &mut prev_output_device, &mut prev_input_device);
@@ -419,14 +417,13 @@ fn main() -> anyhow::Result<()> {
             }
             let _ = device_tx.send(DeviceEvent::StateChanged(device.ui_state()));
 
-            if device.state.battery_percent <= 20 && device.state.battery_percent > 0 && !last_battery_low {
-                last_battery_low = true;
-                let _ = device_tx.send(DeviceEvent::BatteryLow(device.state.battery_percent));
-                hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(device.state.battery_percent));
-                log::warn!("[Device] Battery low: {}%", device.state.battery_percent);
-            }
-            if device.state.battery_percent > 20 {
-                last_battery_low = false;
+            {
+                let vcfg = hyperx_ngenuity_open::config::Config::load().unwrap_or_default().voice;
+                if let Some(alert) = low_battery.update(device.state.battery_percent, device.state.charging, &vcfg) {
+                    let _ = device_tx.send(DeviceEvent::BatteryLow(alert.percent));
+                    hyperx_ngenuity_open::audio::voice::play_low_battery(alert.percent, alert.repeat);
+                    log::warn!("[Device] Battery low: {}% (x{})", alert.percent, alert.repeat);
+                }
             }
 
             if device.state.charging && !last_charging {

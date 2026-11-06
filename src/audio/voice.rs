@@ -154,3 +154,17 @@ fn play_blocking_owned(data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> 
     sink.sleep_until_end();
     Ok(())
 }
+
+/// Speak a low-battery warning: the generic phrase (when enabled) followed by the exact percent
+/// (when enabled), repeated `repeat` times. Announcements are queued, so repeats do not overlap.
+pub fn play_low_battery(percent: u8, repeat: u8) {
+    let cfg = get_cfg().lock().unwrap().clone();
+    for _ in 0..repeat.max(1) {
+        if cfg.on_battery_low {
+            play(VoiceEvent::LowBattery);
+        }
+        if cfg.low_say_percent {
+            play(VoiceEvent::Battery(percent));
+        }
+    }
+}

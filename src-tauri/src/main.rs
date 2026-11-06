@@ -419,7 +419,7 @@ fn main() {
                 let mut last_mute: Option<bool> = None; let mut seen_sidetone_events = 0u32;
                 let mut user_sidetone: bool = Config::load().map(|c| c.device.sidetone).unwrap_or(false);
                 let mut last_mute_poll = Instant::now(); let mut next_wireless_query = Instant::now();
-                let mut last_charging = false; let mut last_battery_low = false; let mut last_full_charge = false; let mut startup_announced = false;
+                let mut last_charging = false; let mut low_battery = hyperx_ngenuity_open::low_battery::LowBatteryTracker::new(); let mut last_full_charge = false; let mut startup_announced = false;
                 let mut consecutive_refresh_failures = 0u32;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
@@ -613,8 +613,13 @@ fn main() {
                             }
                         }
                         if !startup_announced && st.battery_percent > 0 { startup_announced = true; let v = if st.charging { hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging } else { hyperx_ngenuity_open::audio::voice::VoiceEvent::Battery(st.battery_percent) }; hyperx_ngenuity_open::audio::voice::play(v); last_charging = st.charging; }
-                        if st.battery_percent <= 20 && st.battery_percent > 0 && !last_battery_low { last_battery_low = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::LowBattery); }
-                        if st.battery_percent > 20 { last_battery_low = false; }
+                        {
+                            let vcfg = Config::load().unwrap_or_default().voice;
+                            if let Some(alert) = low_battery.update(st.battery_percent, st.charging, &vcfg) {
+                                log::warn!("[Device] Battery low: {}% (repeat x{})", alert.percent, alert.repeat);
+                                hyperx_ngenuity_open::audio::voice::play_low_battery(alert.percent, alert.repeat);
+                            }
+                        }
                         if st.charging && !last_charging { hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::Charging); }
                         if st.battery_percent == 100 && st.charging && !last_full_charge { last_full_charge = true; hyperx_ngenuity_open::audio::voice::play(hyperx_ngenuity_open::audio::voice::VoiceEvent::FullCharge); }
                         if !st.charging { last_full_charge = false; } last_charging = st.charging;

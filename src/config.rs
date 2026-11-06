@@ -85,6 +85,23 @@ pub struct VoiceConfig {
     /// Pause between two queued voice announcements, in milliseconds.
     #[serde(default = "default_announce_gap_ms")]
     pub announce_gap_ms: u32,
+    /// Say the exact percentage after the "battery low" phrase.
+    #[serde(default = "default_true")]
+    pub low_say_percent: bool,
+    /// Battery levels (percent, usually tens) at which the low-battery warning is spoken.
+    #[serde(default = "default_low_levels")]
+    pub low_levels: Vec<u8>,
+    /// At or below this level the warning is repeated (twice) as the "lowest" one; 0 = never repeat.
+    #[serde(default = "default_low_critical")]
+    pub low_critical_percent: u8,
+}
+
+fn default_low_levels() -> Vec<u8> {
+    vec![20, 10]
+}
+
+fn default_low_critical() -> u8 {
+    10
 }
 
 fn default_announce_gap_ms() -> u32 {
@@ -189,6 +206,9 @@ impl Default for Config {
                 on_button_check: true,
                 exact_percent: false,
                 announce_gap_ms: default_announce_gap_ms(),
+                low_say_percent: true,
+                low_levels: default_low_levels(),
+                low_critical_percent: default_low_critical(),
             },
             discord: DiscordConfig {
                 mode: DiscordMode::Keybind,

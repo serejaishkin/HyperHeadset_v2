@@ -768,6 +768,31 @@ hold=Play/Pause"));
                 if ui.checkbox(&mut self.config.voice.on_button_check, self.i18n.t("Button check")).changed() { self.needs_save = true; }
             });
             if ui.checkbox(&mut self.config.voice.exact_percent, self.i18n.t("Exact percent")).changed() { self.needs_save = true; }
+            ui.separator();
+            if ui.checkbox(&mut self.config.voice.low_say_percent, self.i18n.t("Say percent on low battery")).changed() { self.needs_save = true; }
+            ui.label(self.i18n.t("Warn at levels"));
+            ui.horizontal(|ui| {
+                for lvl in [50u8, 40, 30, 20, 10] {
+                    let mut on = self.config.voice.low_levels.contains(&lvl);
+                    if ui.checkbox(&mut on, format!("{lvl}%")).changed() {
+                        if on { self.config.voice.low_levels.push(lvl); } else { self.config.voice.low_levels.retain(|l| *l != lvl); }
+                        self.config.voice.low_levels.sort_unstable_by(|a, b| b.cmp(a));
+                        self.needs_save = true;
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label(self.i18n.t("Repeat at or below"));
+                let cur = self.config.voice.low_critical_percent;
+                egui::ComboBox::from_id_salt("low_crit")
+                    .selected_text(if cur == 0 { self.i18n.t("Off") } else { format!("{cur}%") })
+                    .show_ui(ui, |ui| {
+                        for v in [0u8, 30, 20, 10, 5] {
+                            let label = if v == 0 { self.i18n.t("Off") } else { format!("{v}%") };
+                            if ui.selectable_value(&mut self.config.voice.low_critical_percent, v, label).changed() { self.needs_save = true; }
+                        }
+                    });
+            });
         }
         if ui.button(self.i18n.t("Apply Voice Settings")).clicked() {
             log::info!("[GUI] Apply Voice Settings clicked");
