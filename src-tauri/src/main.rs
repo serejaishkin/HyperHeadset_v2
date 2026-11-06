@@ -438,7 +438,7 @@ fn main() {
                         log::info!("[Device] Devices empty or disconnected, calling scan_and_connect...");
                         match manager.scan_and_connect() {
                             Ok(_) => {
-                                was_connected = true; heartbeat_failures = 0; last_mute = None; seen_sidetone_events = 0; startup_announced = false; last_charging = false; last_battery_low = false; last_full_charge = false;
+                                was_connected = true; heartbeat_failures = 0; last_mute = None; seen_sidetone_events = 0; startup_announced = false; last_charging = false; last_full_charge = false;
                                 let st = manager.active_state();
                                 { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
                                 let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
