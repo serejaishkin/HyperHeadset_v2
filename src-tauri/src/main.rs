@@ -372,7 +372,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--autostart"])))
         .manage(AppState { device_state: device_state_clone, all_devices: all_devices_clone, device_cmd_tx: device_cmd_tx.clone(), select_device_tx: select_device_tx.clone() })
         .setup(move |app| {
             let app_handle = app.handle().clone(); let device_state_inner = device_state.clone();
@@ -403,6 +403,17 @@ fn main() {
                 let app_for_close = app_handle.clone();
                 compact_window.on_window_event(move |event| { if let WindowEvent::CloseRequested { api, .. } = event { api.prevent_close(); show_main_window(&app_for_close); } });
             }
+            // Autostart: a registration made from an old/moved build folder keeps pointing there and silently
+            // fails. Re-register on every launch so it always targets the exe that is running now.
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let al = app.autolaunch();
+                if al.is_enabled().unwrap_or(false) {
+                    let _ = al.disable();
+                    if let Err(e) = al.enable() { log::warn!("[Autostart] re-register failed: {}", e); }
+                    else { log::info!("[Autostart] registration refreshed"); }
+                }
+            }
             let app_handle_device = app_handle.clone();
             let all_devices_inner = all_devices.clone();
             thread::spawn(move || {
@@ -419,7 +430,7 @@ fn main() {
                 let mut last_mute: Option<bool> = None; let mut seen_sidetone_events = 0u32;
                 let mut user_sidetone: bool = Config::load().map(|c| c.device.sidetone).unwrap_or(false);
                 let mut last_mute_poll = Instant::now(); let mut next_wireless_query = Instant::now();
-                let mut last_charging = false; let mut low_battery = hyperx_ngenuity_open::low_battery::LowBatteryTracker::new(); let mut last_full_charge = false; let mut startup_announced = false;
+                let mut last_charging = false; let mut low_battery = hyperx_ngenuity_open::low_battery::LowBatteryTracker::new(); let mut last_full_charge = false; let mut startup_announced = false; let mut sidetone_applied = false;
                 let mut consecutive_refresh_failures = 0u32;
                 loop {
                     while let Ok(idx) = select_device_rx.try_recv() {
@@ -438,7 +449,7 @@ fn main() {
                         log::info!("[Device] Devices empty or disconnected, calling scan_and_connect...");
                         match manager.scan_and_connect() {
                             Ok(_) => {
-                                was_connected = true; heartbeat_failures = 0; last_mute = None; seen_sidetone_events = 0; startup_announced = false; last_charging = false; last_full_charge = false;
+                                was_connected = true; heartbeat_failures = 0; last_mute = None; seen_sidetone_events = 0; startup_announced = false; sidetone_applied = false; last_charging = false; last_full_charge = false;
                                 let st = manager.active_state();
                                 { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); }
                                 let all: Vec<DeviceState> = manager.devices.iter().map(|d| d.state.clone()).collect();
@@ -595,7 +606,10 @@ fn main() {
                         heartbeat_failures = 0;
                         consecutive_refresh_failures = 0;
                         let st = ui_state(&manager);
-                        let needs_sidetone_restore = if let Ok(config) = Config::load() {
+                        // Apply the saved sidetone once per connection. Re-enforcing it every poll fights with
+                        // NGENUITY (which manages sidetone itself) and makes it re-sync the headset.
+                        let needs_sidetone_restore = if sidetone_applied { false } else if let Ok(config) = Config::load() {
+                            sidetone_applied = true;
                             st.sidetone != config.device.sidetone
                         } else { false };
                         { let mut s = device_state_inner.lock().unwrap(); *s = st.clone(); } let _ = app_handle_device.emit("device-state", st.clone());
